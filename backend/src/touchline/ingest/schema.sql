@@ -39,6 +39,12 @@ CREATE TABLE teams (
     team_name text NOT NULL
 );
 
+-- CAUTION: this is NOT a squad list.
+--
+-- WP0.3 reads only shot events, so a player appears here if and only if they took at least one
+-- shot in the loaded scope. WC 2022 yields 431 rows against roughly 830 players actually in the
+-- squads. Any per-player denominator computed from this table would be wrong, and wrong in a way
+-- that looks plausible. Complete squads arrive with lineups in M1.
 CREATE TABLE players (
     player_id   integer PRIMARY KEY,
     player_name text NOT NULL
