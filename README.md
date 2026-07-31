@@ -108,7 +108,7 @@ Stated rather than hidden — each is resolved by a later milestone or is a deli
 trade-off.
 
 - No ingestion, no model, no shot map yet — WP0.3 through WP0.5.
-- CI is written but has not run yet; the first push to GitHub is its first verification.
+- Not deployed yet — WP0.6. The CI pipeline builds and checks; it does not deploy.
 - `npm audit` reports 3 high-severity advisories in transitive Next.js dependencies (`postcss`,
   `sharp`). The only offered fix downgrades Next.js by seven major versions, so it has not been
   applied. Re-check on the next Next.js release.
