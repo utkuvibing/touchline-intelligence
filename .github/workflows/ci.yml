@@ -1,0 +1,68 @@
+name: CI
+
+# Runs the same checks a developer runs locally. CI's job here is not to run *more* checks than the
+# local command, it is to run the *same* ones from a clean machine and a locked dependency set —
+# which is what catches "works on my laptop" before it reaches a reviewer.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (format, lint, types, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      # --locked fails if uv.lock does not match pyproject.toml, so a dependency change that was
+      # never locked cannot pass CI.
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # Deliberately the same single command as `uv run poe check` locally. If CI and local
+      # commands drift apart, CI stops meaning anything.
+      - name: Run checks
+        run: uv run poe check
+
+  frontend:
+    name: Frontend (lint, types, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci` installs strictly from the lockfile and fails if package.json disagrees with it.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+  # No PostgreSQL service yet, on purpose. No test currently needs a live database — the ops tests
+  # deliberately point at an unreachable DSN to prove /ready degrades. A service container is added
+  # in M1, when ingestion tests genuinely require one.
