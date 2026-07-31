@@ -69,6 +69,7 @@ dependency — there is nothing extra to install on Windows.
 | `uv run poe typecheck` | mypy (strict) |
 | `uv run poe test` | pytest (integration tests skip unless the database is up) |
 | `uv run pytest -m integration` | Integration tests against the running PostgreSQL |
+| `uv run poe ingest --reset` | Load the World Cup 2022 slice (destructive reset) |
 | `uv run poe api` | Run the API at http://localhost:8000 |
 | `uv run python scripts/verify_tests_fail.py` | Break each protected behaviour once and confirm the tests catch it |
 | `cd frontend && npm run dev` | Next.js dev server |
@@ -108,14 +109,25 @@ docs/                    plan, targeting, ADRs, research, experiment rules
 uv run poe ingest --reset
 ```
 
-Loads FIFA World Cup 2022 — 64 matches, 32 teams, 431 players, 1,494 shots. Source files are cached
-under `data/statsbomb/` (git-ignored) and re-read on later runs; `--offline` fails rather than
-downloading.
+Loads FIFA World Cup 2022 — 64 matches, 32 teams, 431 players, 1,494 shots.
+
+**The source snapshot is pinned to a commit SHA, not `master`.** Open Data is a live repository, so
+a load against `master` would drift and the measured counts in ADR 0004 would stop meaning anything.
+Every load writes a provenance record — source commit plus a SHA-256 for each file read — to
+[`data/provenance/`](data/provenance/), which is committed so another machine can prove it received
+identical bytes. Downloaded files are cached under `data/statsbomb/<sha>/` (git-ignored);
+`--offline` fails rather than downloading.
 
 **The loader is not idempotent.** Every write is a plain `INSERT`, so a second run against a
 populated database is refused with a message rather than silently duplicating rows. `--reset` drops
 and recreates the tables, and is the supported way to re-run. Upserts, source-key conflict handling
 and a run manifest are M1.
+
+**The caller owns the transaction, and reconciliation happens before the commit.** The flow is
+reset → load → read counts back → reconcile against the source → commit. Counts are read inside the
+transaction, against rows that are written but not yet durable, so a mismatch rolls the whole load
+back. Nothing in the loader module commits: committing first and reporting afterwards would make
+reconciliation a description of data already kept.
 
 **The WP0.3 schema is provisional and expected to be replaced in M1.** Five tables — `competitions`,
 `teams`, `players`, `matches`, `shots` — with primary keys only: no foreign keys, no check

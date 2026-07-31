@@ -17,6 +17,30 @@ jobs:
   backend:
     name: Backend (format, lint, types, tests)
     runs-on: ubuntu-latest
+
+    # Present so the ingestion tests can exercise the *successful* load path, not only the failure
+    # paths. Those tests use the committed fixture and an isolated PostgreSQL schema - CI never
+    # downloads the real StatsBomb dataset.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: touchline
+          POSTGRES_PASSWORD: localdev
+          POSTGRES_DB: touchline
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U touchline -d touchline"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # Setting this un-skips the integration tests; without it they are skipped, which is the
+      # right default for a developer with no database running.
+      TOUCHLINE_DB_URL: postgresql://touchline:localdev@localhost:5433/touchline
+
     steps:
       - uses: actions/checkout@v7
 
@@ -64,6 +88,6 @@ jobs:
       - name: Test
         run: npm test
 
-  # No PostgreSQL service yet, on purpose. No test currently needs a live database — the ops tests
-  # deliberately point at an unreachable DSN to prove /ready degrades. A service container is added
-  # in M1, when ingestion tests genuinely require one.
+  # The ops tests still point at an unreachable DSN of their own to prove /ready degrades; the
+  # service container above is for the ingestion tests, which need a real database to prove that a
+  # failed reconciliation leaves nothing committed.

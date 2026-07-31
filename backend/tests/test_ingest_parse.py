@@ -206,13 +206,19 @@ def test_shot_without_a_shot_object_raises() -> None:
     "location",
     [
         pytest.param([112.0], id="one-element"),
+        pytest.param([112.0, 40.0, 0.9], id="three-elements"),
         pytest.param("112,40", id="string"),
         pytest.param([112.0, "forty"], id="non-numeric-y"),
     ],
 )
 def test_malformed_location_raises(location: Any) -> None:
     """A present-but-wrong location is a different thing from an absent one, and must not be
-    silently turned into NULL - that would hide a parser or source misunderstanding."""
+    silently turned into NULL - that would hide a parser or source misunderstanding.
+
+    The three-element case matters specifically: StatsBomb uses `[x, y, z]` elsewhere, for a
+    shot's `end_location`. Accepting it here by taking the first two elements would turn a
+    misread field into a plausible coordinate.
+    """
     payload = [
         {
             "id": "x",

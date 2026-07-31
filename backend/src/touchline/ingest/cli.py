@@ -4,6 +4,15 @@
     uv run poe ingest --reset    # destructive reset, then load
 
 The loader is not idempotent. `--reset` is the supported way to re-run.
+
+This module owns the transaction. The flow is deliberately:
+
+    reset (optional) -> load rows -> read counts back -> reconcile -> commit
+
+Reconciliation happens *inside* the transaction, against rows that are written but not yet durable.
+A mismatch therefore rolls the whole thing back, so the database never holds a load that failed its
+own check. Committing first and reporting afterwards would turn reconciliation into a description
+of data already kept.
 """
 
 from __future__ import annotations
@@ -21,6 +30,13 @@ from touchline.ingest.records import Competition, Match, Player, Shot, Team
 from touchline.ingest.source import WORLD_CUP_2022, StatsBombSource
 
 
+class ReconciliationError(RuntimeError):
+    """Loaded counts do not match the source.
+
+    Raised inside the connection context so the transaction is rolled back rather than kept.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class SourceCounts:
     """What the source files said, counted before anything was written."""
@@ -31,9 +47,12 @@ class SourceCounts:
     shots_without_player: int
 
 
-def collect(
-    source: StatsBombSource, competition_id: int, season_id: int
-) -> tuple[list[Competition], list[Team], list[Player], list[Match], list[Shot], SourceCounts]:
+CollectedScope = tuple[
+    list[Competition], list[Team], list[Player], list[Match], list[Shot], SourceCounts
+]
+
+
+def collect(source: StatsBombSource, competition_id: int, season_id: int) -> CollectedScope:
     """Read and parse the whole scope into memory.
 
     A World Cup is small enough that streaming would add complexity for no benefit; if that stops
@@ -78,23 +97,25 @@ def collect(
     )
 
 
-def _reconcile(source_counts: SourceCounts, db: loader.LoadCounts) -> bool:
-    """Compare what the source said with what the database holds.
+def reconcile(source_counts: SourceCounts, db: loader.LoadCounts) -> bool:
+    """Compare what the source said with what the database holds, and print the comparison.
 
-    Printed every run. A load that inserted the wrong number of rows without anyone noticing is
-    the failure mode this exists to prevent.
+    Read inside the loading transaction, so `db` reflects uncommitted rows. That is the point: a
+    mismatch must be able to prevent the commit, not merely describe it.
     """
     checks = [
         ("matches", source_counts.matches, db.matches),
         ("shots", source_counts.shots, db.shots),
     ]
-    print("\nReconciliation (source -> database)")
+    print("\nReconciliation (source -> database, before commit)")
     ok = True
     for name, expected, actual in checks:
-        mark = "OK " if expected == actual else "MISMATCH"
         if expected != actual:
             ok = False
-        print(f"  [{mark}] {name}: source {expected}, database {actual}")
+        print(
+            f"  [{'OK ' if expected == actual else 'MISMATCH'}] "
+            f"{name}: source {expected}, database {actual}"
+        )
 
     print("\nCoverage notes")
     print(f"  shots with no location: {source_counts.shots_without_location}")
@@ -130,11 +151,14 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(players)} players, {len(shots)} shots"
     )
 
-    with psycopg.connect(settings.db_url_str) as conn:
-        if args.reset:
-            print("  resetting schema (destructive) ...")
-            loader.reset_schema(conn)
-        try:
+    try:
+        # psycopg commits on a clean exit from this block and rolls back on any exception, so
+        # raising below is how a failed reconciliation discards the load.
+        with psycopg.connect(settings.db_url_str) as conn:
+            if args.reset:
+                print("  resetting schema (destructive) ...")
+                loader.reset_schema(conn)
+
             loader.load_all(
                 conn,
                 competitions=competitions,
@@ -143,21 +167,25 @@ def main(argv: list[str] | None = None) -> int:
                 matches=matches,
                 shots=shots,
             )
-        except loader.NotIdempotentError as exc:
-            print(f"\nRefused to load: {exc}", file=sys.stderr)
-            return 1
 
-        db_counts = loader.count_rows(conn)
+            db_counts = loader.count_rows(conn)
+            print(
+                f"\nWritten (uncommitted): {db_counts.competitions} competitions, "
+                f"{db_counts.teams} teams, {db_counts.players} players, "
+                f"{db_counts.matches} matches, {db_counts.shots} shots"
+            )
 
-    print(
-        f"\nLoaded: {db_counts.competitions} competitions, {db_counts.teams} teams, "
-        f"{db_counts.players} players, {db_counts.matches} matches, {db_counts.shots} shots"
-    )
-    reconciled = _reconcile(source_counts, db_counts)
-    if not reconciled:
-        print("\nReconciliation FAILED - database does not match the source.", file=sys.stderr)
+            if not reconcile(source_counts, db_counts):
+                raise ReconciliationError("loaded counts do not match the source")
+    except loader.NotIdempotentError as exc:
+        print(f"\nRefused to load: {exc}", file=sys.stderr)
         return 1
-    print("\nReconciliation passed.")
+    except ReconciliationError as exc:
+        print(f"\nRolled back: {exc}. Nothing was committed.", file=sys.stderr)
+        return 1
+
+    provenance_path = source.write_provenance(f"competition-{args.competition_id}-{args.season_id}")
+    print(f"\nCommitted. Provenance written to {provenance_path}")
     return 0
 
 

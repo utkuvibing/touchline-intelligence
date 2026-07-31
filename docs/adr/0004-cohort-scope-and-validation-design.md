@@ -72,6 +72,13 @@ ten are not.
 
 ## Amendment, 2026-07-31 — WC 2022 measured
 
+**Snapshot:** every count below was measured against StatsBomb Open Data commit
+`b0bc9f22dd77c206ddedc1d742893b3bbe64baec` (2026-05-26), not against `master`. Open Data is a live
+repository — that commit's own message is "Added 1647 new games, updated 1213 games" — so an
+unpinned measurement would have had no shelf life. Per-file SHA-256 hashes are recorded in
+`data/provenance/competition-43-106.json`. Bumping the pin invalidates these numbers and requires
+re-measuring them in the same change.
+
 WP0.3 loaded FIFA World Cup 2022 in full. The sampled estimate was **low by roughly 18%**: a
 12-match sample gave 18.9 non-penalty shots per match, the true figure over all 64 is **22.3**.
 

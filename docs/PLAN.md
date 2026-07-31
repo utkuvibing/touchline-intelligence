@@ -91,7 +91,8 @@ holdout" inside one of them measures a single team's form curve, not football dr
 **Core cohort — balanced tournaments only:** WC 2018 + Euro 2020 + WC 2022 + Euro 2024,
 ≈ 230 matches.
 
-WC 2022 is now **measured** rather than estimated (WP0.3 loaded it in full): 1,494 shots of which
+WC 2022 is now **measured** rather than estimated (WP0.3 loaded it in full, against pinned Open Data
+commit `b0bc9f22` rather than `master`, with per-file hashes in `data/provenance/`): 1,494 shots of which
 64 are penalties, leaving **1,430 non-penalty shots and 152 goals** at 10.6% conversion, with
 **zero rows missing location, player, outcome, body part or technique**. The earlier 12-match
 sample was low by ~18%.

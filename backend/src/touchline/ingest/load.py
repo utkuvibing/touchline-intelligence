@@ -6,6 +6,11 @@ is provisional, and the point of this milestone is a working path, not an abstra
 **This loader is not idempotent.** Every insert is a plain INSERT, so a second run against a
 populated database fails on the primary keys. That failure is intentional - it is louder and safer
 than a silent duplicate. To re-run, reset the schema first.
+
+**Nothing in this module commits.** The caller owns the transaction, because the decision to keep a
+load is not the loader's to make: rows must be written, counted, and reconciled against the source
+*before* anything is durable. Committing here would make a failed reconciliation a report about
+data that had already been kept.
 """
 
 from __future__ import annotations
@@ -45,10 +50,14 @@ def read_schema_sql() -> str:
 
 
 def reset_schema(conn: psycopg.Connection) -> None:
-    """Drop and recreate every table. Destructive, and the supported way to re-run a load."""
+    """Drop and recreate every table. Destructive, and the supported way to re-run a load.
+
+    Does not commit. PostgreSQL DDL is transactional, so a reset that is followed by a failed load
+    rolls back with it and leaves the previous data intact - which is what makes an aborted re-run
+    safe rather than merely loud.
+    """
     with conn.cursor() as cur:
         cur.execute(read_schema_sql())
-    conn.commit()
 
 
 def _existing_rows(conn: psycopg.Connection) -> int:
@@ -95,10 +104,10 @@ def load_all(
     shots: list[Shot],
     allow_non_empty: bool = False,
 ) -> LoadCounts:
-    """Write every record set in dependency order, in one transaction.
+    """Write every record set in dependency order.
 
-    One transaction because a half-loaded database is worse than an empty one while there is no
-    manifest recording what succeeded.
+    Does not commit - see the module docstring. The caller must commit only after reconciling the
+    resulting counts against the source, and roll back otherwise.
     """
     if not allow_non_empty and _existing_rows(conn) > 0:
         raise NotIdempotentError(
@@ -194,7 +203,6 @@ def load_all(
             ],
         ),
     )
-    conn.commit()
     return counts
 
 

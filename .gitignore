@@ -29,6 +29,9 @@ out/
 # excluded directory, so `data/` + `!data/fixtures/` would silently ignore the fixtures too.
 data/*
 !data/fixtures/
+# Provenance records are committed: they pin which StatsBomb bytes produced the measured counts
+# in ADR 0004, so another machine can verify it read the same source.
+!data/provenance/
 artifacts/*
 !artifacts/.gitkeep
 

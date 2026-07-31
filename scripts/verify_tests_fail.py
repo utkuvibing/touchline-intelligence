@@ -41,6 +41,9 @@ DB_URL_BROKEN = (
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
+# Needs a live database, so this one only proves anything when TOUCHLINE_DB_URL is set. The script
+# reports it as MISSED otherwise, which is honest: an unrun test protects nothing.
+LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -108,9 +111,25 @@ BREAKS: list[Break] = [
     Break(
         contract="a malformed location must raise, not be silently treated as absent",
         path=ROOT / "backend/src/touchline/ingest/parse.py",
-        anchor='        raise ParseError(f"expected location to be [x, y], got {raw!r}")',
+        anchor='        raise ParseError(f"expected location to be exactly [x, y], got {raw!r}")',
         replacement="        return None, None  # DELIBERATE BREAK",
         command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a location must have exactly two elements, not merely at least two",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor="    if not isinstance(raw, list) or len(raw) != 2:",
+        replacement="    if not isinstance(raw, list) or len(raw) < 2:  # DELIBERATE BREAK",
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the loader must not commit - the caller owns the transaction",
+        path=ROOT / "backend/src/touchline/ingest/load.py",
+        anchor="        ),\n    )\n    return counts",
+        replacement="        ),\n    )\n    conn.commit()  # DELIBERATE BREAK\n    return counts",
+        command=LOAD_TESTS,
         cwd=ROOT,
     ),
 ]
