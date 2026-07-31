@@ -45,6 +45,7 @@ PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # database, and the hermeticity break is invisible unless a TOUCHLINE_* variable is exported. The
 # script reports MISSED otherwise, which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
+BASELINE_TESTS = "uv run pytest backend/tests/test_baseline_integration.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -139,6 +140,22 @@ BREAKS: list[Break] = [
         anchor="        ),\n    )\n    return counts",
         replacement="        ),\n    )\n    conn.commit()  # DELIBERATE BREAK\n    return counts",
         command=LOAD_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the base rate must exclude penalties",
+        path=ROOT / "backend/src/touchline/baseline.py",
+        anchor="COHORT_PREDICATE = \"shot_type <> 'Penalty' AND period <> 5\"",
+        replacement='COHORT_PREDICATE = "true"  # DELIBERATE BREAK',
+        command=BASELINE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="an empty database must raise, not report a conversion rate of zero",
+        path=ROOT / "backend/src/touchline/baseline.py",
+        anchor="    if shots == 0:\n        raise NoDataError(",
+        replacement="    if False:  # DELIBERATE BREAK\n        raise NoDataError(",
+        command=BASELINE_TESTS,
         cwd=ROOT,
     ),
 ]
