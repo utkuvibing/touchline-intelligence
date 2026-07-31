@@ -1,0 +1,209 @@
+"""Writing parsed records into PostgreSQL.
+
+WP0.3 uses plain SQL through psycopg. There is no ORM and no migration tool on purpose: the schema
+is provisional, and the point of this milestone is a working path, not an abstraction over one.
+
+**This loader is not idempotent.** Every insert is a plain INSERT, so a second run against a
+populated database fails on the primary keys. That failure is intentional - it is louder and safer
+than a silent duplicate. To re-run, reset the schema first.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from importlib import resources
+from typing import TYPE_CHECKING
+
+import psycopg
+from psycopg import sql
+
+if TYPE_CHECKING:
+    from touchline.ingest.records import Competition, Match, Player, Shot, Team
+
+
+class NotIdempotentError(RuntimeError):
+    """Raised when loading into a database that already holds rows.
+
+    Explicit refusal, rather than a duplicate-key traceback, so the operator is told what to do.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class LoadCounts:
+    """Row counts actually written, for reconciliation against the source."""
+
+    competitions: int
+    teams: int
+    players: int
+    matches: int
+    shots: int
+
+
+def read_schema_sql() -> str:
+    """Load the DDL that ships alongside this module."""
+    return resources.files("touchline.ingest").joinpath("schema.sql").read_text(encoding="utf-8")
+
+
+def reset_schema(conn: psycopg.Connection) -> None:
+    """Drop and recreate every table. Destructive, and the supported way to re-run a load."""
+    with conn.cursor() as cur:
+        cur.execute(read_schema_sql())
+    conn.commit()
+
+
+def _existing_rows(conn: psycopg.Connection) -> int:
+    total = 0
+    with conn.cursor() as cur:
+        for table in ("competitions", "teams", "players", "matches", "shots"):
+            cur.execute(sql.SQL("SELECT count(*) FROM {}").format(sql.Identifier(table)))
+            row = cur.fetchone()
+            total += int(row[0]) if row else 0
+    return total
+
+
+def _copy(
+    conn: psycopg.Connection,
+    table: str,
+    columns: tuple[str, ...],
+    rows: list[tuple[object, ...]],
+) -> int:
+    """Bulk-insert with COPY.
+
+    COPY rather than executemany because a World Cup is ~2,500 shots and COPY moves them in one
+    round trip. It also fails the whole batch on a bad row, which is the behaviour we want while
+    there is no partial-failure handling.
+    """
+    if not rows:
+        return 0
+    statement = sql.SQL("COPY {} ({}) FROM STDIN").format(
+        sql.Identifier(table),
+        sql.SQL(", ").join(sql.Identifier(c) for c in columns),
+    )
+    with conn.cursor() as cur, cur.copy(statement) as copy:
+        for row in rows:
+            copy.write_row(row)
+    return len(rows)
+
+
+def load_all(
+    conn: psycopg.Connection,
+    *,
+    competitions: list[Competition],
+    teams: list[Team],
+    players: list[Player],
+    matches: list[Match],
+    shots: list[Shot],
+    allow_non_empty: bool = False,
+) -> LoadCounts:
+    """Write every record set in dependency order, in one transaction.
+
+    One transaction because a half-loaded database is worse than an empty one while there is no
+    manifest recording what succeeded.
+    """
+    if not allow_non_empty and _existing_rows(conn) > 0:
+        raise NotIdempotentError(
+            "database already contains rows and this loader is not idempotent. "
+            "Re-run with a destructive reset (`uv run poe ingest --reset`)."
+        )
+
+    counts = LoadCounts(
+        competitions=_copy(
+            conn,
+            "competitions",
+            ("competition_id", "season_id", "competition_name", "season_name", "country_name"),
+            [
+                (c.competition_id, c.season_id, c.competition_name, c.season_name, c.country_name)
+                for c in competitions
+            ],
+        ),
+        teams=_copy(
+            conn, "teams", ("team_id", "team_name"), [(t.team_id, t.team_name) for t in teams]
+        ),
+        players=_copy(
+            conn,
+            "players",
+            ("player_id", "player_name"),
+            [(p.player_id, p.player_name) for p in players],
+        ),
+        matches=_copy(
+            conn,
+            "matches",
+            (
+                "match_id",
+                "competition_id",
+                "season_id",
+                "match_date",
+                "kick_off",
+                "home_team_id",
+                "away_team_id",
+                "home_score",
+                "away_score",
+                "competition_stage",
+            ),
+            [
+                (
+                    m.match_id,
+                    m.competition_id,
+                    m.season_id,
+                    m.match_date,
+                    m.kick_off,
+                    m.home_team_id,
+                    m.away_team_id,
+                    m.home_score,
+                    m.away_score,
+                    m.competition_stage,
+                )
+                for m in matches
+            ],
+        ),
+        shots=_copy(
+            conn,
+            "shots",
+            (
+                "shot_id",
+                "match_id",
+                "team_id",
+                "player_id",
+                "period",
+                "minute",
+                "second",
+                "location_x",
+                "location_y",
+                "outcome",
+                "body_part",
+                "technique",
+                "shot_type",
+            ),
+            [
+                (
+                    s.shot_id,
+                    s.match_id,
+                    s.team_id,
+                    s.player_id,
+                    s.period,
+                    s.minute,
+                    s.second,
+                    s.location_x,
+                    s.location_y,
+                    s.outcome,
+                    s.body_part,
+                    s.technique,
+                    s.shot_type,
+                )
+                for s in shots
+            ],
+        ),
+    )
+    conn.commit()
+    return counts
+
+
+def count_rows(conn: psycopg.Connection) -> LoadCounts:
+    """Read row counts back out of the database, for reconciliation."""
+    values: dict[str, int] = {}
+    with conn.cursor() as cur:
+        for table in ("competitions", "teams", "players", "matches", "shots"):
+            cur.execute(sql.SQL("SELECT count(*) FROM {}").format(sql.Identifier(table)))
+            row = cur.fetchone()
+            values[table] = int(row[0]) if row else 0
+    return LoadCounts(**values)

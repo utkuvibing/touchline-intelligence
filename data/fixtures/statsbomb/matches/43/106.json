@@ -1,0 +1,33 @@
+[
+  {
+    "match_id": 900001,
+    "match_date": "2022-11-20",
+    "kick_off": "17:00:00.000",
+    "competition": {
+      "competition_id": 43,
+      "country_name": "International",
+      "competition_name": "FIFA World Cup"
+    },
+    "season": { "season_id": 106, "season_name": "2022" },
+    "home_team": { "home_team_id": 7001, "home_team_name": "Fixture United" },
+    "away_team": { "away_team_id": 7002, "away_team_name": "Fixture Rovers" },
+    "home_score": 2,
+    "away_score": 1,
+    "competition_stage": { "id": 10, "name": "Group Stage" }
+  },
+  {
+    "match_id": 900002,
+    "match_date": "2022-11-21",
+    "kick_off": "20:00:00.000",
+    "competition": {
+      "competition_id": 43,
+      "country_name": "International",
+      "competition_name": "FIFA World Cup"
+    },
+    "season": { "season_id": 106, "season_name": "2022" },
+    "home_team": { "home_team_id": 7002, "home_team_name": "Fixture Rovers" },
+    "away_team": { "away_team_id": 7003, "away_team_name": "Fixture City" },
+    "home_score": 0,
+    "away_score": 0
+  }
+]

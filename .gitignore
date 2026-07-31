@@ -24,10 +24,12 @@ out/
 .env.*
 !.env.example
 
-# Local data and generated artifacts
-data/
-artifacts/
+# Local data and generated artifacts.
+# `data/*` rather than `data/` so the negation below works — git does not descend into an
+# excluded directory, so `data/` + `!data/fixtures/` would silently ignore the fixtures too.
+data/*
 !data/fixtures/
+artifacts/*
 !artifacts/.gitkeep
 
 # OS / editor

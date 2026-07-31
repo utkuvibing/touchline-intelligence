@@ -67,8 +67,39 @@ ten are not.
   first-class dimensions.
 - Evaluation claims are scoped to international-tournament football, which is stated as a limitation.
 - The selection-bias slice becomes a genuine analytical asset rather than an excluded awkwardness.
-- Shot counts here are sampled extrapolations. The first output of M1 is the exact count, and this
-  ADR's numbers are updated from it.
+- Shot counts here were sampled extrapolations. WP0.3 has since measured WC 2022 exactly; see the
+  amendment below. The remaining three tournaments are still extrapolated.
+
+## Amendment, 2026-07-31 — WC 2022 measured
+
+WP0.3 loaded FIFA World Cup 2022 in full. The sampled estimate was **low by roughly 18%**: a
+12-match sample gave 18.9 non-penalty shots per match, the true figure over all 64 is **22.3**.
+
+| Measured, WC 2022 | |
+|---|---:|
+| Matches | 64 |
+| Teams · players | 32 · 431 |
+| Shots, all types | 1,494 |
+| Penalties (incl. shootout kicks, all period 5) | 64 |
+| **Non-penalty shots** | **1,430** |
+| **Non-penalty goals** | **152** |
+| Conversion | 10.6% |
+| Shots missing location, player, outcome, body part or technique | **0** |
+
+Two things this changes:
+
+1. **The cohort is larger than assumed.** Re-extrapolating the other three tournaments at the
+   measured rate gives roughly **5,100 non-penalty shots and ~545 goals** across
+   WC 2018 + Euro 2020 + WC 2022 + Euro 2024, against the earlier estimate of ~4,700 and ~420.
+   The holdout has more headroom than the original arithmetic suggested; the five-bin reliability
+   decision should be revisited against the real count when the full cohort is loaded.
+2. **Shootout kicks are typed `Penalty` and sit in period 5**, so a single `shot_type <> 'Penalty'`
+   filter already excludes them. Worth knowing before writing the cohort query — a naive period
+   filter alone would not have been enough, and neither would have been obvious from the schema.
+
+Coverage is cleaner than expected: zero missing coordinates and zero unattributed shots in 1,494
+rows. The parser still tolerates both, because that is a property of the source rather than a
+guarantee, and the other three tournaments are not yet loaded.
 
 ## Review trigger
 

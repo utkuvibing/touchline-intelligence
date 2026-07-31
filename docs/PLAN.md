@@ -88,9 +88,19 @@ Recorded as **ADR 0004**.
 These are not league seasons; they are one club's season plus its opponents. A "chronological
 holdout" inside one of them measures a single team's form curve, not football drift.
 
-**Core cohort — balanced tournaments only:** WC 2018 + Euro 2020 + WC 2022 + Euro 2024
-≈ 230 matches, **≈ 4,700 non-penalty shots, ≈ 420 goals** (18.9–23.0 non-penalty shots/match,
-7.8–9.7% conversion, **0 shots missing coordinates** in both samples).
+**Core cohort — balanced tournaments only:** WC 2018 + Euro 2020 + WC 2022 + Euro 2024,
+≈ 230 matches.
+
+WC 2022 is now **measured** rather than estimated (WP0.3 loaded it in full): 1,494 shots of which
+64 are penalties, leaving **1,430 non-penalty shots and 152 goals** at 10.6% conversion, with
+**zero rows missing location, player, outcome, body part or technique**. The earlier 12-match
+sample was low by ~18%.
+
+Re-extrapolating the other three tournaments at the measured rate gives roughly **5,100 non-penalty
+shots and ~545 goals** for the full cohort. Two source facts worth carrying forward: shootout kicks
+are typed `Penalty` and live in period 5, so one `shot_type` filter excludes them; and the
+five-bin reliability decision below should be re-checked against the real holdout count once the
+remaining tournaments are loaded.
 
 Binding consequences:
 

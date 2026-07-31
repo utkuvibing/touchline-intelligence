@@ -1,0 +1,23 @@
+[
+  {
+    "_comment": "a match with no shots at all - the loader must handle an empty shot set",
+    "id": "bbbbbbbb-0000-0000-0000-000000000001",
+    "index": 1,
+    "period": 1,
+    "minute": 0,
+    "second": 0,
+    "type": { "id": 35, "name": "Starting XI" },
+    "team": { "id": 7002, "name": "Fixture Rovers" }
+  },
+  {
+    "id": "bbbbbbbb-0000-0000-0000-000000000002",
+    "index": 2,
+    "period": 1,
+    "minute": 44,
+    "second": 2,
+    "type": { "id": 30, "name": "Pass" },
+    "team": { "id": 7003, "name": "Fixture City" },
+    "player": { "id": 8004, "name": "Dee Midfield" },
+    "location": [50.0, 20.0]
+  }
+]

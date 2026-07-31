@@ -1,0 +1,16 @@
+[
+  {
+    "competition_id": 43,
+    "season_id": 106,
+    "country_name": "International",
+    "competition_name": "FIFA World Cup",
+    "season_name": "2022"
+  },
+  {
+    "competition_id": 55,
+    "season_id": 282,
+    "country_name": "Europe",
+    "competition_name": "UEFA Euro",
+    "season_name": "2024"
+  }
+]

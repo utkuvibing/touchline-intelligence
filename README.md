@@ -102,13 +102,49 @@ scripts/                 documented developer entry points
 docs/                    plan, targeting, ADRs, research, experiment rules
 ```
 
+## Data ingestion (WP0.3)
+
+```bash
+uv run poe ingest --reset
+```
+
+Loads FIFA World Cup 2022 — 64 matches, 32 teams, 431 players, 1,494 shots. Source files are cached
+under `data/statsbomb/` (git-ignored) and re-read on later runs; `--offline` fails rather than
+downloading.
+
+**The loader is not idempotent.** Every write is a plain `INSERT`, so a second run against a
+populated database is refused with a message rather than silently duplicating rows. `--reset` drops
+and recreates the tables, and is the supported way to re-run. Upserts, source-key conflict handling
+and a run manifest are M1.
+
+**The WP0.3 schema is provisional and expected to be replaced in M1.** Five tables — `competitions`,
+`teams`, `players`, `matches`, `shots` — with primary keys only: no foreign keys, no check
+constraints, no indexes beyond the keys, no migration tool. Primary keys are present because they
+make a duplicate load fail loudly; everything else is deferred to M1, where referential integrity
+arrives together with the ingestion ordering and failure handling that make it enforceable.
+See [`backend/src/touchline/ingest/schema.sql`](backend/src/touchline/ingest/schema.sql).
+
+Only shots are stored. There is no full event model, no lineups and no possessions.
+**Provider xG is deliberately not ingested** — it is the strongest leakage vector for the M2
+shot-quality model, and the cheapest guarantee that it never reaches a feature set is for it not to
+be in the database.
+
+Verification queries live in [`backend/sql/`](backend/sql/):
+
+```bash
+docker exec -i touchline-postgres psql -U touchline -d touchline -f - < backend/sql/wp0_3_reconciliation.sql
+```
+
 ## Known gaps in M0
 
 Stated rather than hidden — each is resolved by a later milestone or is a deliberate, recorded
 trade-off.
 
-- No ingestion, no model, no shot map yet — WP0.3 through WP0.5.
+- No model and no shot map yet — WP0.4 and WP0.5.
 - Not deployed yet — WP0.6. The CI pipeline builds and checks; it does not deploy.
+- Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).
+- Only one competition-season is loaded. The full four-tournament cohort in
+  [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md) arrives in M1.
 - `npm audit` reports 3 high-severity advisories in transitive Next.js dependencies (`postcss`,
   `sharp`). The only offered fix downgrades Next.js by seven major versions, so it has not been
   applied. Re-check on the next Next.js release.
