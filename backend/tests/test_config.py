@@ -6,6 +6,9 @@ a missing database URL must fail loudly, and an unrecognised setting must not be
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
+
 import pytest
 from pydantic import ValidationError
 
@@ -14,12 +17,28 @@ from touchline.config import Settings
 VALID_DSN = "postgresql://touchline:localdev@localhost:5432/touchline"
 
 
+@pytest.fixture(autouse=True)
+def _isolated_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Remove every TOUCHLINE_* variable from the real process environment.
+
+    Settings reads two sources: a .env file and the actual environment. `_env_file=None` silences
+    only the first. Without this fixture, `test_db_url_is_required` passes on a developer machine
+    with nothing exported and fails wherever TOUCHLINE_DB_URL happens to be set - which is exactly
+    what CI does now that it runs the ingestion tests against a service container.
+
+    The test was environment-dependent before CI exposed it. A test whose result depends on the
+    shell it runs in is not asserting what it claims to.
+    """
+    for name in [key for key in os.environ if key.startswith("TOUCHLINE_")]:
+        monkeypatch.delenv(name, raising=False)
+    yield
+
+
 def _settings(**env: str) -> Settings:
     """Build Settings from an explicit environment, ignoring any local .env file.
 
     `_env_file=None` is a pydantic-settings runtime option rather than a declared field, so it is
-    invisible to the type checker; the ignore is narrow and deliberate. Without it these tests
-    would pass or fail depending on whether the developer happens to have a .env file.
+    invisible to the type checker; the ignore is narrow and deliberate.
     """
     return Settings(_env_file=None, **env)  # type: ignore[call-arg, arg-type]
 
