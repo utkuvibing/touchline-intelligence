@@ -41,9 +41,11 @@ DB_URL_BROKEN = (
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
-# Needs a live database, so this one only proves anything when TOUCHLINE_DB_URL is set. The script
-# reports it as MISSED otherwise, which is honest: an unrun test protects nothing.
+# These two only prove anything when TOUCHLINE_DB_URL is set - the loader tests need a live
+# database, and the hermeticity break is invisible unless a TOUCHLINE_* variable is exported. The
+# script reports MISSED otherwise, which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
+CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -122,6 +124,14 @@ BREAKS: list[Break] = [
         anchor="    if not isinstance(raw, list) or len(raw) != 2:",
         replacement="    if not isinstance(raw, list) or len(raw) < 2:  # DELIBERATE BREAK",
         command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="config tests must be hermetic against the real environment",
+        path=ROOT / "backend/tests/test_config.py",
+        anchor="        monkeypatch.delenv(name, raising=False)",
+        replacement="        pass  # DELIBERATE BREAK",
+        command=CONFIG_TESTS,
         cwd=ROOT,
     ),
     Break(
