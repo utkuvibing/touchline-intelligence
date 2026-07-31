@@ -40,6 +40,7 @@ DB_URL_BROKEN = (
 
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
+PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -95,6 +96,22 @@ BREAKS: list[Break] = [
         replacement="          DELIBERATE BREAK.",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
+    ),
+    Break(
+        contract="an absent shot location must stay NULL, never be coerced to a real coordinate",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor="    if raw is None:\n        return None, None",
+        replacement="    if raw is None:\n        return 0.0, 0.0  # DELIBERATE BREAK",
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a malformed location must raise, not be silently treated as absent",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor='        raise ParseError(f"expected location to be [x, y], got {raw!r}")',
+        replacement="        return None, None  # DELIBERATE BREAK",
+        command=PARSE_TESTS,
+        cwd=ROOT,
     ),
 ]
 
