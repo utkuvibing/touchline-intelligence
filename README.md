@@ -124,7 +124,11 @@ make a duplicate load fail loudly; everything else is deferred to M1, where refe
 arrives together with the ingestion ordering and failure handling that make it enforceable.
 See [`backend/src/touchline/ingest/schema.sql`](backend/src/touchline/ingest/schema.sql).
 
-Only shots are stored. There is no full event model, no lineups and no possessions.
+Only shots are stored. There is no full event model, no lineups and no possessions. One consequence
+worth knowing before querying: **`players` is not a squad list.** A player appears only if they took
+at least one shot, so WC 2022 yields 431 rows against roughly 830 players in the squads. Any
+per-player denominator taken from this table would be wrong in a way that still looks plausible.
+Complete squads arrive with lineups in M1.
 **Provider xG is deliberately not ingested** — it is the strongest leakage vector for the M2
 shot-quality model, and the cheapest guarantee that it never reaches a feature set is for it not to
 be in the database.
