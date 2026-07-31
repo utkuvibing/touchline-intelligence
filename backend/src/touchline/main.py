@@ -1,7 +1,10 @@
 """FastAPI application entry point.
 
-M0 WP0.1 scope: prove the application starts, reads typed configuration, and can reach PostgreSQL.
-No football data, no model, no claims. Those arrive in WP0.3 onward.
+M0 scope: prove the application starts, reads typed configuration, reaches PostgreSQL, and serves
+the constant base-rate baseline computed from the loaded data.
+
+**No model is served here and no performance claim is made.** The baseline is one number returned
+for every shot; see `touchline.baseline` for why that is the right thing to publish first.
 """
 
 from __future__ import annotations
@@ -9,9 +12,10 @@ from __future__ import annotations
 from typing import Literal
 
 import psycopg
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
+from touchline import baseline
 from touchline.config import Settings, get_settings
 
 app = FastAPI(
@@ -77,4 +81,58 @@ def ready() -> Readiness:
         status="ready" if reachable else "degraded",
         database="reachable" if reachable else "unreachable",
         detail=detail,
+    )
+
+
+class BaselineResponse(BaseModel):
+    """The constant base-rate baseline.
+
+    Every field except `base_rate` exists to stop the number being read as more than it is. A bare
+    probability looks like a model output; the counts, the cohort text and the caveat are what make
+    it legible as "the average of the data currently loaded".
+    """
+
+    method: Literal["constant-base-rate"] = "constant-base-rate"
+    base_rate: float = Field(
+        description="Goals divided by shots over the cohort. Returned for every shot, unchanged."
+    )
+    shots: int = Field(description="Cohort denominator.")
+    goals: int = Field(description="Cohort numerator.")
+    cohort: str = Field(description="Exactly which shots the rate was computed over.")
+    caveat: str
+
+
+BASELINE_CAVEAT = (
+    "This is not a model. It is the observed conversion rate of the loaded shots, returned "
+    "unchanged for every shot regardless of location, player or context. Nothing here has been "
+    "fitted or evaluated, and no split was used. It exists as the number a real shot-quality "
+    "model must beat."
+)
+
+
+@app.get("/baseline", response_model=BaselineResponse, tags=["baseline"])
+def shot_conversion_baseline() -> BaselineResponse:
+    """Return the cohort conversion rate, computed live from the database.
+
+    A connection is opened per request. That is fine at this scale and deliberately un-pooled;
+    connection management is M3 hardening, and adding it now would be infrastructure without a
+    measured need.
+    """
+    settings = get_settings()
+    try:
+        with psycopg.connect(settings.db_url_str, connect_timeout=5) as conn:
+            rate = baseline.compute_base_rate(conn)
+    except baseline.NoDataError as exc:
+        # 503 rather than 404: the resource is meaningful, this instance just has nothing loaded
+        # yet. A 404 would suggest the endpoint does not exist.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
+
+    return BaselineResponse(
+        base_rate=rate.value,
+        shots=rate.shots,
+        goals=rate.goals,
+        cohort=baseline.COHORT_DESCRIPTION,
+        caveat=BASELINE_CAVEAT,
     )

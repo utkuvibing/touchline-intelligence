@@ -151,12 +151,38 @@ Verification queries live in [`backend/sql/`](backend/sql/):
 docker exec -i touchline-postgres psql -U touchline -d touchline -f - < backend/sql/wp0_3_reconciliation.sql
 ```
 
+## The baseline (WP0.4)
+
+```
+GET /baseline
+```
+
+Returns the observed conversion rate of the loaded cohort — currently **152 goals / 1,430
+non-penalty shots = 10.63%** — together with the counts it came from and an explicit statement of
+what it is not.
+
+**It is not a model.** The same number is returned for every shot regardless of location, player or
+context. Nothing has been fitted, no split was used, and no performance claim is made. It exists for
+two reasons: it proves the whole path (PostgreSQL → query → API) with something *trivially correct*,
+and it is the number every real model in M2 has to beat. A shot-quality model that cannot improve on
+"assume every shot is average" has learned nothing, and having the figure measured and served from
+the start makes that comparison concrete.
+
+Two decisions worth knowing:
+
+- **Penalties and shootout kicks are excluded**, per [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md).
+  Their geometry is nearly fixed, so a single rate covering both describes neither. Including the
+  fixture's penalty goal would move the test rate from 1/3 to 2/4 — wrong, but still plausible
+  looking, which is why the test asserts exact counts.
+- **An empty database returns 503, not a rate of zero.** "Nothing has been ingested" and "nothing
+  was scored" are different facts and must not produce the same answer.
+
 ## Known gaps in M0
 
 Stated rather than hidden — each is resolved by a later milestone or is a deliberate, recorded
 trade-off.
 
-- No model and no shot map yet — WP0.4 and WP0.5.
+- No model and no shot map yet. The baseline above is a constant, not a model; the shot map is WP0.5.
 - Not deployed yet — WP0.6. The CI pipeline builds and checks; it does not deploy.
 - Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).
 - Only one competition-season is loaded. The full four-tournament cohort in
