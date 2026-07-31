@@ -45,7 +45,6 @@ PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # database, and the hermeticity break is invisible unless a TOUCHLINE_* variable is exported. The
 # script reports MISSED otherwise, which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
-CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 FRONTEND_TESTS = "npm test"
 
 
