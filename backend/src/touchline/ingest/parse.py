@@ -56,14 +56,21 @@ def _location(event: dict[str, Any]) -> tuple[float | None, float | None]:
     """Split a StatsBomb `[x, y]` location.
 
     Absent location is tolerated and becomes (NULL, NULL) so the row is still recorded and can be
-    counted in a coverage report. A location present but not a pair of numbers is malformed.
+    counted in a coverage report. A location that is present but is not **exactly** two numbers is
+    malformed and raises.
+
+    Exactly two, not "at least two": StatsBomb does use three-element coordinates elsewhere - a
+    shot's `end_location` carries a z for the ball's height at the goal line. If such a value ever
+    appeared in the `location` field, silently taking the first two elements would produce a
+    plausible-looking row from a field we had misunderstood. Length is the cheapest signal that the
+    source is not what this parser thinks it is, so it is checked rather than tolerated.
     """
     raw = event.get("location")
     if raw is None:
         return None, None
-    if not isinstance(raw, list) or len(raw) < 2:
-        raise ParseError(f"expected location to be [x, y], got {raw!r}")
-    x, y = raw[0], raw[1]
+    if not isinstance(raw, list) or len(raw) != 2:
+        raise ParseError(f"expected location to be exactly [x, y], got {raw!r}")
+    x, y = raw
     if not isinstance(x, int | float) or not isinstance(y, int | float):
         raise ParseError(f"expected numeric location, got {raw!r}")
     return float(x), float(y)
