@@ -1,0 +1,38 @@
+# Local PostgreSQL for development and integration tests.
+#
+# Not a deployment artifact. The managed host provides its own database; this exists so a clean
+# clone can reach a working database with one command.
+#
+# NOTE: values here are local-only development credentials and are intentionally committed.
+# Nothing in this file is used by any deployed environment.
+
+services:
+  postgres:
+    # Pinned to a major version so an upgrade is a deliberate, reviewed change rather than
+    # something that happens on the next `pull`.
+    image: postgres:17-alpine
+    container_name: touchline-postgres
+    environment:
+      POSTGRES_USER: touchline
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: touchline
+    ports:
+      # Host 5433 avoids colliding with any PostgreSQL already installed on the machine.
+      - "5433:5432"
+    volumes:
+      # Named volume, so data survives `docker compose down` but can be dropped deliberately
+      # with `docker compose down -v` when a clean rebuild needs proving.
+      - touchline-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` reports when the server accepts connections. Without this, dependent
+      # services start against a database that is running but not yet listening.
+      test: ["CMD-SHELL", "pg_isready -U touchline -d touchline"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  touchline-pgdata:
+    name: touchline-pgdata
