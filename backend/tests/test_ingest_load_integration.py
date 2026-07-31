@@ -206,18 +206,40 @@ def test_failed_reconciliation_leaves_nothing_committed(
 def test_error_midway_leaves_nothing_committed(
     conn: psycopg.Connection, fixture_data: CollectedScope
 ) -> None:
-    """A failure after some tables are written must discard the earlier ones too."""
+    """A real database failure partway through a load must discard the earlier tables too.
+
+    The failure is genuine, not simulated: the player list is given a duplicate id, so the COPY
+    into `players` violates the primary key. The loader writes competitions and teams before it
+    reaches players, so by the time this raises, two tables already hold rows in this transaction.
+
+    That ordering is asserted rather than assumed - the constraint name in the error identifies
+    exactly which stage failed.
+    """
     competitions, teams, players, matches, shots, _ = fixture_data
+    duplicated_players = [*players, players[0]]
 
     loader.reset_schema(conn)
-    loader.load_all(
-        conn,
-        competitions=competitions,
-        teams=teams,
-        players=players,
-        matches=matches,
-        shots=shots,
+
+    with pytest.raises(psycopg.errors.UniqueViolation) as exc_info:
+        loader.load_all(
+            conn,
+            competitions=competitions,
+            teams=teams,
+            players=duplicated_players,
+            matches=matches,
+            shots=shots,
+        )
+
+    assert exc_info.value.diag.constraint_name == "players_pkey", (
+        "the failure must be the players COPY, which the loader only reaches after competitions "
+        "and teams have already been written in this transaction"
     )
+
+    # PostgreSQL aborts the whole transaction on a failed statement, so the earlier writes are
+    # already unreachable rather than merely unwanted.
+    with pytest.raises(psycopg.errors.InFailedSqlTransaction):
+        loader.count_rows(conn)
+
     conn.rollback()
 
     with pytest.raises(psycopg.errors.UndefinedTable):
