@@ -138,6 +138,21 @@ Two facts that shaped the cohort design and are easy to get wrong:
 The holdout is called a **tournament holdout**, not a temporal one, because holding out a later
 tournament changes time and competition composition together. Say so rather than glossing it.
 
+## Model routing and independent review
+
+- Luna handles low-risk, mechanical, repetitive, and tightly scoped work.
+- Terra is the default implementation model for normal engineering work.
+- Sol handles architecture, methodology, difficult debugging, security and data-integrity
+  decisions, and final high-risk judgement.
+- Every substantive change not implemented by Sol must receive an independent Sol review after
+  tests pass and before it is called complete.
+- The reviewer must inspect the actual diff, acceptance criteria, tests, and known limitations.
+- A model must not review or approve its own work under the label of an independent review.
+- Documentation-only changes may skip mandatory Sol review only when they cannot affect behaviour,
+  methodology, release claims, or agent instructions.
+- Review results must be reported honestly as `PASS`, `PASS WITH REQUIRED FIXES`, or `FAIL`.
+- A `PASS` claim must not be made unless the review actually ran.
+
 ## 7. Working agreement
 
 Scope changes come from the author, not from an agent's judgement that something would be nice.
