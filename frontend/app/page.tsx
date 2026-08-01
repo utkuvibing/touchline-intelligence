@@ -11,22 +11,32 @@
  */
 
 import { HomeView } from "@/components/HomeView";
-import { fetchConversionRate, fetchShots, type ConversionRate, type Shot } from "@/lib/api";
+import {
+  fetchAllShots,
+  fetchConversionRate,
+  type ConversionRate,
+  type Shot,
+} from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   let shots: Shot[] = [];
+  let total = 0;
   let rate: ConversionRate | null = null;
   let error: string | null = null;
 
   try {
-    const [page, conversion] = await Promise.all([fetchShots(), fetchConversionRate()]);
-    shots = page.shots;
+    const [all, conversion] = await Promise.all([
+      fetchAllShots(),
+      fetchConversionRate(),
+    ]);
+    shots = all.shots;
+    total = all.total;
     rate = conversion;
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "unknown error";
   }
 
-  return <HomeView shots={shots} rate={rate} error={error} />;
+  return <HomeView shots={shots} total={total} rate={rate} error={error} />;
 }
