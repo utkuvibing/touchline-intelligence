@@ -14,9 +14,9 @@ evidence trail that makes every number defensible.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
 M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
-publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is in progress: its
-ordered migration foundation and five-table constraints are complete, and the approved lineup and
-generic-event implementation is under final verification. WP1.3 has not started.
+publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is complete: its ordered
+migrations, full approved lineup and generic-event schema, ingestion, tests, independent Sol review,
+and CI have passed. WP1.3 has not started.
 
 ## Documentation
 
