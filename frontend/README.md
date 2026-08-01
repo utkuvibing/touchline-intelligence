@@ -41,4 +41,5 @@ probability field or colour scale is present.
 The current UI covers one tournament and has no filters, shot-detail panel, calibration view, or
 model output. Those capabilities belong to later milestones; [`../docs/PLAN.md`](../docs/PLAN.md) is
 the authoritative plan. Start with [`../AGENTS.md`](../AGENTS.md) for current project state and
-non-negotiable rules, and use [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) for deployment details.
+non-negotiable rules, [`../DATA_SOURCE.md`](../DATA_SOURCE.md) for source coverage and publication
+conditions, and [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) for deployment details.
