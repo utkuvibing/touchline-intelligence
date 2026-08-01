@@ -35,6 +35,9 @@ Build one modular football research and decision-support product that turns raw 
 
 ## AI-agent workflow
 
+Follow the model-routing and independent-review policy in
+[`AGENTS.md`](AGENTS.md#model-routing-and-independent-review); do not duplicate or weaken it here.
+
 For every important feature:
 
 1. Ask for or write a short problem definition.
