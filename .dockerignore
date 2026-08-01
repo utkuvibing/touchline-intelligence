@@ -1,0 +1,36 @@
+# Keep the build context small and free of anything that must not reach a deployed image.
+
+.git/
+.github/
+.scratch/
+.venv/
+venv/
+
+frontend/
+docs/
+infra/
+scripts/
+
+# Cached StatsBomb downloads and generated artifacts. The deployed API reads from PostgreSQL, not
+# from files; shipping several hundred megabytes of JSON into the image would be pure weight.
+data/
+artifacts/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Secrets must never enter a build context - anything here can end up in an image layer.
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
