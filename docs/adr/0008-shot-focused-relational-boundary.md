@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-08-01
+Superseded by [ADR 0009](0009-full-relational-event-and-lineup-scope.md) — 2026-08-01
 
 ## Context
 

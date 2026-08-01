@@ -14,9 +14,10 @@ Use PostgreSQL as the primary serving and analytical database for the project. P
 
 Database changes use ordered migrations. Natural/source identifiers and uniqueness constraints support idempotent upserts. Core analytical queries should be expressible and tested in SQL before convenience wrappers obscure them.
 
-WP1.2 implements the first constrained boundary as a five-table, shot-focused schema. The evidence
-and review trigger for deferring lineups and generic events are recorded in
-[ADR 0008](0008-shot-focused-relational-boundary.md).
+WP1.2 first delivered a five-table migration foundation under
+[ADR 0008](0008-shot-focused-relational-boundary.md). The author then corrected that boundary and
+approved the full relational event and lineup direction now; the superseding decision is recorded
+in [ADR 0009](0009-full-relational-event-and-lineup-scope.md).
 
 ## Alternatives considered
 

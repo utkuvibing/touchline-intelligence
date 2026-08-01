@@ -72,20 +72,27 @@ need it.
    This reads the cached snapshot at the commit pinned in
    `backend/src/touchline/ingest/source.py`, reconciles source counts against the database inside
    the transaction, and commits only if they match. Expect
-   **64 matches, 32 teams, 431 players, 1,494 shots**.
+   **64 matches, 32 teams, 829 players, 234,637 events, 128 lineups, 3,244 lineup
+   memberships, 11,121 possessions, 330,844 directed event relations, 1,494 typed shots, and
+   20,327 shot freeze-frame actors**.
 
    `--reset` is destructive and is the supported way to re-run: the loader is not idempotent.
 
-   `--reset` rebuilds through all ordered migrations. For an existing populated M0 database that
-   must keep its rows, apply the non-destructive WP1.2 upgrade instead:
+   `--reset` rebuilds through all ordered migrations and loads the complete pinned WP1.2 slice. For
+   an existing populated five-table database that must keep its rows, apply the non-destructive
+   WP1.2 schema upgrade instead:
 
    ```bash
    uv run poe migrate
    ```
 
-   A Railway code deploy does **not** run this command. Migration-on-application-boot is deferred to
-   M3.3, so an operator must run and verify the migration separately before claiming the live schema
-   has the WP1.2 constraints. The WP1.2 repository delivery did not modify the live Neon database.
+   Migrations 0003–0005 preserve existing shot rows by creating skeletal companion event rows, but
+   they cannot reconstruct generic events, lineups, or source ordering from a shot-only database.
+   A subsequent full pinned-source reset/load is required for complete WP1.2 coverage.
+
+   A Railway code deploy does **not** run either command. Migration-on-application-boot is deferred
+   to M3.3, so an operator must apply and verify schema and data separately before claiming the live
+   database has WP1.2 coverage. Repository delivery must not be described as a live Neon migration.
 
 ### 2. Railway (backend)
 

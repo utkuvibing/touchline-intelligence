@@ -46,9 +46,7 @@ pytestmark = [
 @pytest.fixture
 def loaded_conn() -> Iterator[psycopg.Connection]:
     assert DB_URL is not None
-    competitions, teams, players, matches, shots, _ = collect(
-        StatsBombSource(FIXTURES, offline=True), 43, 106
-    )
+    collected = collect(StatsBombSource(FIXTURES, offline=True), 43, 106)
     with psycopg.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
@@ -57,11 +55,19 @@ def loaded_conn() -> Iterator[psycopg.Connection]:
         loader.reset_schema(conn)
         loader.load_all(
             conn,
-            competitions=competitions,
-            teams=teams,
-            players=players,
-            matches=matches,
-            shots=shots,
+            competitions=collected.competitions,
+            teams=collected.teams,
+            players=collected.players,
+            matches=collected.matches,
+            shots=collected.shots,
+            lineups=collected.lineups,
+            memberships=collected.memberships,
+            positions=collected.positions,
+            cards=collected.cards,
+            possessions=collected.possessions,
+            events=collected.events,
+            relations=collected.relations,
+            freeze_frames=collected.freeze_frames,
         )
         conn.commit()
         try:
