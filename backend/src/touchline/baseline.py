@@ -1,17 +1,29 @@
 """The constant base-rate baseline.
 
-This is **not a model.** It returns one number - the observed conversion rate of the loaded shot
-cohort - and returns it for every shot regardless of where the shot was taken, who took it, or
-anything else. There is no fitting, no train/test split, and no performance claim.
+This is **not a model, and it is not a prediction.** It is a *descriptive prevalence*: the observed
+conversion rate of the shots currently loaded, reported as a summary of that data.
 
-Two reasons it exists rather than a placeholder model:
+It exists to prove the whole path end to end (PostgreSQL -> query -> API -> UI) with something that
+is trivially correct. A knowingly mis-evaluated model published on a URL is not a placeholder, it
+is a wrong artifact.
 
-1. It proves the whole path end to end (PostgreSQL -> query -> API -> UI) with something that is
-   *trivially correct*. A knowingly mis-evaluated model published on a URL is not a placeholder,
-   it is a wrong artifact.
-2. It is the number every real model in M2 must beat. A shot-quality model that cannot improve on
-   "assume every shot is average" has learned nothing, and having the figure measured and served
-   from day one makes that comparison concrete rather than theoretical.
+## What this number is NOT
+
+It is **not** the baseline that M2 models are compared against, and it must never be used as a
+prediction on evaluation rows.
+
+The constant-prediction baseline in M2 is a different object with a different value:
+
+* it is estimated from the **training split only**;
+* it is then evaluated on validation and holdout rows using the same log loss, Brier score and
+  calibration protocol as every candidate model;
+* a model beats it on **those evaluation metrics**, not by being numerically distant from this
+  prevalence.
+
+Using this full-cohort rate as the prediction for holdout rows would be leakage in its plainest
+form: the rate is computed from outcomes that include the holdout's own labels, so the "baseline"
+would be scored partly on knowledge of the answers. The number below is a description of the
+loaded data, and stops there.
 
 The cohort follows ADR 0004: non-penalty shots only.
 """
@@ -29,11 +41,33 @@ import psycopg
 # WC 2022 is also typed 'Penalty', so `shot_type` alone is currently sufficient - but the other
 # three tournaments in the cohort are not loaded yet, and a shootout kick that arrived untyped
 # would otherwise be counted as open play.
-COHORT_PREDICATE = "shot_type <> 'Penalty' AND period <> 5"
+#
+# Missing values are excluded explicitly rather than left to SQL's three-valued logic, which would
+# handle them inconsistently and invisibly:
+#
+#   * a NULL `shot_type` makes `shot_type <> 'Penalty'` evaluate to NULL, so the row would be
+#     dropped from the cohort silently - the same treatment as a penalty, for a completely
+#     different reason;
+#   * a NULL `period` behaves the same way;
+#   * a NULL `outcome` would *not* be dropped. It would sit in the denominator while failing the
+#     `outcome = 'Goal'` filter, i.e. be counted as a definite miss on the basis of no information.
+#
+# Requiring all three to be known makes the denominator mean one thing: shots we actually know the
+# result of. WC 2022 has zero missing values in these columns, so this changes no current count -
+# it changes what happens when a future competition does have them.
+COHORT_PREDICATE = (
+    "shot_type IS NOT NULL "
+    "AND period IS NOT NULL "
+    "AND outcome IS NOT NULL "
+    "AND shot_type <> 'Penalty' "
+    "AND period <> 5"
+)
 
 COHORT_DESCRIPTION = (
-    "All shots in the loaded scope excluding penalties and penalty-shootout kicks. "
-    "No filtering by competition, team, player, period or location."
+    "Shots in the loaded scope with a known shot type, period and outcome, excluding penalties "
+    "and penalty-shootout kicks. Shots missing any of those three fields are excluded from both "
+    "the numerator and the denominator rather than being counted as misses. No filtering by "
+    "competition, team, player or location."
 )
 
 # Interpolated from the module constant above, never from input, so the predicate and the text

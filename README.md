@@ -161,14 +161,18 @@ Returns the observed conversion rate of the loaded cohort — currently **152 go
 non-penalty shots = 10.63%** — together with the counts it came from and an explicit statement of
 what it is not.
 
-**It is not a model.** The same number is returned for every shot regardless of location, player or
-context. Nothing has been fitted, no split was used, and no performance claim is made. It exists for
-two reasons: it proves the whole path (PostgreSQL → query → API) with something *trivially correct*,
-and it is the number every real model in M2 has to beat. A shot-quality model that cannot improve on
-"assume every shot is average" has learned nothing, and having the figure measured and served from
-the start makes that comparison concrete.
+**It is a descriptive prevalence, not a model and not a prediction.** Nothing has been fitted, no
+split was used, and no performance claim is made. It exists to prove the whole path (PostgreSQL →
+query → API → UI) with something trivially correct.
 
-Two decisions worth knowing:
+**It is also not the baseline that M2 models are compared against.** That baseline is a different
+object: estimated from the **training split alone**, then scored on validation and holdout rows
+under the same log loss, Brier score and calibration protocol as every candidate model. A model
+beats it on *those evaluation metrics*, not by being numerically distant from this prevalence.
+Using this full-cohort rate as the prediction for holdout rows would be plain leakage — the rate is
+computed from outcomes that include the holdout's own labels.
+
+Three decisions worth knowing:
 
 - **Penalties and shootout kicks are excluded**, per [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md).
   Their geometry is nearly fixed, so a single rate covering both describes neither. Including the
@@ -176,6 +180,33 @@ Two decisions worth knowing:
   looking, which is why the test asserts exact counts.
 - **An empty database returns 503, not a rate of zero.** "Nothing has been ingested" and "nothing
   was scored" are different facts and must not produce the same answer.
+- **Missing values are excluded explicitly rather than left to SQL's three-valued logic.** A NULL
+  `shot_type` or `period` would drop a row silently; a NULL `outcome` would do worse — stay in the
+  denominator while failing the goal filter, i.e. be counted as a definite miss on no information.
+  The cohort requires all three to be known. WC 2022 has none missing, so no current count changes.
+
+## The shot map (WP0.5)
+
+```
+GET /shots?limit=&offset=&match_id=
+```
+
+Read-only, and enforced as such — the query runs in a `READ ONLY` transaction rather than merely
+being documented as safe. Responses are bounded and carry the unpaged total, so a client can tell
+"these are all of them" from "these are the first page".
+
+The page at `/` renders the result as a raw shot map: every recorded shot at its recorded location.
+The encoding is deliberately restrictive while there is no evaluated model:
+
+- **Every marker is the same size.** Size-by-value is how expected-goals maps encode a model
+  output; using it here would imply a chance-quality estimate that does not exist.
+- **No colour ramp, no heat map.** A continuous gradient reads as a probability surface. This is a
+  scatter of things that happened.
+- The only visual distinction is **goal versus non-goal**, which is the recorded outcome — a fact
+  from the source, not an inference.
+
+Shots with no recorded location are counted in the text rather than dropped, and a failed API call
+says so explicitly instead of rendering an empty pitch that would read as "no shots were taken".
 
 ## Known gaps in M0
 
