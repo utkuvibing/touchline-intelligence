@@ -222,8 +222,6 @@ trade-off.
 - **No model.** The conversion rate is a description of the loaded data; M2 builds the model.
 - CI builds and checks; it does not deploy. Railway and Vercel deploy from their own GitHub
   integrations — see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
-- The deployed API reports `environment: local` until `TOUCHLINE_ENVIRONMENT=production` is set on
-  Railway. Cosmetic, but it is the one field whose job is to say which instance you are looking at.
 - Neon's free tier suspends the compute after inactivity, so the first request after an idle period
   waits for it to wake.
 - Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).

@@ -43,10 +43,6 @@ most expensive place for it to happen. Do not add capability the author cannot e
 M1 is next: the full four-tournament cohort, a real schema with constraints and migrations,
 idempotent ingestion, and the SQL analysis pack.
 
-One loose end: the deployed API reports `environment: local` because `TOUCHLINE_ENVIRONMENT` is not
-set on Railway. Cosmetic, but that field exists precisely to identify which instance you are
-looking at, so it should not stay wrong.
-
 ## 3. Documents that own the detail
 
 | Document | Owns |
