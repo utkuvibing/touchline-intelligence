@@ -1,8 +1,8 @@
 # Data source, coverage, and dictionary
 
 This document owns the source revision, measured WC 2022 coverage, and physical field meanings.
-The ordered SQL migrations and loader are the implementation source of truth. WP1.1 is complete;
-WP1.2 remains in progress until implementation, independent review, and CI are complete.
+The ordered SQL migrations and loader are the implementation source of truth. WP1.1 and WP1.2 are
+complete; WP1.3 has not started.
 
 ## Source, rights, and attribution
 

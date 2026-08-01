@@ -3,7 +3,7 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-01, WP1.2 in progress. Update the "Where we are" section when a work package
+Last updated: 2026-08-01, WP1.2 complete. Update the "Where we are" section when a work package
 closes; do not let it drift.
 
 ---
@@ -40,12 +40,10 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 0.5 read-only shot endpoint + raw shot map | done |
 | 0.6 deployment | done — 18/18 deployed smoke checks pass |
 | 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
-| 1.2 relational schema, ERD, ordered migrations, constraints | in progress — full approved schema and ingestion implemented; final review and CI remain |
+| 1.2 relational schema, ERD, ordered migrations, constraints | done — full approved schema and ingestion implemented; independent Sol review and CI passed |
 
-M1 has completed WP1.1. WP1.2 is active: the ordered migration foundation, full lineup and generic
-event schema, ingestion, and local reconciliation are implemented; independent review and CI still
-gate closure. WP1.3 must not begin until WP1.2 closes. WP1.1 being closed does not clear its two
-documented publication gates.
+M1 has completed WP1.1 and WP1.2. WP1.3 is next and has not started. WP1.1 being closed does not
+clear its two documented publication gates.
 
 ## 3. Documents that own the detail
 
