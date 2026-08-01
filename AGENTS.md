@@ -39,9 +39,11 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 0.4 descriptive prevalence endpoint | done |
 | 0.5 read-only shot endpoint + raw shot map | done |
 | 0.6 deployment | done — 18/18 deployed smoke checks pass |
+| 1.1 source review, attribution, coverage inventory, data dictionary | in progress — documentation recorded; logo and public row-level use remain release gates |
 
-M1 is next: the full four-tournament cohort, a real schema with constraints and migrations,
-idempotent ingestion, and the SQL analysis pack.
+M1 has started with WP1.1. The remaining M1 work is the full four-tournament cohort, a real schema
+with constraints and migrations, idempotent ingestion, data-quality reporting, and the SQL analysis
+pack. Do not treat WP1.1 as closed while its two publication gates remain unresolved.
 
 ## 3. Documents that own the detail
 
@@ -49,6 +51,7 @@ idempotent ingestion, and the SQL analysis pack.
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, and per-milestone "must be able to defend" lists |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, visa reality, artifact↔requirement mapping |
+| [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, data dictionary, publication gates |
 | [`docs/adr/`](docs/adr/) | Decisions that are expensive to reverse, with the evidence and the review trigger |
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from 30 real job postings |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosts, cost, environment variables, order of operations, failure modes |
@@ -89,6 +92,12 @@ freeze frames and continuous tracking are three different products.
 
 **Attribution is a licence obligation**, not decoration. It appears in the repository, the deployed
 page and any published output, and a test fails if it is removed.
+
+The 2026-08-01 review in [`DATA_SOURCE.md`](DATA_SOURCE.md) leaves two publication gates open: the
+official Media Pack link no longer exposes a clearly approved logo asset, and the agreement does not
+define the current public row-level `/shots` use against its data-redistribution restriction. Text
+attribution is not represented as clearing the logo requirement. Do not expand published row-level
+data or claim the terms review is resolved until the author obtains current written direction.
 
 ## 5. How tests work here
 

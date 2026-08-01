@@ -13,6 +13,10 @@ evidence trail that makes every number defensible.
 > and recorded outcomes; the conversion rate is a description of the loaded data, not a prediction.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
+M1 has started with WP1.1. The dated source review, measured current coverage, data dictionary, and
+two unresolved publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md); WP1.1 is not yet
+closed.
+
 ## Documentation
 
 | Document | What it covers |
@@ -20,6 +24,7 @@ evidence trail that makes every number defensible.
 | [`AGENTS.md`](AGENTS.md) | **Start here.** Current state, non-negotiable rules, and where each detail lives |
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, what must be defensible before a claim is used |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, artifact↔requirement mapping |
+| [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, and data dictionary |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Railway + Neon setup, environment variables, smoke test |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from observed job-posting demand |
@@ -236,8 +241,15 @@ trade-off.
 ## Data source and attribution
 
 Data provided by **StatsBomb**. This project uses StatsBomb Open Data under its published terms;
-the README and licence are re-reviewed before first ingestion and before every public release, with
-the review date recorded in `docs/`.
+the official README and Public Data User Agreement were reviewed on **2026-08-01**. The dated source
+record, exact revision, coverage inventory, data dictionary, and unresolved publication questions
+are in [`DATA_SOURCE.md`](DATA_SOURCE.md).
+
+The official sources require both source attribution and the StatsBomb logo for published analysis.
+Text attribution is present in the repository and deployed page, but the official Media Pack URL
+currently redirects without exposing a clearly approved downloadable asset. Public row-level API use
+also needs clarification under the agreement's data-redistribution restriction. Neither question is
+silently treated as cleared; both are release gates recorded in `DATA_SOURCE.md`.
 
 StatsBomb Open Data event data, StatsBomb 360 freeze frames, and continuous tracking data are three
 different products. A freeze frame is a partial snapshot around an event, not continuous player
