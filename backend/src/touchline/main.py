@@ -1,10 +1,11 @@
 """FastAPI application entry point.
 
 M0 scope: prove the application starts, reads typed configuration, reaches PostgreSQL, and serves
-the constant base-rate baseline computed from the loaded data.
+the descriptive conversion prevalence computed from the loaded data.
 
-**No model is served here and no performance claim is made.** The baseline is one number returned
-for every shot; see `touchline.baseline` for why that is the right thing to publish first.
+**No model is served here and no performance claim is made.** `/baseline` reports one full-cohort
+summary; `/shots` returns recorded facts with no prediction. See `touchline.baseline` for why that
+is the right thing to publish first.
 """
 
 from __future__ import annotations

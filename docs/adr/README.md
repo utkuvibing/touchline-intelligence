@@ -31,4 +31,7 @@ An ADR proposing a new tool must answer:
 - [0001 — Monorepo architecture](0001-monorepo-architecture.md)
 - [0002 — PostgreSQL as primary database](0002-postgresql-as-primary-database.md)
 - [0003 — AI-assisted development policy](0003-ai-assisted-development-policy.md)
-
+- [0004 — Cohort scope and validation design](0004-cohort-scope-and-validation-design.md)
+- [0005 — Bounded PyTorch artifact and pre-registered model selection](0005-bounded-pytorch-artifact.md)
+- [0006 — Deployment approach](0006-deployment-approach.md)
+- [0007 — Scope exclusions decided on job-market evidence](0007-scope-exclusions-on-market-evidence.md)
