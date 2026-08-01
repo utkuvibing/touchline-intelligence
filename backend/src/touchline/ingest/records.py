@@ -3,8 +3,8 @@
 Keeping these separate from both the source JSON and the database lets the parser be tested with
 no services running, and makes the shape of what is actually stored explicit in one place.
 
-WP0.3 is a deliberately narrow slice: five tables, no full event model, no lineups, no possessions.
-See `schema.sql` for why this schema is temporary.
+The current model is a deliberately narrow slice: five tables, no full event model, no lineups, no
+possessions. See the ordered SQL migrations and ``docs/SCHEMA.md`` for the physical model.
 """
 
 from __future__ import annotations

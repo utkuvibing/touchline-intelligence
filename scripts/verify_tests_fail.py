@@ -42,12 +42,13 @@ DB_URL_BROKEN = (
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
-# These two only prove anything when TOUCHLINE_DB_URL is set - the loader tests need a live
-# database, and the hermeticity break is invisible unless a TOUCHLINE_* variable is exported. The
-# script reports MISSED otherwise, which is honest: an unrun test protects nothing.
+# Database-backed mutations only prove anything when TOUCHLINE_DB_URL is set, and the hermeticity
+# break is invisible unless a TOUCHLINE_* variable is exported. The script reports MISSED otherwise,
+# which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
 BASELINE_TESTS = "uv run pytest backend/tests/test_baseline_integration.py -q"
 SHOTS_TESTS = "uv run pytest backend/tests/test_shots_integration.py -q"
+MIGRATION_TESTS = "uv run pytest backend/tests/test_migrations_integration.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -174,6 +175,65 @@ BREAKS: list[Break] = [
         anchor="    if shots == 0:\n        raise NoDataError(",
         replacement="    if False:  # DELIBERATE BREAK\n        raise NoDataError(",
         command=BASELINE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="migrations must be applied in their declared order",
+        path=ROOT / "backend/src/touchline/ingest/migrate.py",
+        anchor="    migrations = read_migrations()",
+        replacement=("    migrations = tuple(reversed(read_migrations()))  # DELIBERATE BREAK"),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="applied migration checksum drift must be rejected",
+        path=ROOT / "backend/src/touchline/ingest/migrate.py",
+        anchor="            if checksum != by_version[version].checksum:",
+        replacement="            if False:  # DELIBERATE BREAK",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="applied migration history must be an exact ordered prefix",
+        path=ROOT / "backend/src/touchline/ingest/migrate.py",
+        anchor="        if applied_versions != packaged_versions[: len(applied_versions)]:",
+        replacement="        if False:  # DELIBERATE BREAK",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="an unversioned M0 schema must match its known physical signature",
+        path=ROOT / "backend/src/touchline/ingest/migrate.py",
+        anchor="            _validate_unversioned_m0_schema(conn)",
+        replacement="            pass  # DELIBERATE BREAK",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the destructive rebuild must use the ordered migrations",
+        path=ROOT / "backend/src/touchline/ingest/load.py",
+        anchor="    apply_migrations(conn)",
+        replacement="    return  # DELIBERATE BREAK",
+        command=LOAD_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a shot must reference an existing match",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0002_relational_constraints.sql",
+        anchor="        FOREIGN KEY (match_id) REFERENCES matches (match_id),",
+        replacement="        CHECK (match_id > 0), -- DELIBERATE BREAK",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="shot x coordinates must remain within the StatsBomb pitch",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0002_relational_constraints.sql",
+        anchor="        CHECK (location_x IS NULL OR location_x BETWEEN 0.0 AND 120.0),",
+        replacement=(
+            "        CHECK (location_x IS NULL OR location_x BETWEEN -1000.0 AND 1000.0), "
+            "-- DELIBERATE BREAK"
+        ),
+        command=MIGRATION_TESTS,
         cwd=ROOT,
     ),
 ]

@@ -158,9 +158,9 @@ CORS allows the real frontend origin while refusing an unknown one.
 **There is no shot-quality model.** No performance claim on the site or in the repository has been
 evaluated, because there is nothing yet to evaluate.
 
-Also true today: one competition is loaded; the schema is provisional, with primary keys but no foreign
-keys or migrations; ingestion is not idempotent; and `players` holds only players who took a shot, so
-it is not a squad list.
+Also true at the M0 close: one competition was loaded; the schema was provisional, with primary keys
+but no foreign keys or migrations; ingestion was not idempotent; and `players` held only players who
+took a shot, so it was not a squad list.
 
 M1 addresses the data foundation: the full four-tournament cohort (roughly 5,100 non-penalty shots), a
 real schema with constraints and migrations, idempotent ingestion with a run manifest, and a

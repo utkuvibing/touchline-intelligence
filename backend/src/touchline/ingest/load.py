@@ -1,7 +1,7 @@
 """Writing parsed records into PostgreSQL.
 
-WP0.3 uses plain SQL through psycopg. There is no ORM and no migration tool on purpose: the schema
-is provisional, and the point of this milestone is a working path, not an abstraction over one.
+The relational schema is managed by ordered, hand-written SQL migrations through psycopg. There is
+no ORM: SQL is an explicit project artifact and learning objective.
 
 **This loader is not idempotent.** Every insert is a plain INSERT, so a second run against a
 populated database fails on the primary keys. That failure is intentional - it is louder and safer
@@ -16,11 +16,12 @@ data that had already been kept.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib import resources
 from typing import TYPE_CHECKING
 
 import psycopg
 from psycopg import sql
+
+from touchline.ingest.migrate import apply_migrations
 
 if TYPE_CHECKING:
     from touchline.ingest.records import Competition, Match, Player, Shot, Team
@@ -44,20 +45,24 @@ class LoadCounts:
     shots: int
 
 
-def read_schema_sql() -> str:
-    """Load the DDL that ships alongside this module."""
-    return resources.files("touchline.ingest").joinpath("schema.sql").read_text(encoding="utf-8")
-
-
 def reset_schema(conn: psycopg.Connection) -> None:
-    """Drop and recreate every table. Destructive, and the supported way to re-run a load.
+    """Drop every managed table and rebuild through ordered migrations.
 
     Does not commit. PostgreSQL DDL is transactional, so a reset that is followed by a failed load
     rolls back with it and leaves the previous data intact - which is what makes an aborted re-run
     safe rather than merely loud.
     """
     with conn.cursor() as cur:
-        cur.execute(read_schema_sql())
+        for table in (
+            "shots",
+            "matches",
+            "players",
+            "teams",
+            "competitions",
+            "schema_migrations",
+        ):
+            cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(sql.Identifier(table)))
+    apply_migrations(conn)
 
 
 def _existing_rows(conn: psycopg.Connection) -> int:

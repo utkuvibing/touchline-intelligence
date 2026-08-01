@@ -13,9 +13,10 @@ evidence trail that makes every number defensible.
 > and recorded outcomes; the conversion rate is a description of the loaded data, not a prediction.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
-M1 has started with WP1.1. The dated source review, measured current coverage, data dictionary, and
-two unresolved publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md); WP1.1 is not yet
-closed.
+M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
+publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is complete: the
+five-table shot schema now has an ERD, ordered migrations, and relational constraints. WP1.3's
+four-tournament idempotent ingestion and run manifest are next.
 
 ## Documentation
 
@@ -25,6 +26,8 @@ closed.
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, what must be defensible before a claim is used |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, artifact↔requirement mapping |
 | [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, and data dictionary |
+| [`CONTEXT.md`](CONTEXT.md) | Canonical project domain language |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | ERD, table grain, migrations, constraints, and validation boundaries |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Railway + Neon setup, environment variables, smoke test |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from observed job-posting demand |
@@ -79,6 +82,7 @@ dependency — there is nothing extra to install on Windows.
 | `uv run poe typecheck` | mypy (strict) |
 | `uv run poe test` | pytest (integration tests skip unless the database is up) |
 | `uv run pytest -m integration` | Integration tests against the running PostgreSQL |
+| `uv run poe migrate` | Apply pending ordered PostgreSQL migrations |
 | `uv run poe ingest --reset` | Load the World Cup 2022 slice (destructive reset) |
 | `uv run poe api` | Run the API at http://localhost:8000 |
 | `uv run python scripts/verify_tests_fail.py` | Break each protected behaviour once and confirm the tests catch it |
@@ -114,7 +118,7 @@ scripts/                 documented developer entry points
 docs/                    plan, targeting, ADRs, research, experiment rules
 ```
 
-## Data ingestion (WP0.3)
+## Data ingestion and schema
 
 ```bash
 uv run poe ingest --reset
@@ -131,8 +135,8 @@ identical bytes. Downloaded files are cached under `data/statsbomb/<sha>/` (git-
 
 **The loader is not idempotent.** Every write is a plain `INSERT`, so a second run against a
 populated database is refused with a message rather than silently duplicating rows. `--reset` drops
-and recreates the tables, and is the supported way to re-run. Upserts, source-key conflict handling
-and a run manifest are M1.
+and recreates the tables through the ordered migrations, and is the supported way to re-run.
+Upserts, source-key conflict handling, and a run manifest arrive in WP1.3.
 
 **The caller owns the transaction, and reconciliation happens before the commit.** The flow is
 reset → load → read counts back → reconcile against the source → commit. Counts are read inside the
@@ -140,18 +144,19 @@ transaction, against rows that are written but not yet durable, so a mismatch ro
 back. Nothing in the loader module commits: committing first and reporting afterwards would make
 reconciliation a description of data already kept.
 
-**The WP0.3 schema is provisional and expected to be replaced in M1.** Five tables — `competitions`,
-`teams`, `players`, `matches`, `shots` — with primary keys only: no foreign keys, no check
-constraints, no indexes beyond the keys, no migration tool. Primary keys are present because they
-make a duplicate load fail loudly; everything else is deferred to M1, where referential integrity
-arrives together with the ingestion ordering and failure handling that make it enforceable.
-See [`backend/src/touchline/ingest/schema.sql`](backend/src/touchline/ingest/schema.sql).
+**WP1.2 manages the five-table shot-focused schema through ordered, hand-written SQL migrations.**
+`competitions`, `teams`, `players`, `matches`, and `shots` retain their source identifiers as natural
+primary keys. Composite and nullable foreign keys, uniqueness through those keys, and named checks
+protect relationship, score, clock, and coordinate invariants. Applied migration SQL is checksum
+protected. See [`docs/SCHEMA.md`](docs/SCHEMA.md) for the ERD and the exact database-versus-pipeline
+validation boundary.
 
 Only shots are stored. There is no full event model, no lineups and no possessions. One consequence
 worth knowing before querying: **`players` is not a squad list.** A player appears only if they took
 at least one shot, so WC 2022 yields 431 rows against roughly 830 players in the squads. Any
 per-player denominator taken from this table would be wrong in a way that still looks plausible.
-Complete squads arrive with lineups in M1.
+Lineups and generic events require a separately justified schema expansion under
+[ADR 0008](docs/adr/0008-shot-focused-relational-boundary.md).
 **Provider xG is deliberately not ingested** — it is the strongest leakage vector for the M2
 shot-quality model, and the cheapest guarantee that it never reaches a feature set is for it not to
 be in the database.
@@ -229,7 +234,7 @@ trade-off.
   integrations — see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 - Neon's free tier suspends the compute after inactivity, so the first request after an idle period
   waits for it to wake.
-- Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).
+- Ingestion is not idempotent; source-key upserts and the run manifest are WP1.3 work.
 - Only one competition-season is loaded. The full four-tournament cohort in
   [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md) arrives in M1.
 - `npm audit` reports 3 high-severity advisories in transitive Next.js dependencies (`postcss`,

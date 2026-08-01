@@ -76,6 +76,17 @@ need it.
 
    `--reset` is destructive and is the supported way to re-run: the loader is not idempotent.
 
+   `--reset` rebuilds through all ordered migrations. For an existing populated M0 database that
+   must keep its rows, apply the non-destructive WP1.2 upgrade instead:
+
+   ```bash
+   uv run poe migrate
+   ```
+
+   A Railway code deploy does **not** run this command. Migration-on-application-boot is deferred to
+   M3.3, so an operator must run and verify the migration separately before claiming the live schema
+   has the WP1.2 constraints. The WP1.2 repository delivery did not modify the live Neon database.
+
 ### 2. Railway (backend)
 
 1. New project → Deploy from GitHub repo → this repository.

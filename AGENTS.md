@@ -3,7 +3,7 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-01, M0 complete. Update the "Where we are" section when a work package
+Last updated: 2026-08-01, WP1.2 complete. Update the "Where we are" section when a work package
 closes; do not let it drift.
 
 ---
@@ -39,11 +39,12 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 0.4 descriptive prevalence endpoint | done |
 | 0.5 read-only shot endpoint + raw shot map | done |
 | 0.6 deployment | done — 18/18 deployed smoke checks pass |
-| 1.1 source review, attribution, coverage inventory, data dictionary | in progress — documentation recorded; logo and public row-level use remain release gates |
+| 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
+| 1.2 relational schema, ERD, ordered migrations, constraints | done |
 
-M1 has started with WP1.1. The remaining M1 work is the full four-tournament cohort, a real schema
-with constraints and migrations, idempotent ingestion, data-quality reporting, and the SQL analysis
-pack. Do not treat WP1.1 as closed while its two publication gates remain unresolved.
+M1 has completed WP1.1 and WP1.2. WP1.3 is next: the full four-tournament cohort, idempotent
+ingestion, and a run manifest. Data-quality reporting and the SQL analysis pack follow. WP1.1 being
+closed does not clear its two documented publication gates.
 
 ## 3. Documents that own the detail
 
@@ -52,6 +53,8 @@ pack. Do not treat WP1.1 as closed while its two publication gates remain unreso
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, and per-milestone "must be able to defend" lists |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, visa reality, artifact↔requirement mapping |
 | [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, data dictionary, publication gates |
+| [`CONTEXT.md`](CONTEXT.md) | Canonical domain terms and meanings |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | ERD, table grain, migration lifecycle, constraints, and validation boundaries |
 | [`docs/adr/`](docs/adr/) | Decisions that are expensive to reverse, with the evidence and the review trigger |
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from 30 real job postings |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosts, cost, environment variables, order of operations, failure modes |

@@ -39,6 +39,7 @@ typecheck = "mypy backend"
 test = "pytest"
 check = ["format-check", "lint", "typecheck", "test"]
 api = "uvicorn touchline.main:app --reload --app-dir backend/src"
+migrate = "python -m touchline.ingest.migrate"
 ingest = "python -m touchline.ingest.cli"
 
 [tool.ruff]
