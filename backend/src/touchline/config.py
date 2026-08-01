@@ -7,7 +7,7 @@ deployment target with different values.
 
 from __future__ import annotations
 
-from pydantic import Field, PostgresDsn
+from pydantic import Field, PostgresDsn, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -67,10 +67,37 @@ class Settings(BaseSettings):
         return str(self.db_url)
 
 
+class MissingConfigurationError(RuntimeError):
+    """A required environment variable is not set.
+
+    Exists to turn a sixty-line pydantic traceback into one actionable line. Pydantic reports the
+    *field* name (`db_url`); an operator looking at a deployment platform needs the *variable*
+    name (`TOUCHLINE_DB_URL`), and nothing in the default message bridges the two.
+    """
+
+
 def get_settings() -> Settings:
     """Build settings from the environment.
 
     Deliberately not cached: tests construct settings with different environments, and the cost of
     reading a handful of environment variables is irrelevant next to a request.
+
+    Missing configuration still fails at startup rather than being defaulted away — an instance
+    that boots with no database configured and reports itself healthy is worse than one that
+    refuses to boot. Only the error message improves here, not the behaviour.
     """
-    return Settings()  # type: ignore[call-arg]  # values come from the environment
+    try:
+        return Settings()  # type: ignore[call-arg]  # values come from the environment
+    except ValidationError as exc:
+        missing = [
+            f"{Settings.model_config['env_prefix']}{error['loc'][0]}".upper()
+            for error in exc.errors()
+            if error["type"] == "missing" and error["loc"]
+        ]
+        if not missing:
+            raise
+        raise MissingConfigurationError(
+            f"Missing required environment variable(s): {', '.join(missing)}. "
+            "Set them in the deployment platform's variables, or copy .env.example to .env "
+            "for local development. See docs/DEPLOYMENT.md."
+        ) from exc
