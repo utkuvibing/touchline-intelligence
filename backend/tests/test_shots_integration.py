@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import pytest
@@ -166,16 +167,45 @@ def test_limit_above_the_maximum_is_rejected(
     assert client.get("/shots", params={"offset": -1}).status_code == 422
 
 
-def test_the_query_runs_read_only(loaded_conn: psycopg.Connection) -> None:
-    """Read-only is enforced by the database, not merely documented.
+def test_fetch_shots_makes_its_own_transaction_read_only(
+    loaded_conn: psycopg.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Read-only must be established by `fetch_shots`, not by the caller.
 
-    Proven by the state the transaction leaves behind: a write attempted inside the same
-    read-only transaction would fail, so this asserts the setting is actually applied rather
-    than trusting the SQL string.
+    An earlier version of this test called `fetch_shots` and then opened a *separate* transaction
+    in which it ran `SET TRANSACTION READ ONLY` itself, and asserted a write failed there. That
+    proved PostgreSQL honours the statement — which was never in doubt — and would have passed
+    with the production statement deleted. A false positive.
+
+    This asks the server, from inside whatever transaction `fetch_shots` established, whether that
+    transaction is read-only. It observes real session state rather than inspecting SQL text, so
+    removing the production `SET TRANSACTION READ ONLY` makes it fail.
     """
+    observed: list[str] = []
+
+    class ProbingCursor(psycopg.Cursor[Any]):
+        """Records the transaction's read-only state after every statement it runs.
+
+        Installed through psycopg's own `cursor_factory`, so `fetch_shots` is untouched and both
+        of its cursors are covered.
+        """
+
+        def execute(self, *args: Any, **kwargs: Any) -> ProbingCursor:
+            result = super().execute(*args, **kwargs)
+            # A plain second cursor on the same connection is inside the same transaction, so
+            # this reports the state fetch_shots actually established.
+            with psycopg.Cursor(self.connection) as probe:
+                probe.execute("SHOW transaction_read_only")
+                row = probe.fetchone()
+                observed.append(str(row[0]) if row else "unknown")
+            return result
+
+    monkeypatch.setattr(loaded_conn, "cursor_factory", ProbingCursor)
+
     fetch_shots(loaded_conn, limit=1)
 
-    with loaded_conn.transaction(), loaded_conn.cursor() as cur:
-        cur.execute("SET TRANSACTION READ ONLY")
-        with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
-            cur.execute("DELETE FROM shots")
+    assert observed, "no statement was executed, so nothing was observed"
+    assert observed[-1] == "on", (
+        "the transaction fetch_shots ran its data query in was not read-only; "
+        f"observed states in order: {observed}"
+    )

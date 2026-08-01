@@ -6,7 +6,8 @@
  * would be the first step towards rendering a number nothing has evaluated.
  */
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
 
 /** StatsBomb pitch dimensions, in the units the coordinates are recorded in. */
 export const PITCH_LENGTH = 120;
@@ -56,8 +57,45 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function fetchShots(limit = 500): Promise<ShotPage> {
-  return getJson<ShotPage>(`/shots?limit=${limit}`);
+export function fetchShots(limit = 500, offset = 0): Promise<ShotPage> {
+  return getJson<ShotPage>(`/shots?limit=${limit}&offset=${offset}`);
+}
+
+/** What a caller got, and what existed to get. Kept together so the two cannot drift apart. */
+export interface AllShots {
+  shots: Shot[];
+  /** The API's unpaged total. If this exceeds `shots.length`, the caller must say so. */
+  total: number;
+}
+
+/**
+ * Page through the bounded endpoint until every shot has been retrieved.
+ *
+ * The API is deliberately bounded, so "all the shots" means several requests. Fetching one page
+ * and describing it as the tournament would be a quiet misstatement - the page claims to show
+ * every recorded shot, and with 1,494 in WC 2022 against a 200-row default it would have been
+ * showing a third of them.
+ *
+ * `total` is returned alongside rather than discarded, so the caller can disclose a shortfall if
+ * the loop ever stops early. It stops early only at `maxPages`, which exists so a mismatch between
+ * client and server cannot turn into an unbounded request loop.
+ */
+export async function fetchAllShots(
+  pageSize = 1000,
+  maxPages = 20,
+): Promise<AllShots> {
+  const first = await fetchShots(pageSize, 0);
+  const shots = [...first.shots];
+
+  for (let page = 1; shots.length < first.total && page < maxPages; page += 1) {
+    const next = await fetchShots(pageSize, page * pageSize);
+    if (next.shots.length === 0) {
+      break; // defensive: never loop forever on an endpoint that stops returning rows
+    }
+    shots.push(...next.shots);
+  }
+
+  return { shots, total: first.total };
 }
 
 export function fetchConversionRate(): Promise<ConversionRate> {

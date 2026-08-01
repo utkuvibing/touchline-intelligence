@@ -42,7 +42,7 @@ const rate: ConversionRate = {
  */
 describe("M0 landing page", () => {
   it("identifies the project", () => {
-    render(<HomeView shots={[]} rate={null} error={null} />);
+    render(<HomeView shots={[]} total={0} rate={null} error={null} />);
 
     expect(
       screen.getByRole("heading", { level: 1, name: /touchline intelligence platform/i }),
@@ -50,13 +50,13 @@ describe("M0 landing page", () => {
   });
 
   it("states that no evaluated model is present yet", () => {
-    render(<HomeView shots={[]} rate={null} error={null} />);
+    render(<HomeView shots={[]} total={0} rate={null} error={null} />);
 
     expect(screen.getByRole("note")).toHaveTextContent(PROVISIONAL_NOTICE);
   });
 
   it("attributes StatsBomb as the data source", () => {
-    render(<HomeView shots={[]} rate={null} error={null} />);
+    render(<HomeView shots={[]} total={0} rate={null} error={null} />);
 
     expect(screen.getByText(/data provided by statsbomb/i)).toBeInTheDocument();
   });
@@ -69,6 +69,7 @@ describe("M0 landing page", () => {
           shot({ shot_id: "b", outcome: "Saved" }),
           shot({ shot_id: "c", outcome: "Off T" }),
         ]}
+        total={3}
         rate={null}
         error={null}
       />,
@@ -84,6 +85,7 @@ describe("M0 landing page", () => {
     render(
       <HomeView
         shots={[shot({ shot_id: "a" }), shot({ shot_id: "b", location_x: null, location_y: null })]}
+        total={2}
         rate={null}
         error={null}
       />,
@@ -98,6 +100,7 @@ describe("M0 landing page", () => {
     const { container } = render(
       <HomeView
         shots={[shot({ shot_id: "a", outcome: "Goal" }), shot({ shot_id: "b", outcome: "Saved" })]}
+        total={2}
         rate={null}
         error={null}
       />,
@@ -112,7 +115,7 @@ describe("M0 landing page", () => {
   });
 
   it("says a failed fetch is a failed fetch, not an absence of shots", () => {
-    render(<HomeView shots={[]} rate={null} error="connect ECONNREFUSED" />);
+    render(<HomeView shots={[]} total={0} rate={null} error="connect ECONNREFUSED" />);
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(/could not load shots/i);
@@ -120,11 +123,36 @@ describe("M0 landing page", () => {
   });
 
   it("publishes the conversion rate with its counts and caveat, never bare", () => {
-    render(<HomeView shots={[]} rate={rate} error={null} />);
+    render(<HomeView shots={[]} total={0} rate={rate} error={null} />);
 
     const section = screen.getByRole("region", { name: /conversion rate/i });
     expect(within(section).getByText(/10\.63%/)).toBeInTheDocument();
     expect(within(section).getByText(/152 of 1430/)).toBeInTheDocument();
     expect(within(section).getByText(/not a model and not a prediction/i)).toBeInTheDocument();
+  });
+
+  it("discloses a shortfall when the map represents fewer shots than the API reports", () => {
+    // The page describes the map as the tournament's recorded shots. If a paging failure left it
+    // with a subset, presenting it unqualified would be a quiet misstatement.
+    render(
+      <HomeView shots={[shot({ shot_id: "a" })]} total={1494} rate={null} error={null} />,
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(/showing 1 of 1494 recorded shots/i);
+    expect(status).toHaveTextContent(/not the complete tournament/i);
+  });
+
+  it("says nothing about a shortfall when every shot is represented", () => {
+    render(
+      <HomeView
+        shots={[shot({ shot_id: "a" }), shot({ shot_id: "b" })]}
+        total={2}
+        rate={null}
+        error={null}
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

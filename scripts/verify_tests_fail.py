@@ -46,6 +46,7 @@ PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # script reports MISSED otherwise, which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
 BASELINE_TESTS = "uv run pytest backend/tests/test_baseline_integration.py -q"
+SHOTS_TESTS = "uv run pytest backend/tests/test_shots_integration.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -149,6 +150,22 @@ BREAKS: list[Break] = [
         replacement='    "AND true "  # DELIBERATE BREAK',
         command=BASELINE_TESTS,
         cwd=ROOT,
+    ),
+    Break(
+        contract="fetch_shots must make its own transaction read-only",
+        path=ROOT / "backend/src/touchline/shots.py",
+        anchor='cur.execute("SET TRANSACTION READ ONLY")',
+        replacement="pass  # DELIBERATE BREAK",
+        command=SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a map showing fewer shots than the API reports must disclose the shortfall",
+        path=FRONTEND / "components/HomeView.tsx",
+        anchor="            {missing > 0 && (",
+        replacement="            {false && (  /* DELIBERATE BREAK */",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
     ),
     Break(
         contract="an empty database must raise, not report a conversion rate of zero",
