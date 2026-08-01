@@ -16,6 +16,7 @@ evidence trail that makes every number defensible.
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, what must be defensible before a claim is used |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, artifact↔requirement mapping |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Railway + Neon setup, environment variables, smoke test |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from observed job-posting demand |
 | [`docs/experiments/README.md`](docs/experiments/README.md) | Experiment record format and comparison rules |
@@ -76,6 +77,7 @@ dependency — there is nothing extra to install on Windows.
 | `cd frontend && npm test` | Vitest |
 | `cd frontend && npm run typecheck` | tsc |
 | `cd frontend && npm run lint` | ESLint |
+| `uv run python scripts/smoke_deployed.py --api ... --frontend ...` | Smoke-test a deployed instance |
 
 ### Ops endpoints
 
@@ -214,7 +216,8 @@ Stated rather than hidden — each is resolved by a later milestone or is a deli
 trade-off.
 
 - No model and no shot map yet. The baseline above is a constant, not a model; the shot map is WP0.5.
-- Not deployed yet — WP0.6. The CI pipeline builds and checks; it does not deploy.
+- CI builds and checks; it does not deploy. Railway and Vercel deploy from their own GitHub
+  integrations — see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 - Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).
 - Only one competition-season is loaded. The full four-tournament cohort in
   [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md) arrives in M1.

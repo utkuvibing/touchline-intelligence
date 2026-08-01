@@ -14,6 +14,7 @@ from typing import Annotated, Literal
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from touchline import baseline, shots
@@ -23,6 +24,17 @@ app = FastAPI(
     title="Touchline Intelligence Platform",
     version="0.1.0",
     summary="Football research and decision-support on StatsBomb Open Data.",
+)
+
+# Restricted to named origins, never `*`. The deployed frontend is one known origin, so allowing
+# any page on the internet to read this API from a visitor's browser would buy nothing.
+# Read-only API, so no credentials and only the verbs actually used.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 
