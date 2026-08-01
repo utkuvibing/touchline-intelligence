@@ -144,12 +144,16 @@ placeholder, it is a wrong artifact on a public URL.
 | 0.3 | Minimal ingest — one tournament, ~5 tables, no idempotency, no constraints yet |
 | 0.4 | Constant base-rate endpoint: cohort conversion rate, computed from loaded data, no model, no split |
 | 0.5 | One FastAPI endpoint + minimal Next.js **raw shot map** — real shot locations and real outcomes, no predictions plotted |
-| 0.6 | App Dockerfile, GitHub Actions deploy, **first live URL** |
+| 0.6 | App Dockerfile; GitHub Actions builds and checks the image; Vercel (frontend, free) + Railway (backend, Hobby $5/mo) + Neon (PostgreSQL, free) deploy from their own Git integrations; restrictive CORS; **first live URL**; smoke test against the deployed URLs |
 
 **Must be able to defend:**
 
 - What a container image is versus a running container; what the named volume and health check do.
 - Which checks belong in pre-commit versus CI, and what CI catches that a local run does not.
+- Why CI builds the image but does not deploy it, and what a platform token in a repository secret
+  would have bought and cost.
+- Why the CORS allow-list names one origin instead of using `*`, and what a browser does with the
+  header's absence.
 - Why the base rate is a legitimate baseline and what it would mean for a model to fail to beat it.
 - Why M0 publishes no performance metric, and what would be dishonest about publishing one.
 - How configuration reaches the application, and why secrets are not in Git.
