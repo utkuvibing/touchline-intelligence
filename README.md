@@ -14,6 +14,7 @@ evidence trail that makes every number defensible.
 
 | Document | What it covers |
 |---|---|
+| [`AGENTS.md`](AGENTS.md) | **Start here.** Current state, non-negotiable rules, and where each detail lives |
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, what must be defensible before a claim is used |
 | [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, artifact↔requirement mapping |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Railway + Neon setup, environment variables, smoke test |

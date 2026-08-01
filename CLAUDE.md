@@ -1,5 +1,9 @@
 # Touchline Intelligence Platform — Agent Instructions
 
+> **Start with [`AGENTS.md`](AGENTS.md).** It carries the current state of the project, the
+> non-negotiable rules, and pointers to the documents that own each detail. This file is the
+> standing working agreement; `AGENTS.md` is where the project actually stands today.
+
 ## Purpose and developer context
 
 Build one modular football research and decision-support product that turns raw StatsBomb Open Data into reliable data, models, APIs, and analyst interfaces. The developer is transitioning from Materials Science into football analytics and has full-stack experience but is deliberately learning SQL, relational modelling, statistics, production ML, testing, CI/CD, deployment, and football data. Optimize for understanding and credible evidence, not feature count.
