@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Touchline Intelligence frontend
 
-## Getting Started
+The frontend is the Next.js interface for Touchline Intelligence. In M0 it renders the recorded
+FIFA World Cup 2022 shots returned by the FastAPI backend and the cohort's descriptive conversion
+rate. It does not display a trained model, shot-quality predictions, or evaluated performance.
 
-First, run the development server:
+## Runtime and setup
+
+Node.js is pinned in [`../.nvmrc`](../.nvmrc), and npm dependencies are locked in
+[`package-lock.json`](package-lock.json).
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The development server runs at <http://localhost:3000>. The backend must be available separately;
+see the [root README](../README.md) for complete local setup.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`NEXT_PUBLIC_API_BASE` selects the FastAPI base URL. It defaults to
+`http://127.0.0.1:8000` for local development and is required in the deployed Vercel environment.
+It is a public service URL, not a secret.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Checks
 
-## Learn More
+```bash
+npm run lint
+npm run typecheck
+npm test
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm test` runs the Vitest suite once. `npm run test:watch` is also available for local iteration.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Current architecture and limits
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The root page is a dynamically rendered async Server Component. It fetches the bounded `/shots`
+endpoint page by page and fetches `/baseline` without caching, then passes the results to synchronous
+tested components. The map shows recorded locations and outcomes only: marker size is fixed, and no
+probability field or colour scale is present.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The current UI covers one tournament and has no filters, shot-detail panel, calibration view, or
+model output. Those capabilities belong to later milestones; [`../docs/PLAN.md`](../docs/PLAN.md) is
+the authoritative plan. Start with [`../AGENTS.md`](../AGENTS.md) for current project state and
+non-negotiable rules, and use [`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md) for deployment details.

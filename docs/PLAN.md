@@ -131,18 +131,20 @@ before any modelling begins.** v1 put the first working system near the end; tha
 reaches month five with nothing to show.
 
 **M0 makes no model claims.** It proves *data → database → API → UI → deployment* and nothing else.
-The "prediction" it serves is a **constant base-rate baseline**: the observed conversion rate of the
-loaded cohort, returned for every shot. This is honest, trivially correct, and gives M2's real models
-something to beat. There is deliberately **no train/test split and no performance claim anywhere in
-M0** — publishing a knowingly mis-evaluated model, even labelled as a placeholder, is not a
-placeholder, it is a wrong artifact on a public URL.
+`/baseline` serves a **descriptive prevalence**: the observed conversion rate of the loaded cohort,
+with its numerator, denominator and caveat. It is not a prediction and is not attached to the rows
+returned by `/shots`, which contains recorded facts only. M2's actual constant-prediction baseline
+is estimated from the training split and evaluated on validation and holdout rows under the same
+protocol as every candidate model. There is deliberately **no train/test split and no performance
+claim anywhere in M0** — publishing a knowingly mis-evaluated model, even labelled as a placeholder,
+is not a placeholder, it is a wrong artifact on a public URL.
 
 | WP | Ships |
 |---|---|
 | 0.1 | Repo skeleton; pinned Python and Node; lockfiles; formatter, linter, type checker; pytest + frontend test runner with one real smoke test each; Docker Compose PostgreSQL with health check and named volume; `.env.example`; typed settings |
 | 0.2 | GitHub Actions: install from lockfiles, lint, type check, tests |
-| 0.3 | Minimal ingest — one tournament, ~5 tables, no idempotency, no constraints yet |
-| 0.4 | Constant base-rate endpoint: cohort conversion rate, computed from loaded data, no model, no split |
+| 0.3 | Minimal ingest — one tournament, 5 tables, primary keys only; no idempotency, foreign keys, check constraints, migrations or justified secondary indexes yet |
+| 0.4 | Descriptive prevalence endpoint: cohort conversion rate and counts, computed from loaded data, no model, prediction or split |
 | 0.5 | One FastAPI endpoint + minimal Next.js **raw shot map** — real shot locations and real outcomes, no predictions plotted |
 | 0.6 | App Dockerfile; GitHub Actions builds and checks the image; Vercel (frontend, free) + Railway (backend, Hobby $5/mo) + Neon (PostgreSQL, free) deploy from their own Git integrations; restrictive CORS; **first live URL**; smoke test against the deployed URLs |
 
@@ -154,7 +156,8 @@ placeholder, it is a wrong artifact on a public URL.
   would have bought and cost.
 - Why the CORS allow-list names one origin instead of using `*`, and what a browser does with the
   header's absence.
-- Why the base rate is a legitimate baseline and what it would mean for a model to fail to beat it.
+- Why the M0 prevalence is a description rather than an evaluation baseline, and why M2 estimates
+  its constant-prediction baseline from the training split alone.
 - Why M0 publishes no performance metric, and what would be dishonest about publishing one.
 - How configuration reaches the application, and why secrets are not in Git.
 

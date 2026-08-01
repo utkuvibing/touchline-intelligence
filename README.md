@@ -95,8 +95,8 @@ dependency — there is nothing extra to install on Windows.
 Tests protect named contracts, not line coverage. Coverage percentage is not an acceptance criterion.
 
 `scripts/verify_tests_fail.py` exists because a green suite proves the tests pass, not that they
-would fail if the behaviour broke. It has already caught two tests that passed for the wrong reason
-and led to both being rewritten.
+would fail if the behaviour broke. It has already caught three tests that passed for the wrong
+reason and led to all three being rewritten.
 
 ## Repository layout
 

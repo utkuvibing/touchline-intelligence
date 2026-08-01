@@ -8,10 +8,11 @@ Run with a clean working tree:
 
     uv run python scripts/verify_tests_fail.py
 
-It has already earned its place twice. It found that the /health liveness test passed even when
-/health was made to call the database (the failure was invisible from the response body), and that
-the /ready secret-leak test passed for the wrong reason, because it used a blocklist of substrings
-that the actual driver error did not happen to contain. Both tests were rewritten.
+It has already earned its place three times. It found that the /health liveness test passed even
+when /health was made to call the database (the failure was invisible from the response body), that
+the /ready secret-leak test passed for the wrong reason because its substring blocklist missed the
+actual driver error, and that the read-only test configured a separate transaction instead of
+observing the production query's transaction. All three tests were rewritten.
 """
 
 from __future__ import annotations

@@ -10,7 +10,8 @@ Build one modular football research and decision-support product that turns raw 
 
 ## Current source of truth
 
-- Read `docs/PLAN.md` and the active file under `docs/phases/` before proposing work.
+- Treat `docs/PLAN.md` v2 as the authoritative execution plan. Files under `docs/phases/` are
+  superseded reference material and are not active instructions.
 - Follow accepted ADRs under `docs/adr/`.
 - Update relevant docs and add/supersede an ADR when architecture or research methodology changes.
 - Do not silently expand scope or add technologies.
@@ -18,7 +19,9 @@ Build one modular football research and decision-support product that turns raw 
 ## Technical and repository conventions
 
 - One repository, one FastAPI backend, one Next.js/TypeScript frontend, one PostgreSQL database.
-- Python and JavaScript versions, package managers, command runner, formatters, linters, type checks, migrations, and test commands are pinned in Phase 0 and then used consistently.
+- Python and JavaScript versions, package managers, command runner, formatters, linters, type checks,
+  and test commands were pinned in M0 and are used consistently. Migrations and relational
+  constraints arrive in M1 as defined by `docs/PLAN.md`.
 - Configuration comes from typed settings and environment variables; commit `.env.example`, never secrets.
 - Keep raw-source provenance and ingestion manifests. Use migrations and constraints; do not edit production schemas by hand.
 - Prefer clear domain code and measured queries to premature abstractions or speculative performance work.
@@ -49,7 +52,10 @@ Agents may draft boilerplate, CRUD, UI scaffolds, repetitive mappings, Docker/CI
 
 ## Manual-learning requirements
 
-Respect the active phase's manual requirements. In particular, the developer must personally write/explain representative SQL joins and constraints, shot geometry and logistic-regression reasoning, validation splits and calibration, cohort/percentile/similarity definitions, possession/xT/VAEP logic, and any spatial assumptions. AI can critique and test these; it should not erase the learning step.
+Respect the current milestone's "must be able to defend" requirements in `docs/PLAN.md`. In
+particular, the developer must personally write or explain representative SQL joins and constraints,
+shot geometry and logistic-regression reasoning, validation splits and calibration, and cohort and
+feature definitions. AI can critique and test these; it should not erase the learning step.
 
 ## StatsBomb rules
 
@@ -63,10 +69,13 @@ Respect the active phase's manual requirements. In particular, the developer mus
 
 - Follow `docs/experiments/README.md`; do not add MLflow or a tracking server without an ADR based on an observed problem.
 - Record experiment ID/date, Git commit, dataset/query version, population, features, target, split, config, seed, metrics, calibration, artifacts, notes, and decision.
-- Compare on locked populations/splits, retain simple baselines, prevent leakage, and do not tune repeatedly on the final temporal holdout.
+- Compare on locked populations/splits, retain simple baselines, prevent leakage, and do not tune
+  repeatedly on the final tournament holdout.
 
 ## Scope guardrails
 
 Do not add Kubernetes, microservices, dbt, Dagster, Airflow, MLflow, feature stores, Kafka, distributed processing, graph neural networks, multiple clouds/data providers, complex authentication, a custom design system, or LLM features without a documented requirement and accepted ADR. An addition must name the observed problem, current limitation, added complexity, and justified learning/portfolio value.
 
-When a time box is threatened, cut visual polish, extra filters, extra data coverage, and extra model families before provenance, tests, evaluation integrity, limitations, or reproducibility. Phase 5 is optional; the core portfolio must be complete first.
+When a time box is threatened, cut visual polish, extra filters, extra data coverage, and extra model
+families before provenance, tests, evaluation integrity, limitations, or reproducibility. The
+tracking module is optional stretch work and begins only after M0–M4 are complete.

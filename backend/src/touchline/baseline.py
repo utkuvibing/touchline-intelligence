@@ -1,4 +1,4 @@
-"""The constant base-rate baseline.
+"""The descriptive conversion prevalence of the loaded cohort.
 
 This is **not a model, and it is not a prediction.** It is a *descriptive prevalence*: the observed
 conversion rate of the shots currently loaded, reported as a summary of that data.
