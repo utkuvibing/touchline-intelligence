@@ -62,4 +62,15 @@ targeting benefit.
 ## Review trigger
 
 A target role hard-requires a specific cloud platform and reaches final stages; deployment costs
-exceed the managed host's free tier; or the application outgrows a single service.
+exceed what the chosen plans cost; or the application outgrows a single service.
+
+## Amendment, 2026-07-31 — the stack is not free
+
+Recorded because "three free tiers" appeared in the deployment documentation and was wrong. Neon
+and Vercel are used on free tiers. **Railway is not**: its trial is a one-time $5 credit lasting up
+to 30 days, its free tier is $1 of monthly resource credit — neither keeps a container serving for
+a month — so the intended plan is **Hobby at $5/month**, which may require a payment card.
+
+The trade is accepted: a container host that stays up is the point of the milestone, and $5/month
+is the cheapest version of that. Nothing in the image or `railway.json` is Railway-specific beyond
+the healthcheck declaration, so moving hosts later is a configuration change rather than a rewrite.

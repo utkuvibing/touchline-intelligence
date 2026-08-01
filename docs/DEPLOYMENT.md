@@ -4,10 +4,33 @@
 Vercel (Next.js)  ──HTTPS──►  Railway (FastAPI, Docker)  ──►  Neon (PostgreSQL)
 ```
 
-Three free tiers, chosen for the reason in
-[ADR 0006](adr/0006-deployment-approach.md): the point is to have a real containerised service with
-a real CI-built image and a real managed database, not to learn one vendor's console. Nothing here
-is AWS-specific, and the concepts transfer.
+Chosen for the reason in [ADR 0006](adr/0006-deployment-approach.md): the point is to have a real
+containerised service with a real CI-built image and a real managed database, not to learn one
+vendor's console. Nothing here is AWS-specific, and the concepts transfer.
+
+## Cost — read before creating accounts
+
+**This is not a wholly free stack.** Neon and Vercel are used on their free tiers. Railway is not.
+
+| Service | Plan used | Cost |
+|---|---|---|
+| Neon | Free | no charge at this size |
+| Vercel | Hobby (free, non-commercial) | no charge at this size |
+| **Railway** | **Hobby** | **$5/month**, and adding the plan may require a payment card |
+
+Railway's lower tiers are not a stable home for a service that should stay up:
+
+- **Trial** — a one-time $5 credit, usable for up to 30 days. It runs out.
+- **Free** — $1 of monthly resource credit. Enough to try a deploy, not enough to keep a
+  container serving continuously for a month.
+- **Hobby** — $5/month, the intended plan here. Actual usage for one small container is a fraction
+  of that, but the subscription itself is the cost.
+
+Verify current pricing on each provider's own page before committing — these change.
+
+If a paid plan is not wanted, the backend can go to another container host instead; nothing in the
+image or `railway.json` is Railway-specific beyond the healthcheck declaration, and the `PORT`
+environment variable is the only platform contract the container relies on.
 
 ## Environment variables
 
@@ -104,7 +127,8 @@ Exit code 0 means every check passed. Record the run in the release notes.
   endpoint handles the pooling; an application-side pool is M3 hardening with a measured need.
 - **No drift or model monitoring.** There is no model. Structured request logging and health
   endpoints are the whole observability story, recorded as an accepted gap in ADR 0006.
-- **No custom domain, no CDN configuration, no autoscaling.** Free tiers, portfolio traffic.
+- **No custom domain, no CDN configuration, no autoscaling.** Smallest paid/free plans, portfolio
+  traffic.
 
 ## Failure modes worth recognising
 

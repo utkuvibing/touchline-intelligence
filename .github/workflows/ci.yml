@@ -91,3 +91,21 @@ jobs:
   # The ops tests still point at an unreachable DSN of their own to prove /ready degrades; the
   # service container above is for the ingestion tests, which need a real database to prove that a
   # failed reconciliation leaves nothing committed.
+
+  image:
+    name: Backend image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Builds only. Deployment stays with Railway's and Vercel's own Git integrations, so no
+      # platform token ever becomes a repository secret. What this catches is a Dockerfile that
+      # stopped building - which would otherwise surface as a failed deploy after the merge, when
+      # it is more expensive to diagnose.
+      - name: Build
+        run: docker build -t touchline-api:ci .
+
+      # A built image that cannot start is still broken. This is the cheapest possible proof that
+      # the entrypoint resolves and the app imports: no database, no port, just `--help`.
+      - name: Entrypoint resolves
+        run: docker run --rm --entrypoint uvicorn touchline-api:ci --help
