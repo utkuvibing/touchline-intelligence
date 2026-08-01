@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from touchline.config import Settings
+from touchline.config import MissingConfigurationError, Settings, get_settings
 
 VALID_DSN = "postgresql://touchline:localdev@localhost:5432/touchline"
 
@@ -80,3 +81,40 @@ def test_db_url_str_round_trips() -> None:
     settings = _settings(db_url=VALID_DSN)
     assert settings.db_url_str.startswith("postgresql://")
     assert "localhost:5432" in settings.db_url_str
+
+
+def test_missing_variable_error_names_the_environment_variable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The message must name TOUCHLINE_DB_URL, not the field `db_url`.
+
+    Written after a real deployment failure: Railway showed sixty lines of pydantic traceback
+    ending in "db_url Field required", and nothing in it said which variable to set. An operator
+    reading a platform's log needs the variable name, not the model's field name.
+
+    Runs from an empty directory so the repository's own .env cannot satisfy the setting - which
+    is exactly the situation in a container, where there is no .env at all.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(MissingConfigurationError) as exc:
+        get_settings()
+
+    message = str(exc.value)
+    assert "TOUCHLINE_DB_URL" in message
+    assert "docs/DEPLOYMENT.md" in message
+
+
+def test_a_present_but_invalid_value_still_raises_the_validation_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only *missing* configuration gets the friendlier message.
+
+    A malformed DSN is a different mistake, pydantic already explains it well, and folding it into
+    a "missing variable" message would send the reader looking for a variable that is right there.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TOUCHLINE_DB_URL", "not-a-dsn")
+
+    with pytest.raises(ValidationError):
+        get_settings()
