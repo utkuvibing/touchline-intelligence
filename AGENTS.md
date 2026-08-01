@@ -3,7 +3,7 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-01, end of M0 WP0.5. Update the "Where we are" section when a work package
+Last updated: 2026-08-01, M0 complete. Update the "Where we are" section when a work package
 closes; do not let it drift.
 
 ---
@@ -25,7 +25,11 @@ most expensive place for it to happen. Do not add capability the author cannot e
 
 ## 2. Where we are
 
-M0 (walking skeleton) is nearly complete.
+**M0 (walking skeleton) is complete and deployed.**
+
+- Frontend: https://touchline-intelligence.vercel.app (Vercel, free)
+- API: https://touchline-intelligence-production.up.railway.app (Railway Hobby, EU West)
+- Database: Neon free tier, Frankfurt, holding the pinned WC 2022 snapshot
 
 | WP | State |
 |---|---|
@@ -34,14 +38,14 @@ M0 (walking skeleton) is nearly complete.
 | 0.3 StatsBomb WC 2022 ingestion | done |
 | 0.4 descriptive prevalence endpoint | done |
 | 0.5 read-only shot endpoint + raw shot map | done |
-| **0.6 deployment** | **in progress — repository side done, no live URLs yet** |
+| 0.6 deployment | done — 18/18 deployed smoke checks pass |
 
-Deployment state: Neon (PostgreSQL, free, Frankfurt) is provisioned and holds the loaded snapshot.
-Railway (backend, Hobby, EU West) is failing its healthcheck because the service has no
-`TOUCHLINE_*` variables set. Vercel (frontend) has not been started.
+M1 is next: the full four-tournament cohort, a real schema with constraints and migrations,
+idempotent ingestion, and the SQL analysis pack.
 
-**WP0.6 is not complete** and must not be described as complete until real public URLs exist and
-`scripts/smoke_deployed.py` passes against them.
+One loose end: the deployed API reports `environment: local` because `TOUCHLINE_ENVIRONMENT` is not
+set on Railway. Cosmetic, but that field exists precisely to identify which instance you are
+looking at, so it should not stay wrong.
 
 ## 3. Documents that own the detail
 

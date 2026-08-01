@@ -4,11 +4,14 @@ Football research and decision-support built on [StatsBomb Open Data](https://gi
 — a validated relational dataset, a calibrated shot-quality model, and an analyst interface, with the
 evidence trail that makes every number defensible.
 
-> **Status: M0 (Walking Skeleton), in progress.**
-> There is **no shot-quality model yet**, and **no performance claim anywhere in this repository has
-> been evaluated**. M0 exists to prove one thing end to end — data → PostgreSQL → API → UI →
-> deployment — and deliberately makes no modelling claims. See [`docs/PLAN.md`](docs/PLAN.md) for
-> what each milestone adds.
+**Live:** [https://touchline-intelligence.vercel.app](https://touchline-intelligence.vercel.app) · API: [https://touchline-intelligence-production.up.railway.app/docs](https://touchline-intelligence-production.up.railway.app/docs)
+
+> **Status: M0 (Walking Skeleton) complete.**
+> There is **no shot-quality model yet**, and **no performance claim anywhere in this repository or
+> on the deployed site has been evaluated**. M0 proved one thing end to end — data → PostgreSQL →
+> API → UI → deployment — and deliberately makes no modelling claims. The map shows recorded shots
+> and recorded outcomes; the conversion rate is a description of the loaded data, not a prediction.
+> See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
 ## Documentation
 
@@ -216,9 +219,13 @@ says so explicitly instead of rendering an empty pitch that would read as "no sh
 Stated rather than hidden — each is resolved by a later milestone or is a deliberate, recorded
 trade-off.
 
-- No model and no shot map yet. The baseline above is a constant, not a model; the shot map is WP0.5.
+- **No model.** The conversion rate is a description of the loaded data; M2 builds the model.
 - CI builds and checks; it does not deploy. Railway and Vercel deploy from their own GitHub
   integrations — see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+- The deployed API reports `environment: local` until `TOUCHLINE_ENVIRONMENT=production` is set on
+  Railway. Cosmetic, but it is the one field whose job is to say which instance you are looking at.
+- Neon's free tier suspends the compute after inactivity, so the first request after an idle period
+  waits for it to wake.
 - Ingestion is not idempotent and the schema is provisional; both are M1 work (see above).
 - Only one competition-season is loaded. The full four-tournament cohort in
   [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md) arrives in M1.
