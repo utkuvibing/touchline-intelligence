@@ -91,6 +91,12 @@ class StatsBombSource:
         assert isinstance(payload, list)
         return payload
 
+    def lineups(self, match_id: int) -> list[dict[str, Any]]:
+        """Return the pinned squad-membership file for a match."""
+        payload = self._fetch(f"lineups/{match_id}.json")
+        assert isinstance(payload, list)
+        return payload
+
     def prefetch_events(self, match_ids: list[int], *, workers: int = 8) -> None:
         """Warm the cache for many matches at once.
 
@@ -99,6 +105,15 @@ class StatsBombSource:
         """
         with ThreadPoolExecutor(max_workers=workers) as pool:
             list(pool.map(self.events, match_ids))
+
+    def prefetch_match_files(self, match_ids: list[int], *, workers: int = 8) -> None:
+        """Warm the independent events and lineups files for each selected match."""
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(
+                pool.map(
+                    lambda match_id: (self.events(match_id), self.lineups(match_id)), match_ids
+                )
+            )
 
     def provenance(self) -> dict[str, Any]:
         """Everything needed to prove which bytes produced a load."""

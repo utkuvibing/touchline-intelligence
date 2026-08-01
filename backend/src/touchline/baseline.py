@@ -56,11 +56,11 @@ import psycopg
 # result of. WC 2022 has zero missing values in these columns, so this changes no current count -
 # it changes what happens when a future competition does have them.
 COHORT_PREDICATE = (
-    "shot_type IS NOT NULL "
-    "AND period IS NOT NULL "
-    "AND outcome IS NOT NULL "
-    "AND shot_type <> 'Penalty' "
-    "AND period <> 5"
+    "s.shot_type_name IS NOT NULL "
+    "AND e.period IS NOT NULL "
+    "AND s.outcome_name IS NOT NULL "
+    "AND s.shot_type_name <> 'Penalty' "
+    "AND e.period <> 5"
 )
 
 COHORT_DESCRIPTION = (
@@ -74,9 +74,10 @@ COHORT_DESCRIPTION = (
 # published beside it cannot drift apart.
 BASE_RATE_SQL = f"""
     SELECT
-        count(*)                                 AS shots,
-        count(*) FILTER (WHERE outcome = 'Goal') AS goals
-    FROM shots
+        count(*)                                        AS shots,
+        count(*) FILTER (WHERE s.outcome_name = 'Goal') AS goals
+    FROM shots AS s
+    JOIN events AS e ON e.event_id = s.event_id
     WHERE {COHORT_PREDICATE}
 """
 

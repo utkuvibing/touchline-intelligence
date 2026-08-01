@@ -1,22 +1,14 @@
-"""Typed rows produced by parsing, before anything touches the database.
-
-Keeping these separate from both the source JSON and the database lets the parser be tested with
-no services running, and makes the shape of what is actually stored explicit in one place.
-
-The current model is a deliberately narrow slice: five tables, no full event model, no lineups, no
-possessions. See the ordered SQL migrations and ``docs/SCHEMA.md`` for the physical model.
-"""
+"""Typed source rows.  Source JSON never crosses this boundary unexamined."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
 class Competition:
-    """One competition-season. StatsBomb keys these as a pair, not individually."""
-
     competition_id: int
     season_id: int
     competition_name: str
@@ -51,16 +43,101 @@ class Match:
 
 
 @dataclass(frozen=True, slots=True)
+class Lineup:
+    match_id: int
+    team_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class LineupMembership:
+    match_id: int
+    team_id: int
+    player_id: int
+    player_name: str
+    player_nickname: str | None
+    country_id: int | None
+    country_name: str | None
+    jersey_number: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LineupPosition:
+    match_id: int
+    team_id: int
+    player_id: int
+    source_order: int
+    position_id: int | None
+    position_name: str | None
+    from_time: timedelta | None
+    to_time: timedelta | None
+    from_period: int | None
+    to_period: int | None
+    start_reason: str | None = None
+    end_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LineupCard:
+    match_id: int
+    team_id: int
+    player_id: int
+    source_order: int
+    time: timedelta | None
+    card_type: str | None
+    reason: str | None
+    period: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class Possession:
+    match_id: int
+    possession_id: int
+    team_id: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class Event:
+    event_id: str
+    match_id: int
+    source_index: int | None
+    period: int | None
+    minute: int | None
+    second: int | None
+    possession_id: int | None
+    team_id: int | None
+    player_id: int | None
+    type_id: int
+    type_name: str
+    location_x: float | None
+    location_y: float | None
+    type_data: dict[str, Any] | None
+    timestamp: str | None = None
+    play_pattern_id: int | None = None
+    play_pattern_name: str | None = None
+    position_id: int | None = None
+    position_name: str | None = None
+    duration: float | None = None
+    counterpress: bool | None = None
+    under_pressure: bool | None = None
+    off_camera: bool | None = None
+    out: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EventRelation:
+    match_id: int
+    event_id: str
+    related_event_id: str
+    source_order: int
+
+
+@dataclass(frozen=True, slots=True)
 class Shot:
-    """A single shot event.
+    """Parsed Shot detail plus its shared source event fields.
 
-    `shot_id` is StatsBomb's own event UUID, preserved verbatim so any row can be traced back to
-    the source file.
-
-    Provider xG is deliberately **not** ingested. It is the strongest possible leakage vector for
-    the shot-quality model in M2, and the cheapest way to guarantee it never reaches a feature set
-    is for it not to be in the database. If a labelled external comparison is wanted later, it is
-    re-ingested then, explicitly and separately.
+    The shared fields keep the established ``parse_shots`` interface and support pre-load coverage
+    counts. ``Event`` owns their normalized persistence; the loader writes only the shot-specific
+    fields below to ``shots``.
     """
 
     shot_id: str
@@ -76,3 +153,32 @@ class Shot:
     body_part: str | None
     technique: str | None
     shot_type: str | None
+    outcome_id: int | None = None
+    body_part_id: int | None = None
+    technique_id: int | None = None
+    shot_type_id: int | None = None
+    end_location_x: float | None = None
+    end_location_y: float | None = None
+    end_location_z: float | None = None
+    key_pass_event_id: str | None = None
+    aerial_won: bool | None = None
+    deflected: bool | None = None
+    first_time: bool | None = None
+    follows_dribble: bool | None = None
+    open_goal: bool | None = None
+    one_on_one: bool | None = None
+    redirect: bool | None = None
+    saved_off_target: bool | None = None
+    saved_to_post: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ShotFreezeFramePlayer:
+    shot_id: str
+    source_order: int
+    player_id: int | None
+    teammate: bool | None
+    position_id: int | None
+    position_name: str | None
+    location_x: float | None
+    location_y: float | None

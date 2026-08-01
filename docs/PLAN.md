@@ -174,7 +174,7 @@ the primary skill gap being closed, and delegating it to an ORM defeats the purp
 | WP | Ships |
 |---|---|
 | 1.1 | StatsBomb README and licence review with the date recorded; attribution placement; `DATA_SOURCE.md`; coverage inventory; data dictionary |
-| 1.2 | ERD; migrations; keys, foreign keys, uniqueness and check constraints |
+| 1.2 | Full relational ERD and ordered migrations: competition-seasons, match teams, lineups and membership, possessions, generic events, directed event relations, typed shot details, keys, foreign keys, uniqueness and check constraints |
 | 1.3 | Idempotent ingestion of the 230-match cohort: transactions, source-key upserts, run manifest (source version, scope, counts, status, errors) |
 | 1.4 | Data-quality suite and reconciliation report — source counts ↔ table counts, bounds, referential integrity, coverage, missingness |
 | 1.5 | **SQL analysis pack** — 10 queries hand-written without an ORM, including one window function; `EXPLAIN` on two, before and after any index |

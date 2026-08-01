@@ -108,15 +108,15 @@ BREAKS: list[Break] = [
     Break(
         contract="an absent shot location must stay NULL, never be coerced to a real coordinate",
         path=ROOT / "backend/src/touchline/ingest/parse.py",
-        anchor="    if raw is None:\n        return None, None",
-        replacement="    if raw is None:\n        return 0.0, 0.0  # DELIBERATE BREAK",
+        anchor="    if v is None:\n        return None, None",
+        replacement="    if v is None:\n        return 0.0, 0.0  # DELIBERATE BREAK",
         command=PARSE_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="a malformed location must raise, not be silently treated as absent",
         path=ROOT / "backend/src/touchline/ingest/parse.py",
-        anchor='        raise ParseError(f"expected location to be exactly [x, y], got {raw!r}")',
+        anchor='        raise ParseError(f"expected location to be exactly [x, y], got {v!r}")',
         replacement="        return None, None  # DELIBERATE BREAK",
         command=PARSE_TESTS,
         cwd=ROOT,
@@ -124,8 +124,173 @@ BREAKS: list[Break] = [
     Break(
         contract="a location must have exactly two elements, not merely at least two",
         path=ROOT / "backend/src/touchline/ingest/parse.py",
-        anchor="    if not isinstance(raw, list) or len(raw) != 2:",
-        replacement="    if not isinstance(raw, list) or len(raw) < 2:  # DELIBERATE BREAK",
+        anchor=(
+            "    if (\n"
+            "        not isinstance(v, list)\n"
+            "        or len(v) != 2\n"
+            "        or not all(not isinstance(x, bool) and "
+            "isinstance(x, int | float) for x in v)\n"
+            "    ):"
+        ),
+        replacement=(
+            "    if (\n"
+            "        not isinstance(v, list)\n"
+            "        or len(v) < 2  # DELIBERATE BREAK\n"
+            "        or not all(not isinstance(x, bool) and "
+            "isinstance(x, int | float) for x in v)\n"
+            "    ):"
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="optional event integer fields must reject coercible wrong types",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "def _optional_int(obj: dict[str, Any], key: str, context: str) -> int | None:\n"
+            "    value = obj.get(key)\n"
+            "    if value is None:\n"
+            "        return None\n"
+            "    if isinstance(value, bool) or not isinstance(value, int):\n"
+            '        raise ParseError(f"expected {context}.{key} to be an integer, got {value!r}")'
+        ),
+        replacement=(
+            "def _optional_int(obj: dict[str, Any], key: str, context: str) -> int | None:\n"
+            "    value = obj.get(key)\n"
+            "    if value is None:\n"
+            "        return None\n"
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be an integer, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="optional event numeric fields must reject coercible strings",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "    if isinstance(value, bool) or not isinstance(value, int | float):\n"
+            '        raise ParseError(f"expected {context}.{key} to be numeric, got {value!r}")'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be numeric, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="optional event and shot booleans must reject truthy non-booleans",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "    if not isinstance(value, bool):\n"
+            '        raise ParseError(f"expected {context}.{key} to be boolean, got {value!r}")'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be boolean, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="optional event string fields must reject non-string values",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "def _optional_str(obj: dict[str, Any], key: str, context: str) -> str | None:\n"
+            "    value = obj.get(key)\n"
+            "    if value is None:\n"
+            "        return None\n"
+            "    if not isinstance(value, str):\n"
+            '        raise ParseError(f"expected {context}.{key} to be a string, got {value!r}")'
+        ),
+        replacement=(
+            "def _optional_str(obj: dict[str, Any], key: str, context: str) -> str | None:\n"
+            "    value = obj.get(key)\n"
+            "    if value is None:\n"
+            "        return None\n"
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be a string, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="required lineup integer fields must reject coercible values",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "def _required_int(obj: Any, key: str, context: str) -> int:\n"
+            "    value = _require(obj, key, context)\n"
+            "    if isinstance(value, bool) or not isinstance(value, int):\n"
+            '        raise ParseError(f"expected {context}.{key} to be an integer, got {value!r}")'
+        ),
+        replacement=(
+            "def _required_int(obj: Any, key: str, context: str) -> int:\n"
+            "    value = _require(obj, key, context)\n"
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be an integer, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="required lineup string fields must reject coercible values",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "def _required_str(obj: Any, key: str, context: str) -> str:\n"
+            "    value = _require(obj, key, context)\n"
+            "    if not isinstance(value, str):\n"
+            '        raise ParseError(f"expected {context}.{key} to be a string, got {value!r}")'
+        ),
+        replacement=(
+            "def _required_str(obj: Any, key: str, context: str) -> str:\n"
+            "    value = _require(obj, key, context)\n"
+            "    if False:  # DELIBERATE BREAK\n"
+            '        raise ParseError(f"expected {context}.{key} to be a string, got {value!r}")'
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="lineup members must remain a list container",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "        if not isinstance(raw_lineup, list):\n"
+            '            raise ParseError(f"expected {team_context}.lineup to be a list, '
+            'got {raw_lineup!r}")'
+        ),
+        replacement=(
+            "        if not isinstance(raw_lineup, list):\n"
+            "            raw_lineup = []  # DELIBERATE BREAK"
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="lineup positions must remain a list container",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "            if not isinstance(positions, list):\n"
+            '                raise ParseError("expected lineup member.positions to be a list")'
+        ),
+        replacement=(
+            "            if not isinstance(positions, list):\n"
+            "                positions = []  # DELIBERATE BREAK"
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="lineup cards must remain a list container",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            "            if not isinstance(cards, list):\n"
+            '                raise ParseError("expected lineup member.cards to be a list")'
+        ),
+        replacement=(
+            "            if not isinstance(cards, list):\n"
+            "                cards = []  # DELIBERATE BREAK"
+        ),
         command=PARSE_TESTS,
         cwd=ROOT,
     ),
@@ -140,15 +305,15 @@ BREAKS: list[Break] = [
     Break(
         contract="the loader must not commit - the caller owns the transaction",
         path=ROOT / "backend/src/touchline/ingest/load.py",
-        anchor="        ),\n    )\n    return counts",
-        replacement="        ),\n    )\n    conn.commit()  # DELIBERATE BREAK\n    return counts",
+        anchor="    return LoadCounts(**counts)",
+        replacement="    conn.commit()  # DELIBERATE BREAK\n    return LoadCounts(**counts)",
         command=LOAD_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="the base rate must exclude penalties",
         path=ROOT / "backend/src/touchline/baseline.py",
-        anchor="    \"AND shot_type <> 'Penalty' \"",
+        anchor="    \"AND s.shot_type_name <> 'Penalty' \"",
         replacement='    "AND true "  # DELIBERATE BREAK',
         command=BASELINE_TESTS,
         cwd=ROOT,
@@ -218,20 +383,153 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="a shot must reference an existing match",
-        path=ROOT / "backend/src/touchline/ingest/migrations/0002_relational_constraints.sql",
-        anchor="        FOREIGN KEY (match_id) REFERENCES matches (match_id),",
-        replacement="        CHECK (match_id > 0), -- DELIBERATE BREAK",
+        contract="a shot must reference an existing event",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT shots_event_fk FOREIGN KEY (event_id, event_type_name)\n"
+            "        REFERENCES events (event_id, event_type_name),"
+        ),
+        replacement=(
+            "    ADD CONSTRAINT shots_event_fk CHECK (event_id IS NOT NULL), -- DELIBERATE BREAK"
+        ),
         command=MIGRATION_TESTS,
         cwd=ROOT,
     ),
     Break(
-        contract="shot x coordinates must remain within the StatsBomb pitch",
-        path=ROOT / "backend/src/touchline/ingest/migrations/0002_relational_constraints.sql",
-        anchor="        CHECK (location_x IS NULL OR location_x BETWEEN 0.0 AND 120.0),",
+        contract="an event must reference an existing match",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT events_match_fk FOREIGN KEY (match_id) "
+            "REFERENCES matches (match_id),"
+        ),
         replacement=(
-            "        CHECK (location_x IS NULL OR location_x BETWEEN -1000.0 AND 1000.0), "
+            "    ADD CONSTRAINT events_match_fk CHECK (match_id > 0), -- DELIBERATE BREAK"
+        ),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="event x coordinates must remain within the StatsBomb pitch",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT events_location_x_bounds "
+            "CHECK (location_x IS NULL OR location_x BETWEEN 0.0 AND 120.0),"
+        ),
+        replacement=(
+            "    ADD CONSTRAINT events_location_x_bounds "
+            "CHECK (location_x IS NULL OR location_x BETWEEN -1000.0 AND 1000.0), "
             "-- DELIBERATE BREAK"
+        ),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="event y coordinates must remain within the StatsBomb pitch",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT events_location_y_bounds "
+            "CHECK (location_y IS NULL OR location_y BETWEEN 0.0 AND 80.0),"
+        ),
+        replacement=(
+            "    ADD CONSTRAINT events_location_y_bounds "
+            "CHECK (location_y IS NULL OR location_y BETWEEN -1000.0 AND 1000.0), "
+            "-- DELIBERATE BREAK"
+        ),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="provider xG must be removed recursively before JSONB persistence",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor=(
+            '        return {k: _strip_xg(v) for k, v in value.items() if k != "statsbomb_xg"}'
+        ),
+        replacement=(
+            "        return {k: _strip_xg(v) for k, v in value.items()} # DELIBERATE BREAK"
+        ),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="lineup positions must preserve one-based source order",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor="            for i, p in enumerate(positions, start=1):",
+        replacement=("            for i, p in enumerate(positions, start=0):  # DELIBERATE BREAK"),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="lineup cards must preserve one-based source order",
+        path=ROOT / "backend/src/touchline/ingest/parse.py",
+        anchor="            for i, c in enumerate(cards, start=1):",
+        replacement=("            for i, c in enumerate(cards, start=0):  # DELIBERATE BREAK"),
+        command=PARSE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="full fixture ingestion must load every generic event",
+        path=ROOT / "backend/src/touchline/ingest/load.py",
+        anchor="        for r in events\n    ]",
+        replacement="        for r in events if r.type_name == 'Shot'  # DELIBERATE BREAK\n    ]",
+        command=LOAD_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="event indexes must be unique within a match",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor="    ADD CONSTRAINT events_match_index_unique UNIQUE (match_id, event_index),",
+        replacement="    -- DELIBERATE BREAK: event index uniqueness removed",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="directed event relations must reference a source event in the same match",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT event_relations_source_event_fk "
+            "FOREIGN KEY (match_id, source_event_id)\n"
+            "        REFERENCES events (match_id, event_id),"
+        ),
+        replacement="    -- DELIBERATE BREAK: source relation foreign key removed",
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="JSONB must reject provider xG even if parser protection regresses",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT events_no_provider_xg\n"
+            "        CHECK (type_data IS NULL OR NOT "
+            "jsonb_path_exists(type_data, '$.**.statsbomb_xg'));"
+        ),
+        replacement=("    ADD CONSTRAINT events_no_provider_xg CHECK (true); -- DELIBERATE BREAK"),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="shot details may attach only to events whose type is Shot",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT shots_event_fk FOREIGN KEY (event_id, event_type_name)\n"
+            "        REFERENCES events (event_id, event_type_name),"
+        ),
+        replacement=(
+            "    ADD CONSTRAINT shots_event_fk FOREIGN KEY (event_id) "
+            "REFERENCES events (event_id), -- DELIBERATE BREAK"
+        ),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="shot freeze-frame actors must reference a typed shot detail",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        anchor=(
+            "    ADD CONSTRAINT shot_freeze_frame_players_shot_fk FOREIGN KEY (event_id)\n"
+            "        REFERENCES shots (event_id),"
+        ),
+        replacement=(
+            "    ADD CONSTRAINT shot_freeze_frame_players_shot_fk FOREIGN KEY (event_id)\n"
+            "        REFERENCES events (event_id), -- DELIBERATE BREAK"
         ),
         command=MIGRATION_TESTS,
         cwd=ROOT,
@@ -257,11 +555,23 @@ def _tests_fail(command: str, cwd: Path) -> bool:
 def check(defect: Break) -> bool:
     """Apply one break, run its tests, restore the file. True when the break was caught."""
     original = defect.path.read_text(encoding="utf-8")
-    if defect.anchor not in original:
-        print(f"[SKIP  ] anchor no longer present: {defect.contract}")
+    occurrences = original.count(defect.anchor)
+    if occurrences != 1:
+        print(
+            f"[MISSED] mutation anchor matched {occurrences} times; expected exactly once: "
+            f"{defect.contract}"
+        )
         return False
 
-    defect.path.write_text(original.replace(defect.anchor, defect.replacement, 1), encoding="utf-8")
+    mutated = original.replace(defect.anchor, defect.replacement, 1)
+    if defect.path.suffix == ".py":
+        try:
+            compile(mutated, str(defect.path), "exec")
+        except SyntaxError as exc:
+            print(f"[MISSED] mutation produced invalid Python: {defect.contract}: {exc.msg}")
+            return False
+
+    defect.path.write_text(mutated, encoding="utf-8")
     try:
         caught = _tests_fail(defect.command, defect.cwd)
     finally:
@@ -273,10 +583,13 @@ def check(defect: Break) -> bool:
 
 def main() -> int:
     results = [check(defect) for defect in BREAKS]
+    caught = results.count(True)
+    missed = results.count(False)
+    print(f"\nMutation totals: {caught} CAUGHT, {missed} MISSED, 0 SKIP")
     if all(results):
         print(f"\nAll {len(results)} contracts are genuinely protected. Files restored.")
         return 0
-    print(f"\n{results.count(False)} of {len(results)} breaks went unnoticed. Files restored.")
+    print(f"\n{missed} of {len(results)} breaks went unnoticed. Files restored.")
     print("A test that does not fail here is not protecting anything.")
     return 1
 

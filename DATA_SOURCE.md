@@ -1,218 +1,123 @@
 # Data source, coverage, and dictionary
 
-This document owns the data-source contract for Touchline Intelligence: which source revision is
-used, what is actually loaded, what each current database field means, and which publication
-conditions remain unresolved. Counts describe the current M0 database unless explicitly labelled as
-future M1 scope.
+This document owns the source revision, measured WC 2022 coverage, and physical field meanings.
+The ordered SQL migrations and loader are the implementation source of truth. WP1.1 is complete;
+WP1.2 remains in progress until implementation, independent review, and CI are complete.
 
-**WP1.1 status:** complete. The source review, coverage inventory, and data dictionary are recorded.
-An approved current logo asset and clarification of public row-level data use remain explicit
-release gates; closing the documentation work package does not represent either question as cleared.
-
-## Source and version
+## Source, rights, and attribution
 
 Data is provided by **StatsBomb** through the
-[StatsBomb Open Data repository](https://github.com/statsbomb/open-data). That URL currently
-redirects to `hudl/open-data`; the source README still requires attribution to StatsBomb.
+[StatsBomb Open Data repository](https://github.com/statsbomb/open-data).
 
-| Item | Current value |
+| Item | Value |
 |---|---|
-| Source revision | [`b0bc9f22dd77c206ddedc1d742893b3bbe64baec`](https://github.com/hudl/open-data/tree/b0bc9f22dd77c206ddedc1d742893b3bbe64baec) |
-| Source revision date | 2026-05-26 |
-| Selected competition-season | FIFA World Cup 2022, StatsBomb IDs `43` / `106` |
-| Local cache | `data/statsbomb/b0bc9f22dd77/` — git-ignored and keyed by source revision |
-| Committed provenance | [`data/provenance/competition-43-106.json`](data/provenance/competition-43-106.json) |
-| Terms review | 2026-08-01 — [`docs/research/statsbomb-open-data-terms-review-2026-08-01.md`](docs/research/statsbomb-open-data-terms-review-2026-08-01.md) |
+| Pinned revision | [`b0bc9f22dd77c206ddedc1d742893b3bbe64baec`](https://github.com/hudl/open-data/tree/b0bc9f22dd77c206ddedc1d742893b3bbe64baec) |
+| Revision date | 2026-05-26 |
+| Selected slice | FIFA World Cup 2022, competition `43`, season `106` |
+| Local cache | `data/statsbomb/b0bc9f22dd77/`, git-ignored and revision-keyed |
+| Provenance | [`data/provenance/competition-43-106.json`](data/provenance/competition-43-106.json) |
+| Terms review | 2026-08-01; [evidence note](docs/research/statsbomb-open-data-terms-review-2026-08-01.md) |
 
-The provenance record contains the source revision and a SHA-256 for every source file read. The
-download cache is not a publication artifact and is not committed. The committed files under
-`data/fixtures/statsbomb/` are small synthetic test fixtures with fictional entities and deliberate
-edge cases, not copied match data.
+The reviewed README requires StatsBomb attribution and logo use for published analysis. Text
+attribution is present in the repository, deployed page, and published material. Two release gates
+remain unresolved: the Media Pack did not expose a clearly approved downloadable logo, and the
+agreement did not clearly resolve whether a public row-level API is permitted analysis or prohibited
+redistribution. Do not invent a logo, publish database dumps, or expand public row-level coverage
+until StatsBomb/Hudl clarifies those points. This is a source-text review, not legal advice.
 
-## Rights and attribution review
+The committed fixture files are synthetic, fictional test data. They are not copied match data.
 
-The following first-party sources were reviewed on 2026-08-01 at the pinned revision:
+## Measured source inventory
 
-- the [Open Data README](https://github.com/hudl/open-data/blob/b0bc9f22dd77c206ddedc1d742893b3bbe64baec/README.md);
-- the [StatsBomb Public Data User Agreement](https://github.com/hudl/open-data/blob/b0bc9f22dd77c206ddedc1d742893b3bbe64baec/LICENSE.pdf), internally dated 8 September 2023;
-- the README's [Media Pack link](https://statsbomb.com/media-pack/).
+The provenance manifest covers **130 files**: one competitions file, one match file, 64 event files,
+and 64 lineup files. No `three-sixty` file is read. The `shot.freeze_frame` arrays described below are
+embedded in event files; they are not StatsBomb 360 data and are not continuous tracking.
 
-The README permits public use for research projects and genuine interest in football analytics and
-requires published/shared/distributed research, analysis, or insights to name StatsBomb as the data
-source and use the StatsBomb logo. The agreement permits analysis and research and says analysis or
-conclusions may be shared publicly, but prohibits providing, reproducing, or distributing the data
-to third parties and prohibits commercial exploitation of the data or derived analysis. This is a
-record of the source text, not legal advice.
-
-Current attribution placement:
-
-- the root README and this document name StatsBomb as the source;
-- the deployed page renders “Data provided by StatsBomb,” protected by a frontend test and a
-  deliberate mutation check;
-- the M0 technical article carries the same source statement.
-
-Two publication questions remain open:
-
-1. **Logo:** the official Media Pack URL redirected to a Hudl StatsBomb product page on the review
-   date and did not expose a clearly approved downloadable asset. Text attribution remains in place,
-   but it is not represented as satisfying the separate logo requirement. Do not invent, trace, or
-   extract a logo; obtain a current approved asset or written direction before the next release.
-2. **Row-level public data:** the current `/shots` endpoint exposes selected recorded event fields.
-   The reviewed agreement does not define whether that public API use falls within permitted public
-   analysis or prohibited provision/reproduction of data. Do not expand public row-level coverage or
-   publish database dumps/derived datasets until StatsBomb/Hudl clarifies the use.
-
-The detailed evidence and exact clause references are in the dated terms-review note linked above.
-
-## Current coverage inventory
-
-### Source files read
-
-The current provenance manifest covers exactly **66** files:
-
-- `competitions.json`;
-- `matches/43/106.json`;
-- 64 files under `events/<match_id>.json`, one for every selected match.
-
-The loader does **not** fetch or store lineup files or `three-sixty` files. It reads event files but
-keeps Shot events only. StatsBomb event data, selected StatsBomb 360 freeze frames, and continuous
-tracking are distinct products; this project has no tracking data.
-
-### Loaded population
-
-| Fact | Exact current value |
+| Entity / fact | Exact WC 2022 value |
 |---|---:|
-| Competition-seasons | 1 |
-| Matches | 64 |
-| Match dates | 2022-11-20 to 2022-12-18 |
+| Competition / season pairs | 1 |
+| Matches / match-team roles | 64 / 128 |
 | Teams | 32 |
-| Players represented | 431 shot takers — not a squad list |
-| Stored Shot events | 1,494 |
-| Non-penalty descriptive cohort | 1,430 shots |
-| Goals in that cohort | 152 |
-| Descriptive conversion | 10.63% |
+| Lineups / memberships | 128 / 3,244 |
+| Distinct players | 829 |
+| Position intervals / cards | 2,958 / 228 |
+| Memberships without a position interval | 1,249 |
+| Possessions | 11,121 |
+| Events / event types | 234,637 / 33 |
+| Events with a location | 232,512 |
+| Events with player and position attribution | 233,529 |
+| Directed related-event references | 330,844 |
+| Non-reciprocal directed references | 107,528 |
+| Orphan, cross-match, or duplicate references | 0 |
+| Shots | 1,494 |
+| Shots with embedded freeze-frame arrays / actors | 1,436 / 20,327 |
+| Shot end locations: 2D / 3D | 464 / 1,030 |
+| Key-pass references | 1,039, all same-match Pass events |
+| Non-penalty descriptive cohort | 1,430 shots, 152 goals, 10.63% |
 
-Competition stages: 48 group-stage matches, 8 round-of-16 matches, 4 quarter-finals, 2
-semi-finals, 1 third-place final, and 1 final.
+Every event identifier is unique, and event indexes are contiguous within each match. Position
+source data contains 17 intervals whose `to` value precedes `from`; the loader preserves those
+values and does not invent a chronology rule. Event position ID `0` is a measured source category
+labelled `Substitute`, so sparse category IDs are treated as opaque rather than assumed positive.
+Four player IDs have name variants and one player has
+a country-label variant. IDs define identity; labels are preserved where their row grain permits it.
 
-Shot types: 1,382 Open Play, 64 Penalty, 46 Free Kick, and 2 Corner. Period 5 contains 41 shootout
-kicks; each is typed Penalty in this snapshot. The descriptive cohort requires known `shot_type`,
-`period`, and `outcome`, then excludes `shot_type = 'Penalty'` and period 5.
+Provider xG occurs on all 1,494 source shots as `shot.statsbomb_xg`. It is removed recursively before
+JSON reaches a typed record, is absent from every typed column, and is prohibited in `events.type_data`
+by a database check. It is never persisted.
 
-Current shot-field coverage is complete for player, period, minute, second, location, outcome, body
-part, technique, and shot type: zero of 1,494 rows are missing any of them. The parser still preserves
-optional absence as NULL because completeness in this tournament is not a source guarantee.
-Recorded locations span `x = 59.0–120.0` and `y = 0.7–79.2` on StatsBomb's 120 × 80 pitch.
+Only WC 2022 is loaded by this work package. The WC 2018, Euro 2020, WC 2022, and Euro 2024 cohort,
+idempotent upserts, conflict policy, and ingestion-run manifest remain WP1.3 work.
 
-### M1 target is not current coverage
+## Relational / JSONB boundary
 
-M1 will expand the core cohort to WC 2018, Euro 2020, WC 2022, and Euro 2024, approximately 230
-matches. Only WC 2022 is loaded today. Counts for the other tournaments in PLAN/ADR 0004 remain
-estimates until WP1.3 loads and WP1.4 reconciles them; they must not be presented as measured facts.
+Shared event identity, ordering, clock, attribution, possession, flags, play pattern, position,
+duration, and location are typed relational columns. Shot details used by the existing API and model
+plan are typed in `shots`. Heterogeneous non-shot type-specific objects stay in `events.type_data`
+as JSONB after shared fields and provider xG are removed. Shot events must have NULL `type_data`.
+This avoids a giant sparse table while keeping stable, cross-event fields queryable and constrained.
 
-## Current physical data dictionary
+Missing optional source values remain NULL. Present malformed structures raise; for example, a
+location must be exactly two numeric values. Raw coordinates remain on StatsBomb's 120 by 80 pitch;
+no direction normalization is performed.
 
-The physical source of truth is the ordered SQL under
-[`backend/src/touchline/ingest/migrations/`](backend/src/touchline/ingest/migrations/), the parser in
-[`parse.py`](backend/src/touchline/ingest/parse.py), and the write mapping in
-[`load.py`](backend/src/touchline/ingest/load.py). [`docs/SCHEMA.md`](docs/SCHEMA.md) owns the ERD,
-table grains, relationship and check constraints, migration lifecycle, and the boundary between
-database and pipeline validation. No secondary indexes have been added without WP1.5 query-plan
-evidence.
+## Physical data dictionary
 
-### `competitions`
+[`docs/SCHEMA.md`](docs/SCHEMA.md) owns grains, relationships, keys, and constraints. The table below
+maps every persisted data column to its source meaning; generated identity columns and the migration
+ledger are implementation metadata.
 
-Grain: one StatsBomb competition-season, identified by the pair `(competition_id, season_id)`.
+| Table | Columns and meanings |
+|---|---|
+| `competitions` | `competition_id` source ID; `competition_name` label; `country_name` optional source region. |
+| `seasons` | `season_id` source ID; `season_name` label. |
+| `competition_seasons` | `(competition_id, season_id)` selected source pairing. |
+| `teams` | `team_id` source ID; `team_name` canonical label encountered in match metadata. |
+| `players` | `player_id` source ID; `player_name` canonical collected label. This is now the selected slice's lineup/event player dimension, not only shot takers. |
+| `matches` | `match_id`; competition/season FKs; optional `match_date`, `kick_off`, scores and `competition_stage`; required home/away team IDs. |
+| `match_teams` | `(match_id, team_id)` participant; `role` is `home` or `away`. |
+| `lineups` | `(match_id, team_id)` lineup document grain. |
+| `lineup_memberships` | Match/team/player identity plus source `jersey_number`, row-level `player_name`, optional nickname, and optional country ID/name. Membership is not proof of minutes played. |
+| `lineup_positions` | Membership FK; 1-based `source_order`; optional position ID/name, periods, interval-valued `from_time`/`to_time`, and start/end reasons. Rows preserve source ordering and anomalous chronology. |
+| `lineup_cards` | Membership FK; 1-based `source_order`; card type plus optional reason, period, and interval-valued time. |
+| `possessions` | `(match_id, possession_id)` and optional possessing `team_id`, measured consistently within each match-possession. |
+| `events` | UUID `event_id`; `match_id`; 1-based `event_index`; optional period/timestamp/minute/second; optional team/player/possession attribution; optional `under_pressure`, `off_camera`, `out`, `counterpress`; optional play-pattern and position ID/name; optional duration and x/y location; event type ID/name; sanitized non-shot `type_data` JSONB. |
+| `event_relations` | Match plus directed source and related event UUIDs and 1-based source ordering. Direction is preserved; reciprocity is not assumed. |
+| `shots` | One-to-one `event_id`; constant relational discriminator `event_type_name = 'Shot'`; optional outcome, body-part, technique, and shot-type ID/name pairs; optional 2D/3D end location; optional key-pass event FK; optional `aerial_won`, `follows_dribble`, `first_time`, `open_goal`, `one_on_one`, `deflected`, `redirect`, `saved_off_target`, and `saved_to_post` flags. No provider xG. |
+| `shot_freeze_frame_players` | Shot event FK; 1-based source order; optional player and position attribution; teammate flag; optional x/y location for an actor embedded in `shot.freeze_frame`. This is not tracking or StatsBomb 360. |
 
-| Column | PostgreSQL type / nullability | StatsBomb source | Meaning |
-|---|---|---|---|
-| `competition_id` | `integer NOT NULL`, composite PK | `competition_id` | Source competition identifier. |
-| `season_id` | `integer NOT NULL`, composite PK | `season_id` | Source season identifier within the competition. |
-| `competition_name` | `text NOT NULL` | `competition_name` | Published competition name. |
-| `season_name` | `text NOT NULL` | `season_name` | Published season label. |
-| `country_name` | `text NULL` | `country_name` | Source country/region name when present. |
+## Reproduction and deployment boundary
 
-### `teams`
-
-Grain: one team identity encountered as a home or away team in the selected matches.
-
-| Column | PostgreSQL type / nullability | StatsBomb source | Meaning |
-|---|---|---|---|
-| `team_id` | `integer`, PK | `home_team.home_team_id` or `away_team.away_team_id` | Source team identifier. |
-| `team_name` | `text NOT NULL` | `home_team.home_team_name` or `away_team.away_team_name` | Source team name; deduplicated by ID. |
-
-### `players`
-
-Grain: one player who took at least one stored shot. This is explicitly **not** a squad, lineup, or
-appearance table and cannot supply player exposure denominators.
-
-| Column | PostgreSQL type / nullability | StatsBomb source | Meaning |
-|---|---|---|---|
-| `player_id` | `integer`, PK | Shot event `player.id` | Source player identifier. |
-| `player_name` | `text NOT NULL` | Shot event `player.name` | Source player name; deduplicated by ID. |
-
-### `matches`
-
-Grain: one StatsBomb match in the selected competition-season.
-
-| Column | PostgreSQL type / nullability | StatsBomb source | Meaning |
-|---|---|---|---|
-| `match_id` | `integer`, PK | `match_id` | Source match identifier and event filename key. |
-| `competition_id` | `integer NOT NULL` | `competition.competition_id` | Source competition identifier. |
-| `season_id` | `integer NOT NULL` | `season.season_id` | Source season identifier. |
-| `match_date` | `date NULL` | `match_date` | ISO date parsed to a database date. |
-| `kick_off` | `text NULL` | `kick_off` | Source kick-off value, currently retained as text. |
-| `home_team_id` | `integer NOT NULL` | `home_team.home_team_id` | Source home-team identifier. |
-| `away_team_id` | `integer NOT NULL` | `away_team.away_team_id` | Source away-team identifier. |
-| `home_score` | `integer NULL` | `home_score` | Recorded final home score when present. |
-| `away_score` | `integer NULL` | `away_score` | Recorded final away score when present. |
-| `competition_stage` | `text NULL` | `competition_stage.name` | Tournament stage when present. |
-
-### `shots`
-
-Grain: one source event whose `type.name` is `Shot`. `shot_id` is the StatsBomb event UUID.
-
-| Column | PostgreSQL type / nullability | StatsBomb source | Meaning |
-|---|---|---|---|
-| `shot_id` | `text`, PK | Event `id` | Source event UUID, preserved verbatim. |
-| `match_id` | `integer NOT NULL` | Enclosing event filename | Match containing the event. |
-| `team_id` | `integer NOT NULL` | Event `team.id` | Team credited with the shot. |
-| `player_id` | `integer NULL` | Optional event `player.id` | Player credited with the shot; absence remains NULL. |
-| `period` | `integer NULL` | Event `period` | Source match period; period 5 is a shootout in this snapshot. |
-| `minute` | `integer NULL` | Event `minute` | Source event minute. |
-| `second` | `integer NULL` | Event `second` | Source event second. |
-| `location_x` | `double precision NULL` | Event `location[0]` | Raw StatsBomb x coordinate; absence remains NULL. |
-| `location_y` | `double precision NULL` | Event `location[1]` | Raw StatsBomb y coordinate; absence remains NULL. |
-| `outcome` | `text NULL` | `shot.outcome.name` | Recorded shot outcome. |
-| `body_part` | `text NULL` | `shot.body_part.name` | Recorded body part. |
-| `technique` | `text NULL` | `shot.technique.name` | Recorded technique when present. |
-| `shot_type` | `text NULL` | `shot.type.name` | Recorded shot type, such as Open Play or Penalty. |
-
-Missing optional values become NULL. A present `location` that is not exactly two numeric values is
-malformed and raises instead of being coerced. Required structural fields such as event ID, team, and
-the shot object also raise when absent or malformed.
-
-## Deliberate exclusions
-
-M0 does not store non-shot events, lineups, possessions, related events, play pattern, position,
-shot end location, shot freeze frames, or provider xG. Provider `shot.statsbomb_xg` is deliberately
-excluded from the typed record, schema, loader, and API; a parser test protects that leakage control.
-
-No coordinate normalization or attacking-direction transformation occurs in the raw store. Those are
-future feature-engineering decisions and must not be retrofitted into source fields.
-
-## Reproduction checks
-
-With the pinned files already in the local cache:
+With the pinned files cached locally:
 
 ```bash
 uv run poe ingest --offline --reset
 ```
 
-The load must reconcile source and database counts before commit. The committed provenance hashes
-allow another machine to verify that it received the same bytes. `--reset` is destructive and is the
-supported M0 rerun path; idempotent ingestion and a run manifest arrive in WP1.3.
+The command rebuilds through migrations 0001–0005, loads all entities, compares every table count
+with the parsed source inside the same transaction, and commits only on an exact match. The loader
+remains intentionally non-idempotent; `--reset` is the supported local rerun until WP1.3.
 
-Re-review the official README, agreement, and Media Pack before expanding ingestion scope and before
-every public release. A changed source revision invalidates measured counts and requires regenerated
-provenance and documentation in the same change.
+The repository migration does **not** migrate the live Neon database automatically. Applying code,
+applying schema, loading the full source, and verifying live endpoint results are separate release
+operations. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).

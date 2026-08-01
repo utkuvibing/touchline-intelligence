@@ -25,8 +25,22 @@ import psycopg
 
 from touchline.config import get_settings
 from touchline.ingest import load as loader
-from touchline.ingest.parse import parse_competitions, parse_matches, parse_shots
-from touchline.ingest.records import Competition, Match, Player, Shot, Team
+from touchline.ingest.parse import parse_competitions, parse_events, parse_lineups, parse_matches
+from touchline.ingest.records import (
+    Competition,
+    Event,
+    EventRelation,
+    Lineup,
+    LineupCard,
+    LineupMembership,
+    LineupPosition,
+    Match,
+    Player,
+    Possession,
+    Shot,
+    ShotFreezeFramePlayer,
+    Team,
+)
 from touchline.ingest.source import WORLD_CUP_2022, StatsBombSource
 
 
@@ -41,15 +55,44 @@ class ReconciliationError(RuntimeError):
 class SourceCounts:
     """What the source files said, counted before anything was written."""
 
-    matches: int
-    shots: int
-    shots_without_location: int
-    shots_without_player: int
+    competitions: int = 0
+    seasons: int = 0
+    competition_seasons: int = 0
+    teams: int = 0
+    players: int = 0
+    matches: int = 0
+    match_teams: int = 0
+    lineups: int = 0
+    lineup_memberships: int = 0
+    lineup_positions: int = 0
+    lineup_cards: int = 0
+    possessions: int = 0
+    events: int = 0
+    event_relations: int = 0
+    shots: int = 0
+    shot_freeze_frame_players: int = 0
+    shots_without_location: int = 0
+    shots_without_player: int = 0
 
 
-CollectedScope = tuple[
-    list[Competition], list[Team], list[Player], list[Match], list[Shot], SourceCounts
-]
+@dataclass(frozen=True, slots=True)
+class CollectedScope:
+    """Every parsed entity set required by the normalized loader."""
+
+    competitions: list[Competition]
+    teams: list[Team]
+    players: list[Player]
+    matches: list[Match]
+    shots: list[Shot]
+    source_counts: SourceCounts
+    lineups: list[Lineup]
+    memberships: list[LineupMembership]
+    positions: list[LineupPosition]
+    cards: list[LineupCard]
+    possessions: list[Possession]
+    events: list[Event]
+    relations: list[EventRelation]
+    freeze_frames: list[ShotFreezeFramePlayer]
 
 
 def collect(source: StatsBombSource, competition_id: int, season_id: int) -> CollectedScope:
@@ -71,29 +114,77 @@ def collect(source: StatsBombSource, competition_id: int, season_id: int) -> Col
     match_ids = [m.match_id for m in matches]
 
     print(f"  fetching events for {len(match_ids)} matches ...", flush=True)
-    source.prefetch_events(match_ids)
+    source.prefetch_match_files(match_ids)
 
     shots: list[Shot] = []
+    lineups: list[Lineup] = []
+    memberships: list[LineupMembership] = []
+    positions: list[LineupPosition] = []
+    cards: list[LineupCard] = []
+    possessions: list[Possession] = []
+    events: list[Event] = []
+    relations: list[EventRelation] = []
+    freeze_frames: list[ShotFreezeFramePlayer] = []
     players: dict[int, Player] = {}
     for match_id in match_ids:
-        match_shots, match_players = parse_shots(match_id, source.events(match_id))
+        match_lineups, match_memberships, match_positions, match_cards, lineup_players = (
+            parse_lineups(match_id, source.lineups(match_id))
+        )
+        (
+            match_events,
+            match_relations,
+            match_shots,
+            match_frames,
+            match_possessions,
+            event_players,
+        ) = parse_events(match_id, source.events(match_id))
         shots.extend(match_shots)
-        for player in match_players:
+        lineups.extend(match_lineups)
+        memberships.extend(match_memberships)
+        positions.extend(match_positions)
+        cards.extend(match_cards)
+        possessions.extend(match_possessions)
+        events.extend(match_events)
+        relations.extend(match_relations)
+        freeze_frames.extend(match_frames)
+        for player in [*lineup_players, *event_players]:
             players[player.player_id] = player
 
     counts = SourceCounts(
+        competitions=len(competitions),
+        seasons=len({c.season_id for c in competitions}),
+        competition_seasons=len(competitions),
+        teams=len(teams),
+        players=len(players),
         matches=len(matches),
+        match_teams=len(matches) * 2,
+        lineups=len(lineups),
+        lineup_memberships=len(memberships),
+        lineup_positions=len(positions),
+        lineup_cards=len(cards),
+        possessions=len(possessions),
+        events=len(events),
+        event_relations=len(relations),
         shots=len(shots),
+        shot_freeze_frame_players=len(freeze_frames),
         shots_without_location=sum(1 for s in shots if s.location_x is None),
         shots_without_player=sum(1 for s in shots if s.player_id is None),
     )
-    return (
-        competitions,
-        teams,
-        sorted(players.values(), key=lambda p: p.player_id),
-        matches,
-        shots,
-        counts,
+    return CollectedScope(
+        competitions=competitions,
+        teams=teams,
+        players=sorted(players.values(), key=lambda p: p.player_id),
+        matches=matches,
+        shots=shots,
+        source_counts=counts,
+        lineups=lineups,
+        memberships=memberships,
+        positions=positions,
+        cards=cards,
+        possessions=possessions,
+        events=events,
+        relations=relations,
+        freeze_frames=freeze_frames,
     )
 
 
@@ -104,8 +195,8 @@ def reconcile(source_counts: SourceCounts, db: loader.LoadCounts) -> bool:
     mismatch must be able to prevent the commit, not merely describe it.
     """
     checks = [
-        ("matches", source_counts.matches, db.matches),
-        ("shots", source_counts.shots, db.shots),
+        (name, getattr(source_counts, name), getattr(db, name))
+        for name in loader.LoadCounts.__dataclass_fields__
     ]
     print("\nReconciliation (source -> database, before commit)")
     ok = True
@@ -143,12 +234,10 @@ def main(argv: list[str] | None = None) -> int:
     source = StatsBombSource(offline=args.offline)
 
     print(f"Scope: competition {args.competition_id}, season {args.season_id}")
-    competitions, teams, players, matches, shots, source_counts = collect(
-        source, args.competition_id, args.season_id
-    )
+    collected = collect(source, args.competition_id, args.season_id)
     print(
-        f"  parsed {len(matches)} matches, {len(teams)} teams, "
-        f"{len(players)} players, {len(shots)} shots"
+        f"  parsed {len(collected.matches)} matches, {len(collected.teams)} teams, "
+        f"{len(collected.players)} players, {len(collected.shots)} shots"
     )
 
     try:
@@ -161,11 +250,19 @@ def main(argv: list[str] | None = None) -> int:
 
             loader.load_all(
                 conn,
-                competitions=competitions,
-                teams=teams,
-                players=players,
-                matches=matches,
-                shots=shots,
+                competitions=collected.competitions,
+                teams=collected.teams,
+                players=collected.players,
+                matches=collected.matches,
+                shots=collected.shots,
+                lineups=collected.lineups,
+                memberships=collected.memberships,
+                positions=collected.positions,
+                cards=collected.cards,
+                possessions=collected.possessions,
+                events=collected.events,
+                relations=collected.relations,
+                freeze_frames=collected.freeze_frames,
             )
 
             db_counts = loader.count_rows(conn)
@@ -175,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"{db_counts.matches} matches, {db_counts.shots} shots"
             )
 
-            if not reconcile(source_counts, db_counts):
+            if not reconcile(collected.source_counts, db_counts):
                 raise ReconciliationError("loaded counts do not match the source")
     except loader.NotIdempotentError as exc:
         print(f"\nRefused to load: {exc}", file=sys.stderr)

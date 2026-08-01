@@ -14,10 +14,22 @@
     "period": 1,
     "minute": 12,
     "second": 34,
+    "timestamp": "00:12:34.000",
     "type": { "id": 30, "name": "Pass" },
     "team": { "id": 7001, "name": "Fixture United" },
     "player": { "id": 8001, "name": "Ada Passer" },
-    "location": [60.0, 40.0]
+    "position": { "id": 13, "name": "Right Center Midfield" },
+    "play_pattern": { "id": 1, "name": "Regular Play" },
+    "possession": 7,
+    "possession_team": { "id": 7001, "name": "Fixture United" },
+    "duration": 1.25,
+    "under_pressure": true,
+    "location": [60.0, 40.0],
+    "related_events": ["aaaaaaaa-0000-0000-0000-000000000003"],
+    "pass": {
+      "height": { "id": 1, "name": "Ground Pass" },
+      "statsbomb_xg": 0.99
+    }
   },
 
   {
@@ -30,12 +42,27 @@
     "type": { "id": 16, "name": "Shot" },
     "team": { "id": 7001, "name": "Fixture United" },
     "player": { "id": 8002, "name": "Bea Striker" },
+    "position": { "id": 23, "name": "Center Forward" },
+    "possession": 7,
+    "possession_team": { "id": 7001, "name": "Fixture United" },
     "location": [112.0, 40.0],
+    "related_events": ["aaaaaaaa-0000-0000-0000-000000000002"],
     "shot": {
       "outcome": { "id": 97, "name": "Goal" },
       "body_part": { "id": 40, "name": "Right Foot" },
       "technique": { "id": 93, "name": "Normal" },
       "type": { "id": 87, "name": "Open Play" },
+      "end_location": [120.0, 40.0, 1.2],
+      "key_pass_id": "aaaaaaaa-0000-0000-0000-000000000002",
+      "first_time": true,
+      "freeze_frame": [
+        {
+          "player": { "id": 8003, "name": "Cem Forward" },
+          "position": { "id": 5, "name": "Left Center Back" },
+          "teammate": false,
+          "location": [108.0, 42.0]
+        }
+      ],
       "statsbomb_xg": 0.41
     }
   },

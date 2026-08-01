@@ -23,47 +23,50 @@ MAX_LIMIT = 1000
 
 SHOTS_SQL = """
     SELECT
-        s.shot_id,
-        s.match_id,
+        s.event_id::text AS shot_id,
+        e.match_id,
         m.match_date,
         m.competition_stage,
         shooting.team_name AS team,
         opponent.team_name AS opponent,
         p.player_name      AS player,
-        s.period,
-        s.minute,
-        s.second,
-        s.location_x,
-        s.location_y,
-        s.outcome,
-        s.shot_type,
-        s.body_part,
-        s.technique
+        e.period,
+        e.minute,
+        e.second,
+        e.location_x,
+        e.location_y,
+        s.outcome_name   AS outcome,
+        s.shot_type_name AS shot_type,
+        s.body_part_name AS body_part,
+        s.technique_name AS technique
     FROM shots AS s
-    JOIN matches AS m        ON m.match_id = s.match_id
-    JOIN teams   AS shooting ON shooting.team_id = s.team_id
+    JOIN events  AS e        ON e.event_id = s.event_id
+    JOIN matches AS m        ON m.match_id = e.match_id
+    JOIN teams   AS shooting ON shooting.team_id = e.team_id
     JOIN teams   AS opponent
          ON opponent.team_id = CASE
-                WHEN s.team_id = m.home_team_id THEN m.away_team_id
+                WHEN e.team_id = m.home_team_id THEN m.away_team_id
                 ELSE m.home_team_id
             END
     -- LEFT JOIN: a shot can have no attributed player, and an INNER JOIN would drop it, quietly
     -- changing the shot count away from the source.
-    LEFT JOIN players AS p   ON p.player_id = s.player_id
+    LEFT JOIN players AS p   ON p.player_id = e.player_id
     -- The ::int cast is required, not cosmetic: with the parameter only ever compared to
     -- NULL and an integer column, PostgreSQL cannot infer its type and raises
     -- AmbiguousParameter. Naming the type makes the optional filter work.
-    WHERE (%(match_id)s::int IS NULL OR s.match_id = %(match_id)s::int)
-    ORDER BY m.match_date, s.match_id, s.period, s.minute, s.second, s.shot_id
+    WHERE (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
+    ORDER BY m.match_date, e.match_id, e.period, e.minute, e.second, s.event_id
     LIMIT %(limit)s OFFSET %(offset)s
 """
 
 COUNT_SQL = """
-    SELECT count(*) FROM shots AS s
+    SELECT count(*)
+    FROM shots AS s
+    JOIN events AS e ON e.event_id = s.event_id
     -- The ::int cast is required, not cosmetic: with the parameter only ever compared to
     -- NULL and an integer column, PostgreSQL cannot infer its type and raises
     -- AmbiguousParameter. Naming the type makes the optional filter work.
-    WHERE (%(match_id)s::int IS NULL OR s.match_id = %(match_id)s::int)
+    WHERE (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
 """
 
 

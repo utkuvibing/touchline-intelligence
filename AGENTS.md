@@ -3,7 +3,7 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-01, WP1.2 complete. Update the "Where we are" section when a work package
+Last updated: 2026-08-01, WP1.2 in progress. Update the "Where we are" section when a work package
 closes; do not let it drift.
 
 ---
@@ -40,11 +40,12 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 0.5 read-only shot endpoint + raw shot map | done |
 | 0.6 deployment | done — 18/18 deployed smoke checks pass |
 | 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
-| 1.2 relational schema, ERD, ordered migrations, constraints | done |
+| 1.2 relational schema, ERD, ordered migrations, constraints | in progress — full approved schema and ingestion implemented; final review and CI remain |
 
-M1 has completed WP1.1 and WP1.2. WP1.3 is next: the full four-tournament cohort, idempotent
-ingestion, and a run manifest. Data-quality reporting and the SQL analysis pack follow. WP1.1 being
-closed does not clear its two documented publication gates.
+M1 has completed WP1.1. WP1.2 is active: the ordered migration foundation, full lineup and generic
+event schema, ingestion, and local reconciliation are implemented; independent review and CI still
+gate closure. WP1.3 must not begin until WP1.2 closes. WP1.1 being closed does not clear its two
+documented publication gates.
 
 ## 3. Documents that own the detail
 
@@ -134,9 +135,10 @@ Two facts that shaped the cohort design and are easy to get wrong:
    in all 35. A chronological holdout inside one of them measures that club's form curve, not
    football drift. Tournaments are complete and balanced, so the core cohort is tournaments only.
    See [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md).
-2. **`players` is not a squad list.** WP0.3 reads shot events only, so a player exists only if they
-   took a shot — 431 rows for WC 2022 against roughly 830 in the squads. Any per-player denominator
-   from that table is wrong in a way that still looks plausible.
+2. **Lineup membership is not an appearance.** The original shot-only `players` table had 431 shot
+   takers and looked deceptively complete. WP1.2 now collects 829 lineup/event players and 3,244
+   match-team memberships, but 1,249 memberships have no position interval. Neither membership nor
+   dimension presence proves minutes played; using either as an exposure denominator is still wrong.
 
 The holdout is called a **tournament holdout**, not a temporal one, because holding out a later
 tournament changes time and competition composition together. Say so rather than glossing it.

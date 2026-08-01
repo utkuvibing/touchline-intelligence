@@ -51,7 +51,6 @@ def fixture_data() -> CollectedScope:
 def loaded_conn(fixture_data: CollectedScope) -> Iterator[psycopg.Connection]:
     """A connection with the fixture loaded into a throwaway schema."""
     assert DB_URL is not None
-    competitions, teams, players, matches, shots, _ = fixture_data
     with psycopg.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
@@ -60,11 +59,19 @@ def loaded_conn(fixture_data: CollectedScope) -> Iterator[psycopg.Connection]:
         loader.reset_schema(conn)
         loader.load_all(
             conn,
-            competitions=competitions,
-            teams=teams,
-            players=players,
-            matches=matches,
-            shots=shots,
+            competitions=fixture_data.competitions,
+            teams=fixture_data.teams,
+            players=fixture_data.players,
+            matches=fixture_data.matches,
+            shots=fixture_data.shots,
+            lineups=fixture_data.lineups,
+            memberships=fixture_data.memberships,
+            positions=fixture_data.positions,
+            cards=fixture_data.cards,
+            possessions=fixture_data.possessions,
+            events=fixture_data.events,
+            relations=fixture_data.relations,
+            freeze_frames=fixture_data.freeze_frames,
         )
         conn.commit()
         try:
@@ -150,20 +157,26 @@ def test_rows_with_missing_fields_leave_both_numerator_and_denominator(
     the row belongs in neither the numerator nor the denominator.
     """
     values: dict[str, object] = {
-        "shot_id": "null-probe",
-        "match_id": 900001,
-        "team_id": 7001,
+        "event_id": "cccccccc-0000-0000-0000-000000000001",
         "period": 1,
-        "shot_type": "Open Play",
-        "outcome": "Off T",
+        "shot_type_name": "Open Play",
+        "outcome_name": "Off T",
     }
-    values[column] = None
+    db_column = {"shot_type": "shot_type_name", "period": "period", "outcome": "outcome_name"}[
+        column
+    ]
+    values[db_column] = None
 
     with loaded_conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO shots (shot_id, match_id, team_id, period, shot_type, outcome)"
-            " VALUES (%(shot_id)s, %(match_id)s, %(team_id)s, %(period)s,"
-            " %(shot_type)s, %(outcome)s)",
+            "INSERT INTO events (event_id, match_id, period, team_id, event_type_id, "
+            "event_type_name)"
+            " VALUES (%(event_id)s, 900001, %(period)s, 7001, 16, 'Shot')",
+            values,
+        )
+        cur.execute(
+            "INSERT INTO shots (event_id, shot_type_name, outcome_name)"
+            " VALUES (%(event_id)s, %(shot_type_name)s, %(outcome_name)s)",
             values,
         )
 

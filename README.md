@@ -14,9 +14,9 @@ evidence trail that makes every number defensible.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
 M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
-publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is complete: the
-five-table shot schema now has an ERD, ordered migrations, and relational constraints. WP1.3's
-four-tournament idempotent ingestion and run manifest are next.
+publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is in progress: its
+ordered migration foundation and five-table constraints are complete, and the approved lineup and
+generic-event implementation is under final verification. WP1.3 has not started.
 
 ## Documentation
 
@@ -124,7 +124,9 @@ docs/                    plan, targeting, ADRs, research, experiment rules
 uv run poe ingest --reset
 ```
 
-Loads FIFA World Cup 2022 — 64 matches, 32 teams, 431 players, 1,494 shots.
+Loads FIFA World Cup 2022 — 64 matches, 32 teams, 829 players, 234,637 events, 128 lineups,
+3,244 lineup memberships, 11,121 possessions, 330,844 directed event relations, 1,494 typed shots,
+and 20,327 actors from shot-embedded freeze frames.
 
 **The source snapshot is pinned to a commit SHA, not `master`.** Open Data is a live repository, so
 a load against `master` would drift and the measured counts in ADR 0004 would stop meaning anything.
@@ -144,22 +146,20 @@ transaction, against rows that are written but not yet durable, so a mismatch ro
 back. Nothing in the loader module commits: committing first and reporting afterwards would make
 reconciliation a description of data already kept.
 
-**WP1.2 manages the five-table shot-focused schema through ordered, hand-written SQL migrations.**
-`competitions`, `teams`, `players`, `matches`, and `shots` retain their source identifiers as natural
-primary keys. Composite and nullable foreign keys, uniqueness through those keys, and named checks
-protect relationship, score, clock, and coordinate invariants. Applied migration SQL is checksum
-protected. See [`docs/SCHEMA.md`](docs/SCHEMA.md) for the ERD and the exact database-versus-pipeline
-validation boundary.
+**WP1.2 manages the normalized source-shaped schema through five ordered, hand-written SQL
+migrations.** Stable shared event fields are typed relational columns; heterogeneous non-shot
+type-specific structures remain sanitized JSONB. Lineup memberships are match-team squad records,
+not proof that a player appeared or played any duration. Directed related-event references preserve
+source direction and ordering. Embedded shot freeze frames are event snapshots, not StatsBomb 360
+or continuous tracking. Applied migration SQL is checksum protected. See
+[`docs/SCHEMA.md`](docs/SCHEMA.md) and
+[ADR 0009](docs/adr/0009-full-relational-event-and-lineup-scope.md).
 
-Only shots are stored. There is no full event model, no lineups and no possessions. One consequence
-worth knowing before querying: **`players` is not a squad list.** A player appears only if they took
-at least one shot, so WC 2022 yields 431 rows against roughly 830 players in the squads. Any
-per-player denominator taken from this table would be wrong in a way that still looks plausible.
-Lineups and generic events require a separately justified schema expansion under
-[ADR 0008](docs/adr/0008-shot-focused-relational-boundary.md).
+No generic event rows are exposed by the public API in WP1.2. `/baseline` and `/shots` retain their
+M0 contracts over the normalized event/shot join.
 **Provider xG is deliberately not ingested** — it is the strongest leakage vector for the M2
-shot-quality model, and the cheapest guarantee that it never reaches a feature set is for it not to
-be in the database.
+shot-quality model. It is removed recursively before residual JSON is persisted and prohibited by a
+database constraint.
 
 Verification queries live in [`backend/sql/`](backend/sql/):
 
