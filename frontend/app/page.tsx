@@ -1,39 +1,32 @@
 /**
  * M0 landing page.
  *
- * M0 proves the pipeline (data -> database -> API -> UI -> deployment) and deliberately makes no
- * model claims. This page states that in plain language, because the deployment is public from the
- * first milestone and a visitor must not mistake a placeholder for a result.
+ * This is an async Server Component and does nothing but fetch: every rendering decision lives in
+ * `HomeView`, which is synchronous and therefore unit-testable. Async Server Components are not
+ * testable with Vitest, so keeping logic out of this file is what stops the page's claims — the
+ * provisional notice, the attribution, the "not an estimate" wording — from becoming untested.
  *
- * WP0.5 replaces the body with a raw shot map. The notice stays until a milestone has actually
- * earned the right to remove it.
+ * Rendered per request: the data is small and public, and changes only when the ingestion is
+ * re-run, so there is nothing a cached render would buy.
  */
 
-export const PROVISIONAL_NOTICE =
-  "This is an early build. It does not yet contain a shot-quality model, and no performance " +
-  "claim on this site has been evaluated.";
+import { HomeView } from "@/components/HomeView";
+import { fetchConversionRate, fetchShots, type ConversionRate, type Shot } from "@/lib/api";
 
-export default function Home() {
-  return (
-    <main>
-      <h1>Touchline Intelligence Platform</h1>
+export const dynamic = "force-dynamic";
 
-      <p>
-        Football research and decision-support built on StatsBomb Open Data — a relational dataset, a
-        calibrated shot-quality model, and an analyst interface.
-      </p>
+export default async function Home() {
+  let shots: Shot[] = [];
+  let rate: ConversionRate | null = null;
+  let error: string | null = null;
 
-      <section aria-labelledby="status-heading">
-        <h2 id="status-heading">Current status</h2>
-        <p role="note">{PROVISIONAL_NOTICE}</p>
-      </section>
+  try {
+    const [page, conversion] = await Promise.all([fetchShots(), fetchConversionRate()]);
+    shots = page.shots;
+    rate = conversion;
+  } catch (cause) {
+    error = cause instanceof Error ? cause.message : "unknown error";
+  }
 
-      <footer>
-        <p>
-          Data provided by StatsBomb. See the repository for competition coverage and licence
-          details.
-        </p>
-      </footer>
-    </main>
-  );
+  return <HomeView shots={shots} rate={rate} error={error} />;
 }

@@ -88,7 +88,7 @@ BREAKS: list[Break] = [
     ),
     Break(
         contract="the 'no evaluated model' notice must stay while M0 has no model",
-        path=FRONTEND / "app/page.tsx",
+        path=FRONTEND / "components/HomeView.tsx",
         anchor='        <p role="note">{PROVISIONAL_NOTICE}</p>',
         replacement="        {/* DELIBERATE BREAK */}",
         command=FRONTEND_TESTS,
@@ -96,7 +96,7 @@ BREAKS: list[Break] = [
     ),
     Break(
         contract="StatsBomb attribution must stay (licence obligation)",
-        path=FRONTEND / "app/page.tsx",
+        path=FRONTEND / "components/HomeView.tsx",
         anchor="          Data provided by StatsBomb.",
         replacement="          DELIBERATE BREAK.",
         command=FRONTEND_TESTS,
@@ -145,8 +145,8 @@ BREAKS: list[Break] = [
     Break(
         contract="the base rate must exclude penalties",
         path=ROOT / "backend/src/touchline/baseline.py",
-        anchor="COHORT_PREDICATE = \"shot_type <> 'Penalty' AND period <> 5\"",
-        replacement='COHORT_PREDICATE = "true"  # DELIBERATE BREAK',
+        anchor="    \"AND shot_type <> 'Penalty' \"",
+        replacement='    "AND true "  # DELIBERATE BREAK',
         command=BASELINE_TESTS,
         cwd=ROOT,
     ),

@@ -9,13 +9,14 @@ for every shot; see `touchline.baseline` for why that is the right thing to publ
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import date
+from typing import Annotated, Literal
 
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from touchline import baseline
+from touchline import baseline, shots
 from touchline.config import Settings, get_settings
 
 app = FastAPI(
@@ -85,33 +86,35 @@ def ready() -> Readiness:
 
 
 class BaselineResponse(BaseModel):
-    """The constant base-rate baseline.
+    """The descriptive conversion rate of the loaded cohort.
 
-    Every field except `base_rate` exists to stop the number being read as more than it is. A bare
-    probability looks like a model output; the counts, the cohort text and the caveat are what make
-    it legible as "the average of the data currently loaded".
+    Every field except `conversion_rate` exists to stop the number being read as more than it is.
+    A bare probability looks like a model output; the counts, the cohort text and the caveat are
+    what make it legible as a summary of the data currently loaded.
     """
 
-    method: Literal["constant-base-rate"] = "constant-base-rate"
-    base_rate: float = Field(
-        description="Goals divided by shots over the cohort. Returned for every shot, unchanged."
+    method: Literal["descriptive-prevalence"] = "descriptive-prevalence"
+    conversion_rate: float = Field(
+        description="Goals divided by shots over the cohort. A description, not a prediction."
     )
-    shots: int = Field(description="Cohort denominator.")
+    shots: int = Field(description="Cohort denominator: shots with a known outcome.")
     goals: int = Field(description="Cohort numerator.")
     cohort: str = Field(description="Exactly which shots the rate was computed over.")
     caveat: str
 
 
 BASELINE_CAVEAT = (
-    "This is not a model. It is the observed conversion rate of the loaded shots, returned "
-    "unchanged for every shot regardless of location, player or context. Nothing here has been "
-    "fitted or evaluated, and no split was used. It exists as the number a real shot-quality "
-    "model must beat."
+    "This is a descriptive summary of the shots currently loaded, not a model and not a "
+    "prediction. Nothing has been fitted, no split was used, and no performance claim is made. "
+    "It is also NOT the baseline that models are compared against: that baseline is estimated "
+    "from the training split alone and scored on validation and holdout rows under the same log "
+    "loss, Brier score and calibration protocol as every candidate model. Using this full-cohort "
+    "rate as a prediction on holdout rows would leak those rows' own outcomes into it."
 )
 
 
 @app.get("/baseline", response_model=BaselineResponse, tags=["baseline"])
-def shot_conversion_baseline() -> BaselineResponse:
+def shot_conversion_rate() -> BaselineResponse:
     """Return the cohort conversion rate, computed live from the database.
 
     A connection is opened per request. That is fine at this scale and deliberately un-pooled;
@@ -130,9 +133,73 @@ def shot_conversion_baseline() -> BaselineResponse:
         raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
 
     return BaselineResponse(
-        base_rate=rate.value,
+        conversion_rate=rate.value,
         shots=rate.shots,
         goals=rate.goals,
         cohort=baseline.COHORT_DESCRIPTION,
         caveat=BASELINE_CAVEAT,
+    )
+
+
+class Shot(BaseModel):
+    """One recorded shot.
+
+    Every field is a fact from the source: where it was taken and what happened. There is no
+    probability, rating or estimate here, and none will be added until M2 has an evaluated model.
+    """
+
+    shot_id: str
+    match_id: int
+    match_date: date | None
+    competition_stage: str | None
+    team: str
+    opponent: str
+    player: str | None = Field(description="Null where the source attributes no player.")
+    period: int | None
+    minute: int | None
+    second: int | None
+    location_x: float | None = Field(
+        description="StatsBomb pitch coordinate, 0-120 along the attacking direction."
+    )
+    location_y: float | None = Field(description="StatsBomb pitch coordinate, 0-80 across.")
+    outcome: str | None
+    shot_type: str | None
+    body_part: str | None
+    technique: str | None
+
+
+class ShotPage(BaseModel):
+    """A bounded page of shots, with the total it was drawn from."""
+
+    shots: list[Shot]
+    total: int
+    limit: int
+    offset: int
+
+
+@app.get("/shots", response_model=ShotPage, tags=["shots"])
+def list_shots(
+    match_id: Annotated[int | None, Query(description="Restrict to one match.")] = None,
+    limit: Annotated[int, Query(ge=1, le=shots.MAX_LIMIT)] = shots.DEFAULT_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ShotPage:
+    """Return recorded shots: locations, outcomes and context.
+
+    Read-only, and enforced as such - the query runs in a READ ONLY transaction rather than merely
+    being documented as safe.
+    """
+    settings = get_settings()
+    try:
+        with psycopg.connect(settings.db_url_str, connect_timeout=5) as conn:
+            page = shots.fetch_shots(conn, match_id=match_id, limit=limit, offset=offset)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
+
+    return ShotPage(
+        # model_validate rather than Shot(**row): the row is an untyped mapping from the driver,
+        # and validating it is what turns "whatever the query returned" into the declared contract.
+        shots=[Shot.model_validate(row) for row in page.shots],
+        total=page.total,
+        limit=page.limit,
+        offset=page.offset,
     )

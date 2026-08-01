@@ -119,6 +119,60 @@ def test_empty_database_raises_rather_than_reporting_zero(empty_conn: psycopg.Co
         baseline.compute_base_rate(empty_conn)
 
 
+@pytest.mark.parametrize(
+    ("column", "reason"),
+    [
+        pytest.param(
+            "shot_type",
+            "NULL <> 'Penalty' is NULL, so the row would drop out silently - treated like a "
+            "penalty, for an entirely different reason",
+            id="missing-shot-type",
+        ),
+        pytest.param(
+            "period",
+            "same three-valued-logic trap as shot_type",
+            id="missing-period",
+        ),
+        pytest.param(
+            "outcome",
+            "the dangerous one: the row stays in the denominator but fails the goal filter, so "
+            "an unknown result is scored as a definite miss",
+            id="missing-outcome",
+        ),
+    ],
+)
+def test_rows_with_missing_fields_leave_both_numerator_and_denominator(
+    loaded_conn: psycopg.Connection, column: str, reason: str
+) -> None:
+    """A shot we do not know the result of must not be counted as one we do.
+
+    Each case inserts one extra shot with a single field nulled out. The rate must be unchanged:
+    the row belongs in neither the numerator nor the denominator.
+    """
+    values: dict[str, object] = {
+        "shot_id": "null-probe",
+        "match_id": 900001,
+        "team_id": 7001,
+        "period": 1,
+        "shot_type": "Open Play",
+        "outcome": "Off T",
+    }
+    values[column] = None
+
+    with loaded_conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO shots (shot_id, match_id, team_id, period, shot_type, outcome)"
+            " VALUES (%(shot_id)s, %(match_id)s, %(team_id)s, %(period)s,"
+            " %(shot_type)s, %(outcome)s)",
+            values,
+        )
+
+    rate = baseline.compute_base_rate(loaded_conn)
+
+    assert rate.shots == EXPECTED_SHOTS, reason
+    assert rate.goals == EXPECTED_GOALS, reason
+
+
 def test_cohort_predicate_is_documented_in_the_sql() -> None:
     """The executed SQL and the text published beside it must not drift apart.
 
@@ -128,6 +182,8 @@ def test_cohort_predicate_is_documented_in_the_sql() -> None:
     assert baseline.COHORT_PREDICATE in baseline.BASE_RATE_SQL
     assert "penalt" in baseline.COHORT_DESCRIPTION.lower()
     assert "shootout" in baseline.COHORT_DESCRIPTION.lower()
+    assert "IS NOT NULL" in baseline.COHORT_PREDICATE
+    assert "excluded from both" in baseline.COHORT_DESCRIPTION
 
 
 def test_endpoint_serves_the_rate_with_its_denominator_and_caveat(
@@ -145,11 +201,12 @@ def test_endpoint_serves_the_rate_with_its_denominator_and_caveat(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["method"] == "constant-base-rate"
+    assert body["method"] == "descriptive-prevalence"
     assert body["shots"] == EXPECTED_SHOTS
     assert body["goals"] == EXPECTED_GOALS
-    assert body["base_rate"] == pytest.approx(1 / 3)
+    assert body["conversion_rate"] == pytest.approx(1 / 3)
     assert "not a model" in body["caveat"]
+    assert "training split" in body["caveat"], "the caveat must say what the real baseline is"
     assert "penalt" in body["cohort"].lower()
 
 
