@@ -88,12 +88,15 @@ def _counts_in_new_transaction() -> loader.LoadCounts:
     return loader.LoadCounts(**counts)
 
 
-def test_schema_sql_ships_with_the_package() -> None:
-    """The DDL is package data; a build that dropped it fails here, not at runtime."""
-    ddl = loader.read_schema_sql()
+def test_reset_schema_rebuilds_through_ordered_migrations(conn: psycopg.Connection) -> None:
+    """The destructive local rebuild must use the same versioned schema path as an upgrade."""
+    loader.reset_schema(conn)
 
-    for table in ("competitions", "teams", "players", "matches", "shots"):
-        assert f"CREATE TABLE {table}" in ddl
+    with conn.cursor() as cur:
+        cur.execute("SELECT version FROM schema_migrations ORDER BY version")
+        versions = [row[0] for row in cur.fetchall()]
+
+    assert versions == ["0001_initial", "0002_relational_constraints"]
 
 
 def test_successful_load_writes_exactly_the_fixture(

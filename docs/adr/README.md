@@ -35,3 +35,4 @@ An ADR proposing a new tool must answer:
 - [0005 — Bounded PyTorch artifact and pre-registered model selection](0005-bounded-pytorch-artifact.md)
 - [0006 — Deployment approach](0006-deployment-approach.md)
 - [0007 — Scope exclusions decided on job-market evidence](0007-scope-exclusions-on-market-evidence.md)
+- [0008 — Shot-focused relational boundary for WP1.2](0008-shot-focused-relational-boundary.md)

@@ -5,9 +5,9 @@ used, what is actually loaded, what each current database field means, and which
 conditions remain unresolved. Counts describe the current M0 database unless explicitly labelled as
 future M1 scope.
 
-**WP1.1 status:** source review, coverage inventory, and the current-schema dictionary are recorded.
-The work package is not closed: an approved current logo asset and clarification of public row-level
-data use remain release gates.
+**WP1.1 status:** complete. The source review, coverage inventory, and data dictionary are recorded.
+An approved current logo asset and clarification of public row-level data use remain explicit
+release gates; closing the documentation work package does not represent either question as cleared.
 
 ## Source and version
 
@@ -112,12 +112,13 @@ estimates until WP1.3 loads and WP1.4 reconciles them; they must not be presente
 
 ## Current physical data dictionary
 
-The source of truth is the provisional DDL in
-[`backend/src/touchline/ingest/schema.sql`](backend/src/touchline/ingest/schema.sql), the parser in
+The physical source of truth is the ordered SQL under
+[`backend/src/touchline/ingest/migrations/`](backend/src/touchline/ingest/migrations/), the parser in
 [`parse.py`](backend/src/touchline/ingest/parse.py), and the write mapping in
-[`load.py`](backend/src/touchline/ingest/load.py). This dictionary describes M0, not the schema that
-WP1.2 will design. The current schema has primary keys but no foreign keys, check constraints,
-migrations, or justified secondary indexes.
+[`load.py`](backend/src/touchline/ingest/load.py). [`docs/SCHEMA.md`](docs/SCHEMA.md) owns the ERD,
+table grains, relationship and check constraints, migration lifecycle, and the boundary between
+database and pipeline validation. No secondary indexes have been added without WP1.5 query-plan
+evidence.
 
 ### `competitions`
 

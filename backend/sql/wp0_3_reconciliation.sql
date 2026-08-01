@@ -40,7 +40,7 @@ SELECT
 FROM shots;
 
 \echo ''
-\echo '== orphan check (no foreign keys yet, so this is done by hand) =='
+\echo '== defensive orphan verification (foreign keys should keep this at zero) =='
 SELECT
     (SELECT count(*) FROM shots s LEFT JOIN matches m ON m.match_id = s.match_id
       WHERE m.match_id IS NULL) AS shots_without_match,
