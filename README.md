@@ -14,9 +14,9 @@ evidence trail that makes every number defensible.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
 M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
-publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 and WP1.3 are complete:
-the normalized schema, four-tournament idempotent ingestion, full-source acceptance, mutation
-verification, independent Sol review, and CI have passed. WP1.4 is next and has not started.
+publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2, WP1.3 and WP1.4 are
+complete: the quality suite, full-cohort report, author sampling verification, mutation verification
+and independent Sol review passed. WP1.5 is next and has not started.
 
 ## Documentation
 
@@ -188,6 +188,36 @@ Verification queries live in [`backend/sql/`](backend/sql/):
 ```bash
 docker exec -i touchline-postgres psql -U touchline -d touchline -f - < backend/sql/wp0_3_reconciliation.sql
 ```
+
+## Data quality and reconciliation (WP1.4)
+
+After a successful scoped ingestion, run the independent read-only audit:
+
+```bash
+uv run poe quality
+```
+
+It reads source counts from the latest successful manifest for the exact pinned commit and scope,
+then audits the already committed database in a separate read-only transaction. It never writes
+source facts or manifests. It emits canonical JSON and text reports under `reports/`, separating
+errors, warnings, reconciliation, invariant violations, coverage/missingness, deliberate exclusions,
+and known limitations. The audit reconciles every persisted source grain for the chosen scope,
+checks raw coordinate bounds (including the documented inclusive `location_x = 120.1`), two-team
+match shape, typed-shot/event links, relation endpoints, and provider-xG absence in residual JSON.
+It reports, rather than repairs, surprising source facts; in particular it does not infer position
+chronology or minutes from lineup membership.
+
+The report treats missing shot player, period, location, outcome, body part, technique, or shot
+type as a zero-tolerance error: these are the explicitly declared eligibility/feature inputs for
+the later model cohort. Generic-event and lineup missingness remain coverage observations with a
+count, denominator, and basis-point rate; this project does not invent a completeness threshold for
+them.
+
+Category validation is scoped to observed source consistency: within the selected cohort, each
+shot outcome/body-part/technique/type and event play-pattern/position ID must map to one name, and
+each observed name to one ID. This is not a claim that the database validates an external provider
+taxonomy. Non-null event actors without lineup membership are joined at the same match-team-player
+grain; that warning is coverage evidence, never proof of an appearance or minutes played.
 
 ## The baseline (WP0.4)
 

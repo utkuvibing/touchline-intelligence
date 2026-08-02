@@ -3,7 +3,7 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-01, WP1.2 complete. Update the "Where we are" section when a work package
+Last updated: 2026-08-02, WP1.4 complete. Update the "Where we are" section when a work package
 closes; do not let it drift.
 
 ---
@@ -42,10 +42,13 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
 | 1.2 relational schema, ERD, ordered migrations, constraints | done — full approved schema and ingestion implemented; independent Sol review and CI passed |
 | 1.3 fixed cohort, idempotent ingestion, run manifest | done — full-source acceptance, mutation verification, independent Sol review and CI passed |
+| 1.4 data-quality suite and reconciliation report | done — full-cohort report, author sampling verification, mutation verification and independent Sol review passed |
 
-M1 has completed WP1.1, WP1.2 and WP1.3. The fixed four-tournament cohort, idempotent conflict
-policy and durable manifest lifecycle are accepted in ADR 0010. WP1.1 being closed does not clear
-its two documented publication gates. WP1.4 is next; it has not started.
+M1 has completed WP1.1 through WP1.4. The fixed four-tournament cohort, idempotent conflict policy
+and durable manifest lifecycle are accepted in ADR 0010. The WP1.4 read-only audit reconciles the
+full cohort, reports invariants and missingness, and records completed author sampling verification.
+WP1.1 being closed does not clear its two documented publication gates. WP1.5 is next; it has not
+started.
 
 ## 3. Documents that own the detail
 

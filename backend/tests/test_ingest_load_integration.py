@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 
 import psycopg
@@ -30,6 +31,8 @@ from touchline.ingest.cli import (
 )
 from touchline.ingest.records import Competition
 from touchline.ingest.source import StatsBombSource
+from touchline.quality import inspect
+from touchline.quality_cli import _latest_matching_manifest
 
 DB_URL = os.environ.get("TOUCHLINE_DB_URL")
 FIXTURES = Path(__file__).resolve().parents[2] / "data" / "fixtures" / "statsbomb"
@@ -156,6 +159,319 @@ def test_successful_load_writes_exactly_the_fixture(
 
     conn.commit()
     assert _counts_in_new_transaction() == EXPECTED
+
+
+def test_independent_quality_report_reconciles_the_fixture_after_commit(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """WP1.4 audits a completed load in read-only mode, outside the ingestion transaction."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    assert report.errors == ("shots missing future-cohort eligibility/feature fields: 3",)
+    assert report.database_counts == {
+        name: getattr(EXPECTED, name) for name in report.database_counts
+    }
+    # This literal is independent of the implementation's values/denominators loop. It binds every
+    # published metric, including integer basis-point rounding, to the committed fixture.
+    assert report.coverage == {
+        "shots_without_location_count": 1,
+        "shots_without_location_denominator": 4,
+        "shots_without_location_basis_points": 2_500,
+        "shots_without_attributed_player_count": 1,
+        "shots_without_attributed_player_denominator": 4,
+        "shots_without_attributed_player_basis_points": 2_500,
+        "shots_missing_any_future_cohort_field_count": 3,
+        "shots_missing_any_future_cohort_field_denominator": 4,
+        "shots_missing_any_future_cohort_field_basis_points": 7_500,
+        "lineup_memberships_without_position_interval_count": 4,
+        "lineup_memberships_without_position_interval_denominator": 5,
+        "lineup_memberships_without_position_interval_basis_points": 8_000,
+        "events_at_measured_x_120_1_count": 0,
+        "events_at_measured_x_120_1_denominator": 9,
+        "events_at_measured_x_120_1_basis_points": 0,
+        "events_without_player_count": 4,
+        "events_without_player_denominator": 9,
+        "events_without_player_basis_points": 4_444,
+        "events_without_location_count": 4,
+        "events_without_location_denominator": 9,
+        "events_without_location_basis_points": 4_444,
+        "events_without_position_count": 7,
+        "events_without_position_denominator": 9,
+        "events_without_position_basis_points": 7_777,
+        "events_without_duration_count": 8,
+        "events_without_duration_denominator": 9,
+        "events_without_duration_basis_points": 8_888,
+        "event_actors_without_same_match_team_lineup_membership_count": 0,
+        "event_actors_without_same_match_team_lineup_membership_denominator": 5,
+        "event_actors_without_same_match_team_lineup_membership_basis_points": 0,
+    }
+
+
+def test_quality_report_fails_an_exact_source_count_mismatch(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """A report cannot silently turn a scoped source/table disagreement into a warning."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), replace(fixture_data.source_counts, events=10))
+
+    assert report.errors == (
+        "source/database count mismatch for events: 10 != 9",
+        "shots missing future-cohort eligibility/feature fields: 3",
+    )
+
+
+def test_quality_report_reconciles_source_missingness_counters(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """Source coverage counters are independent reconciliation contracts, not display metadata."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    conn.commit()
+
+    report = inspect(
+        conn,
+        ((43, 106),),
+        replace(fixture_data.source_counts, shots_without_location=0),
+    )
+
+    assert "source/database mismatch for shots_without_location" in report.errors
+
+
+def test_quality_report_reconciles_source_player_missingness(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    conn.commit()
+
+    report = inspect(
+        conn,
+        ((43, 106),),
+        replace(fixture_data.source_counts, shots_without_player=0),
+    )
+
+    assert "source/database mismatch for shots_without_attributed_player" in report.errors
+
+
+def test_quality_inspection_enforces_its_own_read_only_transaction(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    conn.commit()
+
+    inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
+        conn.execute("INSERT INTO teams (team_id, team_name) VALUES (999999, 'Forbidden')")
+
+
+def test_quality_report_exposes_integrity_defects_beyond_database_constraints(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """Every advertised post-load invariant remains observable if its DB constraint regresses."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    with conn.cursor() as cur:
+        cur.execute("ALTER TABLE events DROP CONSTRAINT events_location_x_measured_source_bounds")
+        cur.execute("ALTER TABLE events DROP CONSTRAINT events_no_provider_xg")
+        cur.execute("ALTER TABLE event_relations DROP CONSTRAINT event_relations_related_event_fk")
+        cur.execute("ALTER TABLE shots DROP CONSTRAINT shots_end_location_x_bounds")
+        cur.execute(
+            "ALTER TABLE shot_freeze_frame_players "
+            "DROP CONSTRAINT shot_freeze_frame_players_location_x_bounds"
+        )
+        cur.execute(
+            "UPDATE events SET location_x = 999, location_y = 40 WHERE event_id = "
+            "'aaaaaaaa-0000-0000-0000-000000000001'"
+        )
+        cur.execute(
+            'UPDATE events SET type_data = \'{"nested": {"statsbomb_xg": 0.5}}\' '
+            "WHERE event_id = 'aaaaaaaa-0000-0000-0000-000000000001'"
+        )
+        cur.execute(
+            "UPDATE event_relations SET related_event_id = "
+            "'ffffffff-ffff-ffff-ffff-ffffffffffff' WHERE ctid = "
+            "(SELECT ctid FROM event_relations WHERE source_order = 1 LIMIT 1)"
+        )
+        cur.execute("DELETE FROM shots WHERE event_id = 'aaaaaaaa-0000-0000-0000-000000000004'")
+        cur.execute(
+            "UPDATE shots SET end_location_x = 999 WHERE event_id = "
+            "'aaaaaaaa-0000-0000-0000-000000000003'"
+        )
+        cur.execute("UPDATE shot_freeze_frame_players SET location_x = 999")
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    expected = {
+        "events_outside_raw_bounds": 1,
+        "orphan_event_relations": 1,
+        "provider_xg_in_residual_json": 1,
+        "shot_event_detail_mismatches": 1,
+        "shot_end_coordinates_outside_bounds": 1,
+        "freeze_frame_coordinates_outside_bounds": 1,
+    }
+    assert {name: report.invariant_violations[name] for name in expected} == expected
+
+
+def test_quality_report_checks_observed_category_mappings_and_lineup_event_coverage(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE shots SET outcome_id = 999, outcome_name = CASE event_id::text "
+            "WHEN 'aaaaaaaa-0000-0000-0000-000000000003' THEN 'Observed A' "
+            "ELSE 'Observed B' END, body_part_id = CASE event_id::text "
+            "WHEN 'aaaaaaaa-0000-0000-0000-000000000003' THEN 998 ELSE 999 END, "
+            "body_part_name = 'Shared Body', "
+            "technique_id = 999, technique_name = CASE event_id::text "
+            "WHEN 'aaaaaaaa-0000-0000-0000-000000000003' THEN 'Technique A' "
+            "ELSE 'Technique B' END, shot_type_id = CASE event_id::text "
+            "WHEN 'aaaaaaaa-0000-0000-0000-000000000003' THEN 998 ELSE 999 END, "
+            "shot_type_name = 'Shared Type' "
+            "WHERE event_id::text IN ("
+            "'aaaaaaaa-0000-0000-0000-000000000003', "
+            "'aaaaaaaa-0000-0000-0000-000000000004')"
+        )
+        cur.execute(
+            "UPDATE events SET play_pattern_id = 999, play_pattern_name = CASE event_index "
+            "WHEN 1 THEN 'Pattern A' ELSE 'Pattern B' END, position_id = CASE event_index "
+            "WHEN 1 THEN 998 ELSE 999 END, position_name = 'Shared Position' "
+            "WHERE match_id = 900001 AND event_index IN (1, 2)"
+        )
+        cur.execute(
+            "UPDATE events SET player_id = 8004 WHERE event_id = "
+            "'aaaaaaaa-0000-0000-0000-000000000002'"
+        )
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    assert report.invariant_violations["observed_category_mapping_conflicts"] == 6
+    assert report.coverage["event_actors_without_same_match_team_lineup_membership_count"] >= 1
+    assert (
+        report.coverage["event_actors_without_same_match_team_lineup_membership_denominator"] == 5
+    )
+    assert any("not appearance or minutes evidence" in warning for warning in report.warnings)
+
+
+def test_quality_report_counts_matches_with_no_participant_rows(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """The two-team invariant starts from matches, so zero-child matches cannot disappear."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO matches (
+                match_id, competition_id, season_id, match_date, kick_off,
+                home_team_id, away_team_id, home_score, away_score, competition_stage
+            )
+            SELECT 900003, competition_id, season_id, match_date, kick_off,
+                   home_team_id, away_team_id, home_score, away_score, competition_stage
+            FROM matches WHERE match_id = 900001
+            """
+        )
+    conn.commit()
+
+    report = inspect(
+        conn,
+        ((43, 106),),
+        replace(fixture_data.source_counts, matches=3),
+    )
+
+    assert report.invariant_violations["matches_without_exactly_two_teams"] == 1
+
+
+def test_quality_report_exposes_time_and_category_pair_violations(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    """Report evidence names DB-enforced time bounds and pipeline category-pair validity."""
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    with conn.cursor() as cur:
+        cur.execute("ALTER TABLE events DROP CONSTRAINT events_second_valid")
+        cur.execute("UPDATE events SET second = 99 WHERE event_index = 1 AND match_id = 900001")
+        cur.execute(
+            "UPDATE shots SET outcome_id = NULL "
+            "WHERE event_id = 'aaaaaaaa-0000-0000-0000-000000000003'"
+        )
+        cur.execute(
+            "UPDATE events SET play_pattern_id = NULL "
+            "WHERE event_id = 'aaaaaaaa-0000-0000-0000-000000000002'"
+        )
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    assert report.invariant_violations["events_outside_time_bounds"] == 1
+    assert report.invariant_violations["shot_category_id_name_mismatches"] == 1
+    assert report.invariant_violations["event_category_id_name_mismatches"] == 1
+
+
+def test_quality_report_preserves_the_measured_event_x_exception(
+    conn: psycopg.Connection, fixture_data: CollectedScope
+) -> None:
+    loader.reset_schema(conn)
+    _load_fixture(conn, fixture_data)
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE events SET location_x = 120.1, location_y = 40 "
+            "WHERE event_id = 'aaaaaaaa-0000-0000-0000-000000000001'"
+        )
+    conn.commit()
+
+    report = inspect(conn, ((43, 106),), fixture_data.source_counts)
+
+    assert report.coverage["events_at_measured_x_120_1_count"] == 1
+    assert any("120.1 accepted" in warning for warning in report.warnings)
+
+
+def test_quality_manifest_selection_uses_relational_scope_evidence(
+    conn: psycopg.Connection,
+) -> None:
+    """Scope identity is order-independent and comes from ingestion_run_scopes, not JSON."""
+    loader.reset_schema(conn)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO ingestion_runs (
+                run_id, owner_token, source_commit, status, scopes, finished_at,
+                owner_host, owner_pid, current_phase, attempted_counts
+            ) VALUES (
+                '00000000-0000-0000-0000-000000000011',
+                '00000000-0000-0000-0000-000000000012',
+                'b0bc9f22dd77c206ddedc1d742893b3bbe64baec',
+                'succeeded', '[]'::jsonb, CURRENT_TIMESTAMP,
+                'fixture-host', 1, 'completed', '{"matches": 2}'::jsonb
+            )
+            """
+        )
+        cur.executemany(
+            "INSERT INTO ingestion_run_scopes "
+            "(run_id, competition_id, season_id) VALUES (%s, %s, %s)",
+            [
+                ("00000000-0000-0000-0000-000000000011", 43, 106),
+                ("00000000-0000-0000-0000-000000000011", 55, 282),
+            ],
+        )
+    conn.commit()
+
+    run_id, source_counts = _latest_matching_manifest(conn, ((55, 282), (43, 106)))
+
+    assert run_id == "00000000-0000-0000-0000-000000000011"
+    assert source_counts.matches == 2
 
 
 def test_shot_detail_join_returns_location_player_team_and_outcome(
