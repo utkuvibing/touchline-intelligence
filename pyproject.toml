@@ -71,4 +71,5 @@ pythonpath = ["backend/src"]
 addopts = "-q --strict-markers"
 markers = [
     "integration: requires a running PostgreSQL (skipped unless TOUCHLINE_DB_URL is set)",
+    "full_source: slow acceptance test over the cached pinned four-tournament source",
 ]

@@ -56,6 +56,8 @@ def test_migrations_apply_in_order_and_a_rerun_is_a_no_op(
         "0003_normalize_competition_seasons",
         "0004_event_and_lineup_core",
         "0005_event_and_lineup_constraints",
+        "0006_ingestion_runs",
+        "0007_measured_event_x_boundary",
     ]
 
 
@@ -250,7 +252,8 @@ def test_event_location_boundaries_and_optional_absence(
             ) VALUES
                 ('00000000-0000-0000-0000-000000000082', 100, 'Pass', 0.0, 0.0),
                 ('00000000-0000-0000-0000-000000000083', 100, 'Pass', 120.0, 80.0),
-                ('00000000-0000-0000-0000-000000000084', 100, 'Pass', NULL, NULL)
+                ('00000000-0000-0000-0000-000000000084', 100, 'Pass', 120.1, 40.0),
+                ('00000000-0000-0000-0000-000000000091', 100, 'Pass', NULL, NULL)
             """
         )
         cur.execute(
@@ -258,17 +261,28 @@ def test_event_location_boundaries_and_optional_absence(
             "WHERE event_id IN ("
             "'00000000-0000-0000-0000-000000000082', "
             "'00000000-0000-0000-0000-000000000083', "
-            "'00000000-0000-0000-0000-000000000084') "
+            "'00000000-0000-0000-0000-000000000084', "
+            "'00000000-0000-0000-0000-000000000091') "
             "ORDER BY event_id"
         )
-        assert cur.fetchall() == [(0.0, 0.0), (120.0, 80.0), (None, None)]
+        assert cur.fetchall() == [(0.0, 0.0), (120.0, 80.0), (120.1, 40.0), (None, None)]
 
 
 @pytest.mark.parametrize(
     ("event_id", "location_x", "location_y", "constraint_name"),
     [
-        ("00000000-0000-0000-0000-000000000085", -0.01, 40.0, "events_location_x_bounds"),
-        ("00000000-0000-0000-0000-000000000086", 120.01, 40.0, "events_location_x_bounds"),
+        (
+            "00000000-0000-0000-0000-000000000085",
+            -0.01,
+            40.0,
+            "events_location_x_measured_source_bounds",
+        ),
+        (
+            "00000000-0000-0000-0000-000000000086",
+            120.1001,
+            40.0,
+            "events_location_x_measured_source_bounds",
+        ),
         ("00000000-0000-0000-0000-000000000087", 60.0, -0.01, "events_location_y_bounds"),
         ("00000000-0000-0000-0000-000000000088", 60.0, 80.01, "events_location_y_bounds"),
         ("00000000-0000-0000-0000-000000000089", 60.0, None, "events_location_pair_complete"),
@@ -357,6 +371,8 @@ def test_unversioned_m0_schema_is_upgraded_without_losing_rows(
         "0003_normalize_competition_seasons",
         "0004_event_and_lineup_core",
         "0005_event_and_lineup_constraints",
+        "0006_ingestion_runs",
+        "0007_measured_event_x_boundary",
     ]
 
 
@@ -412,6 +428,8 @@ def test_populated_0002_schema_upgrades_forward_without_losing_shots(
         "0003_normalize_competition_seasons",
         "0004_event_and_lineup_core",
         "0005_event_and_lineup_constraints",
+        "0006_ingestion_runs",
+        "0007_measured_event_x_boundary",
     )
     with conn.cursor() as cur:
         cur.execute(
@@ -424,6 +442,137 @@ def test_populated_0002_schema_upgrades_forward_without_losing_shots(
         assert cur.fetchone() == (100, 1, 10, 1, 101.5, "Goal", "Open Play")
 
     assert apply_migrations(conn) == ()
+
+
+def test_populated_wp12_schema_upgrades_to_the_measured_event_x_boundary(
+    conn: psycopg.Connection,
+) -> None:
+    """The committed 0005 schema upgrades in place without rewriting its event rows."""
+    committed_wp12 = read_migrations()[:5]
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE schema_migrations (
+                version text PRIMARY KEY,
+                checksum text NOT NULL CHECK (checksum ~ '^[0-9a-f]{64}$'),
+                applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        for migration in committed_wp12:
+            cur.execute(migration.sql)
+            cur.execute(
+                "INSERT INTO schema_migrations (version, checksum) VALUES (%s, %s)",
+                (migration.version, migration.checksum),
+            )
+        cur.execute("INSERT INTO competitions VALUES (43, 'FIFA World Cup', 'International')")
+        cur.execute("INSERT INTO seasons VALUES (106, '2022')")
+        cur.execute("INSERT INTO competition_seasons VALUES (43, 106)")
+        cur.execute("INSERT INTO teams VALUES (1, 'Home'), (2, 'Away')")
+        cur.execute(
+            """
+            INSERT INTO matches (
+                match_id, competition_id, season_id, home_team_id, away_team_id
+            ) VALUES (100, 43, 106, 1, 2)
+            """
+        )
+        cur.execute("INSERT INTO match_teams VALUES (100, 1, 'home'), (100, 2, 'away')")
+        cur.execute(
+            """
+            INSERT INTO events (event_id, match_id, event_type_name, location_x, location_y)
+            VALUES ('00000000-0000-0000-0000-000000000092', 100, 'Pass', 120.0, 40.0)
+            """
+        )
+
+    assert apply_migrations(conn) == (
+        "0006_ingestion_runs",
+        "0007_measured_event_x_boundary",
+    )
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT location_x FROM events WHERE event_id = '00000000-0000-0000-0000-000000000092'"
+        )
+        assert cur.fetchone() == (120.0,)
+        cur.execute(
+            """
+            INSERT INTO events (event_id, match_id, event_type_name, location_x, location_y)
+            VALUES ('00000000-0000-0000-0000-000000000093', 100, 'Pass', 120.1, 40.0)
+            """
+        )
+
+    assert apply_migrations(conn) == ()
+
+
+@pytest.mark.parametrize(
+    "terminal_values",
+    [
+        pytest.param(
+            "'succeeded', '[]'::jsonb, CURRENT_TIMESTAMP, 'unexpected_error', 'not allowed'",
+            id="success-cannot-carry-an-error",
+        ),
+        pytest.param(
+            "'failed', '[]'::jsonb, CURRENT_TIMESTAMP, NULL, NULL",
+            id="failure-requires-a-sanitized-error",
+        ),
+    ],
+)
+def test_ingestion_manifest_terminal_states_are_internally_consistent(
+    conn: psycopg.Connection, terminal_values: str
+) -> None:
+    apply_migrations(conn)
+    with pytest.raises(psycopg.errors.CheckViolation), conn.transaction(), conn.cursor() as cur:
+        cur.execute(
+            f"""
+            INSERT INTO ingestion_runs (
+                run_id, owner_token, source_commit, status, scopes, finished_at,
+                error_type, error_message, owner_host, owner_pid, current_phase
+            ) VALUES (
+                gen_random_uuid(), gen_random_uuid(),
+                'b0bc9f22dd77c206ddedc1d742893b3bbe64baec',
+                {terminal_values}, 'host', 1, 'terminal'
+            )
+            """
+        )
+
+
+def test_ingestion_scope_evidence_prevents_parent_manifest_deletion(
+    conn: psycopg.Connection,
+) -> None:
+    """Manifest scope evidence is retained by the default non-cascading foreign key."""
+    apply_migrations(conn)
+    run_id = "00000000-0000-0000-0000-000000000001"
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO ingestion_runs (
+                run_id, owner_token, source_commit, status, scopes, owner_host, owner_pid,
+                current_phase
+            ) VALUES (
+                %s, '00000000-0000-0000-0000-000000000002',
+                'b0bc9f22dd77c206ddedc1d742893b3bbe64baec',
+                'running', '[{"competition_id": 43, "season_id": 106}]'::jsonb,
+                'host', 1, 'collecting'
+            )
+            """,
+            (run_id,),
+        )
+        cur.execute("INSERT INTO ingestion_run_scopes VALUES (%s, 43, 106)", (run_id,))
+    conn.commit()
+
+    with (
+        pytest.raises(psycopg.errors.ForeignKeyViolation),
+        conn.transaction(),
+        conn.cursor() as cur,
+    ):
+        cur.execute("DELETE FROM ingestion_runs WHERE run_id = %s", (run_id,))
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM ingestion_runs WHERE run_id = %s", (run_id,))
+        parent_count = cur.fetchone()
+        cur.execute("SELECT count(*) FROM ingestion_run_scopes WHERE run_id = %s", (run_id,))
+        scope_count = cur.fetchone()
+    assert parent_count == (1,)
+    assert scope_count == (1,)
 
 
 @pytest.mark.parametrize(

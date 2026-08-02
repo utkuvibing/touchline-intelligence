@@ -1,5 +1,6 @@
 """StatsBomb Open Data ingestion.
 
-Current scope: one competition-season (FIFA World Cup 2022), five tables, shots only. The schema is
-versioned under ``migrations``; ingestion remains non-idempotent until WP1.3.
+Current internal scope: the fixed four-tournament cohort with normalized lineup, event and shot
+facts. The schema is versioned under ``migrations`` and production ingestion is idempotent,
+source-pinned and auditable. Public row-level queries remain restricted to World Cup 2022.
 """

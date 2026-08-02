@@ -20,9 +20,9 @@ Build one modular football research and decision-support product that turns raw 
 
 - One repository, one FastAPI backend, one Next.js/TypeScript frontend, one PostgreSQL database.
 - Python and JavaScript versions, package managers, command runner, formatters, linters, type checks,
-  and test commands were pinned in M0 and are used consistently. WP1.2 manages the normalized
-  lineup/event/shot schema through ordered, hand-written SQL migrations; idempotent ingestion
-  arrives in WP1.3.
+  and test commands were pinned in M0 and are used consistently. Ordered, hand-written SQL
+  migrations manage the normalized lineup/event/shot schema and WP1.3 ingestion is idempotent,
+  source-pinned and reject-on-change.
 - Configuration comes from typed settings and environment variables; commit `.env.example`, never secrets.
 - Keep raw-source provenance and ingestion manifests. Use migrations and constraints; do not edit production schemas by hand.
 - Prefer clear domain code and measured queries to premature abstractions or speculative performance work.

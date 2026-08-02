@@ -116,6 +116,35 @@ def test_base_rate_excludes_penalties(loaded_conn: psycopg.Connection) -> None:
     assert rate.value == pytest.approx(1 / 3)
 
 
+def test_public_baseline_excludes_an_internal_cohort_tournament(
+    loaded_conn: psycopg.Connection,
+) -> None:
+    """Loading Euro 2024 internally must not silently republish its outcomes."""
+    with loaded_conn.cursor() as cur:
+        cur.execute("INSERT INTO competitions VALUES (55, 'UEFA Euro', 'Europe')")
+        cur.execute("INSERT INTO seasons VALUES (282, '2024')")
+        cur.execute("INSERT INTO competition_seasons VALUES (55, 282)")
+        cur.execute("INSERT INTO teams VALUES (9901, 'Internal A'), (9902, 'Internal B')")
+        cur.execute(
+            "INSERT INTO matches (match_id, competition_id, season_id, home_team_id, "
+            "away_team_id) VALUES (990001, 55, 282, 9901, 9902)"
+        )
+        cur.execute("INSERT INTO match_teams VALUES (990001, 9901, 'home'), (990001, 9902, 'away')")
+        cur.execute(
+            "INSERT INTO events (event_id, match_id, event_index, period, team_id, "
+            "event_type_id, event_type_name) VALUES "
+            "('dddddddd-0000-0000-0000-000000000001', 990001, 1, 1, 9901, 16, 'Shot')"
+        )
+        cur.execute(
+            "INSERT INTO shots (event_id, outcome_name, shot_type_name) VALUES "
+            "('dddddddd-0000-0000-0000-000000000001', 'Goal', 'Open Play')"
+        )
+
+    rate = baseline.compute_base_rate(loaded_conn)
+
+    assert (rate.goals, rate.shots) == (EXPECTED_GOALS, EXPECTED_SHOTS)
+
+
 def test_empty_database_raises_rather_than_reporting_zero(empty_conn: psycopg.Connection) -> None:
     """ "Nothing ingested" and "nothing scored" are different facts.
 

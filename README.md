@@ -16,7 +16,7 @@ evidence trail that makes every number defensible.
 M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
 publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 is complete: its ordered
 migrations, full approved lineup and generic-event schema, ingestion, tests, independent Sol review,
-and CI have passed. WP1.3 has not started.
+and CI have passed. WP1.3 idempotent four-tournament ingestion is in progress.
 
 ## Documentation
 
@@ -82,8 +82,9 @@ dependency — there is nothing extra to install on Windows.
 | `uv run poe typecheck` | mypy (strict) |
 | `uv run poe test` | pytest (integration tests skip unless the database is up) |
 | `uv run pytest -m integration` | Integration tests against the running PostgreSQL |
-| `uv run poe migrate` | Apply pending ordered PostgreSQL migrations |
-| `uv run poe ingest --reset` | Load the World Cup 2022 slice (destructive reset) |
+| `uv run poe migrate` | Apply pending ordered PostgreSQL migrations (Neon requires its direct URL) |
+| `uv run poe ingest` | Idempotently merge the fixed four-tournament core cohort (Neon requires its direct URL) |
+| `uv run poe ingest --reset` | Destructively rebuild locally, then load the fixed core cohort |
 | `uv run poe api` | Run the API at http://localhost:8000 |
 | `uv run python scripts/verify_tests_fail.py` | Break each protected behaviour once and confirm the tests catch it |
 | `cd frontend && npm run dev` | Next.js dev server |
@@ -107,6 +108,17 @@ Tests protect named contracts, not line coverage. Coverage percentage is not an 
 would fail if the behaviour broke. It has already caught three tests that passed for the wrong
 reason and led to all three being rewritten.
 
+The ordinary suite uses committed fictional fixtures and never downloads StatsBomb data in CI.
+With the pinned 465-file cache present, the slow real-source acceptance proof is opt-in:
+
+```bash
+TOUCHLINE_FULL_SOURCE=1 uv run pytest backend/tests/test_full_cohort_acceptance.py
+```
+
+It exercises populated-WP1.2 upgrade, full reconciliation, the WC 2022 public boundary, provider-xG
+absence, and an identical no-op rerun whose source-owned columns are fingerprinted across all four
+tournaments and all 16 source-derived tables.
+
 ## Repository layout
 
 ```text
@@ -124,9 +136,10 @@ docs/                    plan, targeting, ADRs, research, experiment rules
 uv run poe ingest --reset
 ```
 
-Loads FIFA World Cup 2022 — 64 matches, 32 teams, 829 players, 234,637 events, 128 lineups,
-3,244 lineup memberships, 11,121 possessions, 330,844 directed event relations, 1,494 typed shots,
-and 20,327 actors from shot-embedded freeze frames.
+Loads the fixed WC 2018, Euro 2020, WC 2022 and Euro 2024 cohort: 230 matches, 54 teams,
+1,989 players, 843,050 events, 460 lineups, 11,062 lineup memberships, 39,262 possessions,
+1,227,110 directed event relations, 5,829 typed shots, and 78,866 actors from shot-embedded
+freeze frames.
 
 **The source snapshot is pinned to a commit SHA, not `master`.** Open Data is a live repository, so
 a load against `master` would drift and the measured counts in ADR 0004 would stop meaning anything.
@@ -135,10 +148,18 @@ Every load writes a provenance record — source commit plus a SHA-256 for each 
 identical bytes. Downloaded files are cached under `data/statsbomb/<sha>/` (git-ignored);
 `--offline` fails rather than downloading.
 
-**The loader is not idempotent.** Every write is a plain `INSERT`, so a second run against a
-populated database is refused with a message rather than silently duplicating rows. `--reset` drops
-and recreates the tables through the ordered migrations, and is the supported way to re-run.
-Upserts, source-key conflict handling, and a run manifest arrive in WP1.3.
+**The production loader is idempotent and reject-on-change.** Each invocation has a durable run
+manifest. Source rows are staged with PostgreSQL `COPY`; identical source keys are no-ops, while a
+changed source-derived fact under the same pinned commit raises `SourceConflictError` rather than
+silently rewriting evidence. Source changes, exact scoped reconciliation, and the successful
+manifest transition share one transaction. Handled failures roll back that transaction and record
+a sanitized failed status separately. A session advisory lock serializes runs and lets a later
+owner recover a genuinely abandoned manifest without misclassifying an active owner.
+
+On Neon, migration and ingestion commands require the **direct** connection URL and reject a known
+`-pooler` hostname before opening a connection or writing any state. Railway's serving API should
+keep Neon's pooled URL; an operator temporarily supplies the direct URL to the same
+`TOUCHLINE_DB_URL` variable for these commands. No second database environment variable is used.
 
 **The caller owns the transaction, and reconciliation happens before the commit.** The flow is
 reset → load → read counts back → reconcile against the source → commit. Counts are read inside the
@@ -146,7 +167,7 @@ transaction, against rows that are written but not yet durable, so a mismatch ro
 back. Nothing in the loader module commits: committing first and reporting afterwards would make
 reconciliation a description of data already kept.
 
-**WP1.2 manages the normalized source-shaped schema through five ordered, hand-written SQL
+**The normalized source-shaped schema is managed through seven ordered, hand-written SQL
 migrations.** Stable shared event fields are typed relational columns; heterogeneous non-shot
 type-specific structures remain sanitized JSONB. Lineup memberships are match-team squad records,
 not proof that a player appeared or played any duration. Directed related-event references preserve
@@ -155,8 +176,9 @@ or continuous tracking. Applied migration SQL is checksum protected. See
 [`docs/SCHEMA.md`](docs/SCHEMA.md) and
 [ADR 0009](docs/adr/0009-full-relational-event-and-lineup-scope.md).
 
-No generic event rows are exposed by the public API in WP1.2. `/baseline` and `/shots` retain their
-M0 contracts over the normalized event/shot join.
+No generic event rows are exposed by the public API. Although the internal database holds four
+tournaments, `/baseline` and `/shots` remain explicitly restricted to WC 2022 and retain their M0
+schemas, pagination, and exact 152/1,430 and 1,494-row contracts.
 **Provider xG is deliberately not ingested** — it is the strongest leakage vector for the M2
 shot-quality model. It is removed recursively before residual JSON is persisted and prohibited by a
 database constraint.
@@ -234,9 +256,12 @@ trade-off.
   integrations — see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 - Neon's free tier suspends the compute after inactivity, so the first request after an idle period
   waits for it to wake.
-- Ingestion is not idempotent; source-key upserts and the run manifest are WP1.3 work.
-- Only one competition-season is loaded. The full four-tournament cohort in
-  [ADR 0004](docs/adr/0004-cohort-scope-and-validation-design.md) arrives in M1.
+- The repository can load the four-tournament cohort, but the live Neon database is not migrated or
+  reloaded automatically; deployment remains a separate, verified operation.
+- Neon operator commands intentionally do not support its pooled endpoint; migrations and ingestion
+  must be run with the direct URL while the Railway API retains the pooled URL.
+- Public row-level endpoints remain WC 2022-only until the publication gate in
+  [`DATA_SOURCE.md`](DATA_SOURCE.md) is resolved.
 - `npm audit` reports 3 high-severity advisories in transitive Next.js dependencies (`postcss`,
   `sharp`). The only offered fix downgrades Next.js by seven major versions, so it has not been
   applied. Re-check on the next Next.js release.

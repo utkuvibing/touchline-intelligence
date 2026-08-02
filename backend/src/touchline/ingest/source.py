@@ -35,7 +35,7 @@ BASE_URL = f"https://raw.githubusercontent.com/statsbomb/open-data/{SOURCE_COMMI
 DEFAULT_CACHE = Path("data/statsbomb")
 PROVENANCE_DIR = Path("data/provenance")
 
-# FIFA World Cup 2022. Fixed for WP0.3; the wider cohort defined in ADR 0004 arrives in M1.
+# FIFA World Cup 2022 remains the public API scope; WP1.3's internal cohort is defined in run.py.
 WORLD_CUP_2022 = (43, 106)
 
 

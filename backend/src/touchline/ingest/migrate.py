@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import re
+import sys
 from dataclasses import dataclass
 from importlib import resources
 
 import psycopg
 
-from touchline.config import get_settings
+from touchline.config import (
+    DirectDatabaseUrlRequiredError,
+    get_settings,
+    require_direct_database_url,
+)
 
 MIGRATION_PACKAGE = "touchline.ingest.migrations"
 MIGRATION_NAME = re.compile(r"^(?P<number>\d{4})_[a-z0-9_]+\.sql$")
@@ -222,6 +227,11 @@ def apply_migrations(conn: psycopg.Connection) -> tuple[str, ...]:
 def main() -> int:
     """Apply pending migrations to the configured database."""
     settings = get_settings()
+    try:
+        require_direct_database_url(settings.db_url)
+    except DirectDatabaseUrlRequiredError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     with psycopg.connect(settings.db_url_str) as conn:
         applied = apply_migrations(conn)
     if applied:

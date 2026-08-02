@@ -57,3 +57,18 @@ _Avoid_: Chance, because that implies an interpretation beyond the recorded even
 The players and locations embedded in a Shot event around that event. It is neither StatsBomb 360
 nor continuous tracking data.
 _Avoid_: Tracking, StatsBomb 360
+
+**Ingestion run**:
+One recorded attempt to load a declared source version and tournament scope, including attempts
+that make no data changes or end unsuccessfully.
+_Avoid_: Import, sync
+
+**Source conflict**:
+The same source version and source identity carrying different source-derived facts from those
+already stored. It is rejected rather than treated as an update.
+_Avoid_: Duplicate, because an identical rerun is not a conflict
+
+**Interrupted run**:
+An ingestion run whose owner stopped before recording an ordinary success or failure. It is
+distinct from a handled failure and must not be inferred while its owner is still active.
+_Avoid_: Failed run, stale job

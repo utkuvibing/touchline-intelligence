@@ -1,18 +1,15 @@
-"""Command-line entry point for the WP0.3 ingestion.
+"""Command-line entry point for the WP1.3 fixed-cohort ingestion.
 
-    uv run poe ingest            # load, refusing to touch a non-empty database
-    uv run poe ingest --reset    # destructive reset, then load
+    uv run poe ingest            # merge the fixed four-tournament cohort idempotently
+    uv run poe ingest --reset    # destructive local rebuild, then load the fixed cohort
 
-The loader is not idempotent. `--reset` is the supported way to re-run.
+The public seam for durable manifests, conflict rejection and transaction ownership lives in
+``touchline.ingest.run``.  This module keeps the older one-scope ``collect`` helper because tests
+and deliberately narrow M0 fixture setup still use it; the production command always calls the
+fixed WP1.3 cohort runner.
 
-This module owns the transaction. The flow is deliberately:
-
-    reset (optional) -> load rows -> read counts back -> reconcile -> commit
-
-Reconciliation happens *inside* the transaction, against rows that are written but not yet durable.
-A mismatch therefore rolls the whole thing back, so the database never holds a load that failed its
-own check. Committing first and reporting afterwards would turn reconciliation into a description
-of data already kept.
+The WP1.3 runner owns the production transactions. The legacy `reconcile` helper remains here for
+the narrow fixture loader and migration-upgrade tests; it is not the fixed-cohort command path.
 """
 
 from __future__ import annotations
@@ -23,7 +20,11 @@ from dataclasses import dataclass
 
 import psycopg
 
-from touchline.config import get_settings
+from touchline.config import (
+    DirectDatabaseUrlRequiredError,
+    get_settings,
+    require_direct_database_url,
+)
 from touchline.ingest import load as loader
 from touchline.ingest.parse import parse_competitions, parse_events, parse_lineups, parse_matches
 from touchline.ingest.records import (
@@ -41,7 +42,7 @@ from touchline.ingest.records import (
     ShotFreezeFramePlayer,
     Team,
 )
-from touchline.ingest.source import WORLD_CUP_2022, StatsBombSource
+from touchline.ingest.source import StatsBombSource
 
 
 class ReconciliationError(RuntimeError):
@@ -215,74 +216,57 @@ def reconcile(source_counts: SourceCounts, db: loader.LoadCounts) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Load a StatsBomb competition-season slice.")
+    parser = argparse.ArgumentParser(description="Idempotently load Touchline's fixed core cohort.")
     parser.add_argument(
         "--reset",
         action="store_true",
-        help="drop and recreate the tables first (destructive; the supported way to re-run)",
+        help="drop and recreate local tables first (destructive; reruns normally need no reset)",
     )
     parser.add_argument(
         "--offline",
         action="store_true",
         help="fail rather than download; use only what is already cached",
     )
-    parser.add_argument("--competition-id", type=int, default=WORLD_CUP_2022[0])
-    parser.add_argument("--season-id", type=int, default=WORLD_CUP_2022[1])
     args = parser.parse_args(argv)
 
-    settings = get_settings()
-    source = StatsBombSource(offline=args.offline)
-
-    print(f"Scope: competition {args.competition_id}, season {args.season_id}")
-    collected = collect(source, args.competition_id, args.season_id)
-    print(
-        f"  parsed {len(collected.matches)} matches, {len(collected.teams)} teams, "
-        f"{len(collected.players)} players, {len(collected.shots)} shots"
+    # Avoid a module import cycle: ``run`` uses this module's public ``collect`` seam.
+    from touchline.ingest.run import (
+        CORE_COHORT,
+        IngestionError,
+        run_ingestion,
     )
 
+    settings = get_settings()
     try:
-        # psycopg commits on a clean exit from this block and rolls back on any exception, so
-        # raising below is how a failed reconciliation discards the load.
+        require_direct_database_url(settings.db_url)
+    except DirectDatabaseUrlRequiredError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    source = StatsBombSource(offline=args.offline)
+
+    try:
         with psycopg.connect(settings.db_url_str) as conn:
             if args.reset:
                 print("  resetting schema (destructive) ...")
                 loader.reset_schema(conn)
+            else:
+                from touchline.ingest.migrate import apply_migrations
 
-            loader.load_all(
-                conn,
-                competitions=collected.competitions,
-                teams=collected.teams,
-                players=collected.players,
-                matches=collected.matches,
-                shots=collected.shots,
-                lineups=collected.lineups,
-                memberships=collected.memberships,
-                positions=collected.positions,
-                cards=collected.cards,
-                possessions=collected.possessions,
-                events=collected.events,
-                relations=collected.relations,
-                freeze_frames=collected.freeze_frames,
-            )
+                apply_migrations(conn)
+            conn.commit()
 
-            db_counts = loader.count_rows(conn)
-            print(
-                f"\nWritten (uncommitted): {db_counts.competitions} competitions, "
-                f"{db_counts.teams} teams, {db_counts.players} players, "
-                f"{db_counts.matches} matches, {db_counts.shots} shots"
-            )
-
-            if not reconcile(collected.source_counts, db_counts):
-                raise ReconciliationError("loaded counts do not match the source")
-    except loader.NotIdempotentError as exc:
-        print(f"\nRefused to load: {exc}", file=sys.stderr)
-        return 1
-    except ReconciliationError as exc:
-        print(f"\nRolled back: {exc}. Nothing was committed.", file=sys.stderr)
+        print("Scope: " + ", ".join(f"competition {c}, season {s}" for c, s in CORE_COHORT))
+        result = run_ingestion(
+            lambda: psycopg.connect(settings.db_url_str),
+            source,
+            CORE_COHORT,
+        )
+    except IngestionError as exc:
+        print(f"\nIngestion did not commit source facts: {exc}", file=sys.stderr)
         return 1
 
-    provenance_path = source.write_provenance(f"competition-{args.competition_id}-{args.season_id}")
-    print(f"\nCommitted. Provenance written to {provenance_path}")
+    provenance_path = source.write_provenance("core-cohort")
+    print(f"\nCommitted run {result.run_id}. Provenance written to {provenance_path}")
     return 0
 
 

@@ -15,13 +15,15 @@ from dataclasses import dataclass
 import psycopg
 from psycopg.rows import dict_row
 
+from touchline.public_scope import PUBLIC_SCOPE_PARAMS, PUBLIC_SCOPE_PREDICATE
+
 # A bounded page size. The whole World Cup is only ~1,500 shots, so this is not about protecting
 # the database - it is about the API never having an unbounded response shape, which is the sort
 # of thing that is easy to add now and awkward to retrofit once a client depends on it.
 DEFAULT_LIMIT = 200
 MAX_LIMIT = 1000
 
-SHOTS_SQL = """
+SHOTS_SQL = f"""
     SELECT
         s.event_id::text AS shot_id,
         e.match_id,
@@ -54,19 +56,22 @@ SHOTS_SQL = """
     -- The ::int cast is required, not cosmetic: with the parameter only ever compared to
     -- NULL and an integer column, PostgreSQL cannot infer its type and raises
     -- AmbiguousParameter. Naming the type makes the optional filter work.
-    WHERE (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
+    WHERE {PUBLIC_SCOPE_PREDICATE}
+      AND (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
     ORDER BY m.match_date, e.match_id, e.period, e.minute, e.second, s.event_id
     LIMIT %(limit)s OFFSET %(offset)s
 """
 
-COUNT_SQL = """
+COUNT_SQL = f"""
     SELECT count(*)
     FROM shots AS s
     JOIN events AS e ON e.event_id = s.event_id
+    JOIN matches AS m ON m.match_id = e.match_id
     -- The ::int cast is required, not cosmetic: with the parameter only ever compared to
     -- NULL and an integer column, PostgreSQL cannot infer its type and raises
     -- AmbiguousParameter. Naming the type makes the optional filter work.
-    WHERE (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
+    WHERE {PUBLIC_SCOPE_PREDICATE}
+      AND (%(match_id)s::int IS NULL OR e.match_id = %(match_id)s::int)
 """
 
 
@@ -98,12 +103,17 @@ def fetch_shots(
     """
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
-    params = {"match_id": match_id, "limit": limit, "offset": offset}
+    params = {
+        **PUBLIC_SCOPE_PARAMS,
+        "match_id": match_id,
+        "limit": limit,
+        "offset": offset,
+    }
 
     with conn.transaction():
         with conn.cursor() as cur:
             cur.execute("SET TRANSACTION READ ONLY")
-            cur.execute(COUNT_SQL, {"match_id": match_id})
+            cur.execute(COUNT_SQL, params)
             row = cur.fetchone()
             total = int(row[0]) if row else 0
         with conn.cursor(row_factory=dict_row) as cur:
