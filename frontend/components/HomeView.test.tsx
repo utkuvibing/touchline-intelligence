@@ -114,6 +114,22 @@ describe("M0 landing page", () => {
     expect(radii.size).toBe(1);
   });
 
+  it("draws the half pitch at its true 0.75 proportions, and stays fluid on a narrow screen", () => {
+    // The viewBox is what holds the geometry: 60 units of length by 80 of width. Pinning an
+    // explicit height, or capping width in absolute units without `height: auto`, would stretch
+    // the pitch and put every marker at a location the source never recorded.
+    const { container } = render(
+      <HomeView shots={[shot({ shot_id: "a" })]} total={1} rate={null} error={null} />,
+    );
+
+    const svg = container.querySelector("svg");
+    const [, , width, height] = svg!.getAttribute("viewBox")!.split(" ").map(Number);
+    expect(width / height).toBeCloseTo(0.75, 10);
+
+    // Fluid up to a cap, rather than a fixed size: below the cap the map fits the viewport.
+    expect(svg).toHaveStyle({ width: "100%", height: "auto", maxWidth: "44rem" });
+  });
+
   it("says a failed fetch is a failed fetch, not an absence of shots", () => {
     render(<HomeView shots={[]} total={0} rate={null} error="connect ECONNREFUSED" />);
 
