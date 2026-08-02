@@ -6,8 +6,46 @@
  * would be the first step towards rendering a number nothing has evaluated.
  */
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+/** Local development default. Deployments must set `NEXT_PUBLIC_API_BASE` and are not given one. */
+export const LOCAL_API_BASE = "http://127.0.0.1:8000";
+
+export class ApiBaseNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "NEXT_PUBLIC_API_BASE is not set. A production build has no default API URL: falling back " +
+        "to localhost would make a misconfigured deployment look like an unreachable backend.",
+    );
+    this.name = "ApiBaseNotConfiguredError";
+  }
+}
+
+/**
+ * Resolve the API origin from the environment.
+ *
+ * Pure and exported so the rule can be tested; `NEXT_PUBLIC_` values are inlined at build time,
+ * so the call site below must read `process.env.X` literally rather than through a variable.
+ *
+ * Two behaviours worth stating:
+ *
+ *   - A trailing slash is stripped. Paths are concatenated, so `https://api.example.com/` would
+ *     otherwise produce `https://api.example.com//baseline`.
+ *   - Outside development, an unset value throws instead of defaulting. A deployed frontend
+ *     silently pointing at 127.0.0.1 reports "the API could not be reached", which reads as a
+ *     backend outage and sends the reader to look at a service that is perfectly healthy.
+ */
+export function resolveApiBase(
+  configured: string | undefined,
+  nodeEnv: string | undefined,
+): string {
+  const trimmed = configured?.trim();
+  if (trimmed) {
+    return trimmed.replace(/\/+$/, "");
+  }
+  if (nodeEnv === "production") {
+    throw new ApiBaseNotConfiguredError();
+  }
+  return LOCAL_API_BASE;
+}
 
 /** StatsBomb pitch dimensions, in the units the coordinates are recorded in. */
 export const PITCH_LENGTH = 120;
@@ -49,10 +87,39 @@ export interface ConversionRate {
   caveat: string;
 }
 
+/**
+ * Resolved lazily rather than at module load: a throw during module evaluation would break the
+ * build itself, which is a worse and more confusing failure than one clear message at request time.
+ */
+function apiBase(): string {
+  return resolveApiBase(process.env.NEXT_PUBLIC_API_BASE, process.env.NODE_ENV);
+}
+
+/** The API's own explanation of a failure, when it gave one. Truncated: this reaches the page. */
+export async function failureDetail(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = await response.json();
+    if (body && typeof body === "object" && "detail" in body) {
+      const detail = (body as { detail: unknown }).detail;
+      if (typeof detail === "string" && detail.trim()) {
+        return detail.trim().slice(0, 300);
+      }
+    }
+  } catch {
+    // A non-JSON error body (a proxy's HTML error page, say) carries nothing worth showing.
+  }
+  return null;
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const response = await fetch(`${apiBase()}${path}`, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`${path} responded ${response.status}`);
+    // The status alone sent the reader nowhere: "/baseline responded 503" is true and useless.
+    // FastAPI puts the reason in `detail`, so surfacing it turns the page into a first diagnostic.
+    const detail = await failureDetail(response);
+    throw new Error(
+      `${path} responded ${response.status}${detail ? ` — ${detail}` : ""}`,
+    );
   }
   return (await response.json()) as T;
 }

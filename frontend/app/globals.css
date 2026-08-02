@@ -42,6 +42,62 @@ a {
   text-decoration: none;
 }
 
+/*
+ * Minimal readable layout. The reset above zeroes every margin, which left the page as a single
+ * unspaced block of text that reads as an unstyled document — the stylesheet was loading
+ * correctly, it simply had no layout rules in it at all.
+ *
+ * Deliberately small: spacing, measure and a readable line height, nothing more. Visual polish is
+ * the first thing this project cuts, and an M0 page with no evaluated model should not look more
+ * finished than it is.
+ */
+main {
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  line-height: 1.55;
+}
+
+main > * + * {
+  margin-top: 1rem;
+}
+
+section {
+  margin-top: 2.25rem;
+}
+
+h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+section > p + p {
+  margin-top: 0.6rem;
+}
+
+/* The provisional notice and the failure message are the two things that must not be skimmed. */
+[role="note"],
+[role="alert"],
+[role="status"] {
+  border-left: 3px solid currentColor;
+  padding-left: 0.75rem;
+  opacity: 0.85;
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid currentColor;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
