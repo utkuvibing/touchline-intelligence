@@ -95,11 +95,13 @@ boundary, not merely a feature-selection convention.
 - Shot end coordinates are paired and bounded; key-pass event IDs and freeze-frame players refer
   to existing events/players when present.
 
-Foreign keys use PostgreSQL's default `NO ACTION`; evidence rows are never cascade-deleted. No
-secondary performance indexes are added in WP1.2. PostgreSQL may create indexes that back primary
-keys and required uniqueness constraints, including the event ID/type subtype key; those are
-integrity structures, not speculative query tuning. WP1.5 must use representative `EXPLAIN`
-evidence before accepting any performance index write and storage cost.
+Foreign keys use PostgreSQL's default `NO ACTION`; evidence rows are never cascade-deleted.
+PostgreSQL creates indexes that back primary keys and required uniqueness constraints, including
+the event ID/type subtype key; those are integrity structures, not speculative query tuning. WP1.5
+measured two representative full-cohort plans. A 5,776 kB candidate index on
+`events (event_type_name)` lowered one manual aggregation's planner cost and buffer footprint, but
+served no recurring or production workload, so it was rolled back. No secondary performance index
+is retained; a changed repeated workload is the trigger to remeasure.
 
 ## Ordered migrations
 
@@ -155,4 +157,5 @@ WC 2022-only. WP1.4's `quality` CLI is an independent read-only audit: it compar
 successful exact-scope manifest's parsed source counts to committed table counts and evaluates
 cross-row/coverage checks after ingestion has finished. It intentionally does not invent a generic
 event completeness threshold, a position-interval chronology rule, or an appearance/minutes
-interpretation from lineup membership.
+interpretation from lineup membership. WP1.5's SQL pack is also read-only and repository-local. It
+does not add an ORM, public query surface, model result, or publication-gate claim.
