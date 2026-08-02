@@ -71,9 +71,9 @@ Two findings shaped the sequence more than any technology choice:
 
 ## 2. Data scope — settled, with numbers
 
-Counted 2026-07-31 from `competitions.json` and `matches/*.json`; shot rates sampled from 12 WC 2022
-and 10 Euro 2024 matches. Full counts are the first output of M1 and replace these estimates.
-Recorded as **ADR 0004**.
+The cohort choice was measured initially on 2026-07-31 and recorded as **ADR 0004**. WP1.3 then
+measured the complete pinned source on 2026-08-02; the exact inventory below replaces the earlier
+sample extrapolations.
 
 **Every league season in StatsBomb Open Data is single-team-centric:**
 
@@ -89,7 +89,7 @@ These are not league seasons; they are one club's season plus its opponents. A "
 holdout" inside one of them measures a single team's form curve, not football drift.
 
 **Core cohort — balanced tournaments only:** WC 2018 + Euro 2020 + WC 2022 + Euro 2024,
-≈ 230 matches.
+exactly 230 matches, 843,050 events and 5,829 shots.
 
 WC 2022 is now **measured** rather than estimated (WP0.3 loaded it in full, against pinned Open Data
 commit `b0bc9f22` rather than `master`, with per-file hashes in `data/provenance/`): 1,494 shots of which
@@ -97,11 +97,11 @@ commit `b0bc9f22` rather than `master`, with per-file hashes in `data/provenance
 **zero rows missing location, player, outcome, body part or technique**. The earlier 12-match
 sample was low by ~18%.
 
-Re-extrapolating the other three tournaments at the measured rate gives roughly **5,100 non-penalty
-shots and ~545 goals** for the full cohort. Two source facts worth carrying forward: shootout kicks
-are typed `Penalty` and live in period 5, so one `shot_type` filter excludes them; and the
-five-bin reliability decision below should be re-checked against the real holdout count once the
-remaining tournaments are loaded.
+The complete descriptive cohort contains **5,606 eligible non-penalty shots and 507 goals**. By
+tournament: WC 2018 is 1,638/135, Euro 2020 is 1,234/122, WC 2022 is 1,430/152, and Euro 2024 is
+1,304/98 (shots/goals). These are data descriptions, not model evaluation results. Shootout kicks
+are typed `Penalty` and live in period 5, so the declared exclusion remains belt-and-braces. Exact
+relational counts and the measured `location_x = 120.1` source exception are in `DATA_SOURCE.md`.
 
 Binding consequences:
 

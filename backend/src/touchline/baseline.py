@@ -34,13 +34,19 @@ from dataclasses import dataclass
 
 import psycopg
 
+from touchline.public_scope import (
+    PUBLIC_SCOPE_DESCRIPTION,
+    PUBLIC_SCOPE_PARAMS,
+    PUBLIC_SCOPE_PREDICATE,
+)
+
 # Penalties are excluded because their geometry and context are nearly fixed, so mixing them into
 # a single rate makes that rate describe neither open play nor penalties.
 #
 # The period filter is belt-and-braces. WP0.3 measured that every period-5 (shootout) kick in
 # WC 2022 is also typed 'Penalty', so `shot_type` alone is currently sufficient - but the other
-# three tournaments in the cohort are not loaded yet, and a shootout kick that arrived untyped
-# would otherwise be counted as open play.
+# internal tournaments must not affect this public query, and a WC 2022 shootout kick that arrived
+# untyped would otherwise be counted as open play.
 #
 # Missing values are excluded explicitly rather than left to SQL's three-valued logic, which would
 # handle them inconsistently and invisibly:
@@ -64,10 +70,10 @@ COHORT_PREDICATE = (
 )
 
 COHORT_DESCRIPTION = (
-    "Shots in the loaded scope with a known shot type, period and outcome, excluding penalties "
-    "and penalty-shootout kicks. Shots missing any of those three fields are excluded from both "
-    "the numerator and the denominator rather than being counted as misses. No filtering by "
-    "competition, team, player or location."
+    f"Shots in the public {PUBLIC_SCOPE_DESCRIPTION} scope with a known shot type, period and "
+    "outcome, excluding penalties and penalty-shootout kicks. Shots missing any of those three "
+    "fields are excluded from both the numerator and the denominator rather than being counted "
+    "as misses. No filtering by team, player or location."
 )
 
 # Interpolated from the module constant above, never from input, so the predicate and the text
@@ -78,7 +84,9 @@ BASE_RATE_SQL = f"""
         count(*) FILTER (WHERE s.outcome_name = 'Goal') AS goals
     FROM shots AS s
     JOIN events AS e ON e.event_id = s.event_id
-    WHERE {COHORT_PREDICATE}
+    JOIN matches AS m ON m.match_id = e.match_id
+    WHERE {PUBLIC_SCOPE_PREDICATE}
+      AND {COHORT_PREDICATE}
 """
 
 
@@ -113,7 +121,7 @@ def compute_base_rate(conn: psycopg.Connection) -> BaseRate:
     disagreed with the database would be worse than the query cost it saved.
     """
     with conn.cursor() as cur:
-        cur.execute(BASE_RATE_SQL)
+        cur.execute(BASE_RATE_SQL, PUBLIC_SCOPE_PARAMS)
         row = cur.fetchone()
 
     if row is None:

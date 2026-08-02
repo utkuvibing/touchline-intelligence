@@ -37,3 +37,4 @@ An ADR proposing a new tool must answer:
 - [0007 — Scope exclusions decided on job-market evidence](0007-scope-exclusions-on-market-evidence.md)
 - [0008 — Shot-focused relational boundary for WP1.2](0008-shot-focused-relational-boundary.md)
 - [0009 — Full relational event and lineup scope for WP1.2](0009-full-relational-event-and-lineup-scope.md)
+- [0010 — Idempotent ingestion and durable run lifecycle](0010-idempotent-ingestion-and-manifest-lifecycle.md)

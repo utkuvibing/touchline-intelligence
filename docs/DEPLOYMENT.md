@@ -38,7 +38,7 @@ environment variable is the only platform contract the container relies on.
 
 | Variable | Required | Example | Notes |
 |---|---|---|---|
-| `TOUCHLINE_DB_URL` | **yes** | `postgresql://user:pw@ep-xxx.eu-central-1.aws.neon.tech/touchline?sslmode=require` | Neon pooled connection string. There is no default — a missing value fails at startup rather than silently connecting nowhere. |
+| `TOUCHLINE_DB_URL` | **yes** | `postgresql://user:pw@ep-xxx-pooler.eu-central-1.aws.neon.tech/touchline?sslmode=require` | Neon **pooled** connection string for the serving API. There is no default — a missing value fails at startup rather than silently connecting nowhere. |
 | `TOUCHLINE_CORS_ORIGINS` | **yes** in production | `https://touchline-intelligence.vercel.app` | Comma-separated. **No wildcard**: a `*` is dropped rather than honoured, so a stray asterisk fails closed instead of opening the API to every page on the internet. |
 | `TOUCHLINE_ENVIRONMENT` | no | `production` | Surfaced by `/health` so it is obvious which instance is being inspected. |
 | `PORT` | injected | — | Railway sets this; the container reads it. |
@@ -62,44 +62,55 @@ need it.
 ### 1. Neon (PostgreSQL)
 
 1. Create a project, region close to the Railway region.
-2. Copy the **pooled** connection string. It ends in `?sslmode=require`; keep that.
-3. Load the pinned World Cup 2022 snapshot **from your machine**, not from CI:
+2. Copy both Neon connection strings. Use the **direct** hostname for the operator commands in this
+   section and the `-pooler` hostname later for the Railway serving API. Both end in
+   `?sslmode=require`; keep that parameter. This is a temporary command-level substitution of the
+   same `TOUCHLINE_DB_URL`, not a second application variable.
+3. Load the pinned four-tournament core cohort **from your machine**, not from CI:
 
    ```bash
-   TOUCHLINE_DB_URL='postgresql://...neon.tech/touchline?sslmode=require' uv run poe ingest --reset
+   TOUCHLINE_DB_URL='postgresql://user:pw@ep-xxx.eu-central-1.aws.neon.tech/touchline?sslmode=require' uv run poe ingest
    ```
 
    This reads the cached snapshot at the commit pinned in
    `backend/src/touchline/ingest/source.py`, reconciles source counts against the database inside
-   the transaction, and commits only if they match. Expect
-   **64 matches, 32 teams, 829 players, 234,637 events, 128 lineups, 3,244 lineup
-   memberships, 11,121 possessions, 330,844 directed event relations, 1,494 typed shots, and
-   20,327 shot freeze-frame actors**.
+   the transaction, and commits only if they match. Expect **230 matches, 54 teams, 1,989 players,
+   843,050 events, 460 lineups, 11,062 lineup memberships, 39,262 possessions, 1,227,110 directed
+   event relations, 5,829 typed shots, and 78,866 shot freeze-frame actors**.
 
-   `--reset` is destructive and is the supported way to re-run: the loader is not idempotent.
+   Normal reruns are idempotent and create their own manifest. `--reset` remains available only for
+   an explicitly destructive local rebuild; it is not required for an identical rerun.
 
-   `--reset` rebuilds through all ordered migrations and loads the complete pinned WP1.2 slice. For
-   an existing populated five-table database that must keep its rows, apply the non-destructive
-   WP1.2 schema upgrade instead:
+   For an existing populated database that must keep its rows, apply the non-destructive ordered
+   schema upgrade first:
 
    ```bash
-   uv run poe migrate
+   TOUCHLINE_DB_URL='postgresql://user:pw@ep-xxx.eu-central-1.aws.neon.tech/touchline?sslmode=require' uv run poe migrate
    ```
 
-   Migrations 0003–0005 preserve existing shot rows by creating skeletal companion event rows, but
-   they cannot reconstruct generic events, lineups, or source ordering from a shot-only database.
-   A subsequent full pinned-source reset/load is required for complete WP1.2 coverage.
+   Both commands reject a known Neon `-pooler` hostname before opening a connection, taking a lock,
+   writing a manifest, running a migration, or staging data. The error names the required direct
+   URL but never prints the supplied DSN or credentials. This boundary exists because ingestion
+   uses session-level advisory locks and temporary-table/data-transaction state that must remain on
+   one PostgreSQL session.
+
+   Migrations 0003–0005 preserve legacy shot rows by creating skeletal companion event rows;
+   migrations 0006–0007 add the manifest lifecycle and measured raw event-x boundary. A subsequent
+   normal `uv run poe ingest` fills the complete pinned source without rewriting identical facts.
 
    A Railway code deploy does **not** run either command. Migration-on-application-boot is deferred
    to M3.3, so an operator must apply and verify schema and data separately before claiming the live
-   database has WP1.2 coverage. Repository delivery must not be described as a live Neon migration.
+   database has WP1.3 coverage. Repository delivery must not be described as a live Neon migration.
+   The internal database then holds four tournaments, while the current public `/baseline` and
+   `/shots` endpoints remain explicitly restricted to WC 2022.
 
 ### 2. Railway (backend)
 
 1. New project → Deploy from GitHub repo → this repository.
 2. Railway reads `railway.json` and builds `Dockerfile` from the repository root. No start command
    is needed; the image has one.
-3. Set `TOUCHLINE_DB_URL` and `TOUCHLINE_ENVIRONMENT=production`.
+3. Set `TOUCHLINE_DB_URL` to Neon's **pooled `-pooler` URL** and set
+   `TOUCHLINE_ENVIRONMENT=production`.
    Leave `TOUCHLINE_CORS_ORIGINS` for step 4 — the Vercel URL does not exist yet.
 4. Generate a public domain (Settings → Networking → Generate Domain).
 5. Confirm the deploy: `GET /health` should be `ok` and `GET /ready` should report
@@ -143,6 +154,10 @@ Exit code 0 means every check passed. Record the run in the release notes.
   repository secrets, and buys nothing at this size.
 - **No connection pooling in the application.** A connection is opened per request. Neon's pooled
   endpoint handles the pooling; an application-side pool is M3 hardening with a measured need.
+- **Operator commands require Neon's direct endpoint.** `poe migrate` and `poe ingest` reject the
+  `-pooler` hostname before database work. Railway continues to use the pooled endpoint for normal
+  API requests; operators temporarily supply the direct URL to the same variable when running a
+  command locally.
 - **No drift or model monitoring.** There is no model. Structured request logging and health
   endpoints are the whole observability story, recorded as an accepted gap in ADR 0006.
 - **No custom domain, no CDN configuration, no autoscaling.** Smallest paid/free plans, portfolio
@@ -154,6 +169,7 @@ Exit code 0 means every check passed. Record the run in the release notes.
 |---|---|
 | `/health` ok, `/ready` degraded | `TOUCHLINE_DB_URL` wrong, or Neon asleep/unreachable. The API is alive; the database is not. |
 | `/baseline` returns 503 with "no shots are loaded" | The database is reachable but empty — step 1's ingestion has not been run against it. |
+| `poe migrate` or `poe ingest` rejects `-pooler` | The command was given Railway's pooled API URL. Temporarily set `TOUCHLINE_DB_URL` to Neon's direct URL for that command; do not change the Railway API setting. |
 | Page renders but says "Could not load shots from the API" | `NEXT_PUBLIC_API_BASE` is wrong, or the Railway service is down. |
 | Page renders an empty pitch with no error | Should not happen: a failed fetch is stated explicitly. If it does, the API returned 200 with no rows. |
 | Browser console shows a CORS error | `TOUCHLINE_CORS_ORIGINS` does not include the exact Vercel origin — scheme and host must match, and a preview URL is a different origin. |

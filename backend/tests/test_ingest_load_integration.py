@@ -138,6 +138,8 @@ def test_reset_schema_rebuilds_through_ordered_migrations(conn: psycopg.Connecti
         "0003_normalize_competition_seasons",
         "0004_event_and_lineup_core",
         "0005_event_and_lineup_constraints",
+        "0006_ingestion_runs",
+        "0007_measured_event_x_boundary",
     ]
 
 

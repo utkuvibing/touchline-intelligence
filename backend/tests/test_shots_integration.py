@@ -105,6 +105,39 @@ def test_returns_every_fixture_shot_with_its_recorded_facts(
     assert goal["match_date"] == "2022-11-20"
 
 
+def test_public_shots_exclude_an_internal_cohort_tournament(
+    loaded_conn: psycopg.Connection, client: TestClient
+) -> None:
+    """The internal four-tournament cohort must not expand the row-level endpoint."""
+    with loaded_conn.cursor() as cur:
+        cur.execute("INSERT INTO competitions VALUES (55, 'UEFA Euro', 'Europe')")
+        cur.execute("INSERT INTO seasons VALUES (282, '2024')")
+        cur.execute("INSERT INTO competition_seasons VALUES (55, 282)")
+        cur.execute("INSERT INTO teams VALUES (9901, 'Internal A'), (9902, 'Internal B')")
+        cur.execute(
+            "INSERT INTO matches (match_id, competition_id, season_id, home_team_id, "
+            "away_team_id) VALUES (990001, 55, 282, 9901, 9902)"
+        )
+        cur.execute("INSERT INTO match_teams VALUES (990001, 9901, 'home'), (990001, 9902, 'away')")
+        cur.execute(
+            "INSERT INTO events (event_id, match_id, event_index, period, team_id, "
+            "event_type_id, event_type_name) VALUES "
+            "('dddddddd-0000-0000-0000-000000000001', 990001, 1, 1, 9901, 16, 'Shot')"
+        )
+        cur.execute(
+            "INSERT INTO shots (event_id, outcome_name, shot_type_name) VALUES "
+            "('dddddddd-0000-0000-0000-000000000001', 'Goal', 'Open Play')"
+        )
+    loaded_conn.commit()
+
+    page = client.get("/shots").json()
+    hidden_match = client.get("/shots", params={"match_id": 990001}).json()
+
+    assert page["total"] == FIXTURE_SHOTS
+    assert all(shot["match_id"] != 990001 for shot in page["shots"])
+    assert hidden_match == {"shots": [], "total": 0, "limit": 200, "offset": 0}
+
+
 def test_payload_carries_no_probability_or_rating(
     loaded_conn: psycopg.Connection, client: TestClient
 ) -> None:

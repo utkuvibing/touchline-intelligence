@@ -76,6 +76,27 @@ class MissingConfigurationError(RuntimeError):
     """
 
 
+class DirectDatabaseUrlRequiredError(RuntimeError):
+    """A write-heavy operator command was given Neon's transaction-pooled endpoint."""
+
+
+def require_direct_database_url(db_url: PostgresDsn) -> None:
+    """Reject Neon's known ``-pooler`` host without exposing any DSN credentials."""
+    for authority in db_url.hosts():
+        host = authority.get("host")
+        if not isinstance(host, str):
+            continue
+        normalized = host.rstrip(".").lower()
+        first_label = normalized.partition(".")[0]
+        if normalized.endswith(".neon.tech") and first_label.endswith("-pooler"):
+            raise DirectDatabaseUrlRequiredError(
+                "Migration and ingestion require Neon's direct connection URL; "
+                "TOUCHLINE_DB_URL currently uses a pooled '-pooler' hostname. Set "
+                "TOUCHLINE_DB_URL to the direct Neon URL for this command, and keep the pooled "
+                "URL configured for the Railway API."
+            )
+
+
 def get_settings() -> Settings:
     """Build settings from the environment.
 

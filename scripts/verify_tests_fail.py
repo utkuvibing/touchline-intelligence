@@ -41,6 +41,7 @@ DB_URL_BROKEN = (
 
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
+DIRECT_DATABASE_COMMAND_TESTS = "uv run pytest backend/tests/test_ingest_command_policy.py -q"
 PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # Database-backed mutations only prove anything when TOUCHLINE_DB_URL is set, and the hermeticity
 # break is invisible unless a TOUCHLINE_* variable is exported. The script reports MISSED otherwise,
@@ -48,7 +49,43 @@ PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
 BASELINE_TESTS = "uv run pytest backend/tests/test_baseline_integration.py -q"
 SHOTS_TESTS = "uv run pytest backend/tests/test_shots_integration.py -q"
+PUBLIC_SCOPE_TESTS = (
+    "uv run pytest "
+    "backend/tests/test_baseline_integration.py::"
+    "test_public_baseline_excludes_an_internal_cohort_tournament "
+    "backend/tests/test_shots_integration.py::"
+    "test_public_shots_exclude_an_internal_cohort_tournament -q"
+)
 MIGRATION_TESTS = "uv run pytest backend/tests/test_migrations_integration.py -q"
+INGEST_RUN_TESTS = "uv run pytest backend/tests/test_ingest_run_integration.py -q"
+INGEST_RERUN_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_first_load_and_identical_rerun_are_auditable_noops -q"
+)
+INGEST_CONFLICT_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_changed_match_fact_rejects_the_whole_second_data_transaction -q"
+)
+INGEST_ROLLBACK_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_bad_event_after_staging_rolls_back_every_fact_and_records_failure -q"
+)
+INGEST_LOCK_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_locked_active_run_is_not_reclassified_as_interrupted -q"
+)
+INGEST_RECOVERY_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_next_lock_owner_recovers_abandoned_running_manifest -q"
+)
+INGEST_LIFECYCLE_RACE_TEST = (
+    "uv run pytest backend/tests/test_ingest_run_integration.py::"
+    "test_recovery_waits_for_a_contender_to_finish_its_manifest -q"
+)
+INGEST_SCOPE_EVIDENCE_TEST = (
+    "uv run pytest backend/tests/test_migrations_integration.py::"
+    "test_ingestion_scope_evidence_prevents_parent_manifest_deletion -q"
+)
 FRONTEND_TESTS = "npm test"
 
 
@@ -82,6 +119,19 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="migration and ingestion commands must reject Neon pooled endpoints before work",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=(
+            '        if normalized.endswith(".neon.tech") and first_label.endswith("-pooler"):'
+        ),
+        replacement=(
+            '        if False and normalized.endswith(".neon.tech") and '
+            'first_label.endswith("-pooler"):  # DELIBERATE BREAK'
+        ),
+        command=DIRECT_DATABASE_COMMAND_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="/ready must report an exception class name only (no secret leak)",
         path=ROOT / "backend/src/touchline/main.py",
         anchor="        return False, type(exc).__name__",
@@ -104,6 +154,123 @@ BREAKS: list[Break] = [
         replacement="          DELIBERATE BREAK.",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
+    ),
+    Break(
+        contract="public endpoints must remain restricted to the WC 2022 publication scope",
+        path=ROOT / "backend/src/touchline/public_scope.py",
+        anchor=(
+            "PUBLIC_SCOPE_PREDICATE = (\n"
+            '    "m.competition_id = %(public_competition_id)s AND '
+            'm.season_id = %(public_season_id)s"\n'
+            ")"
+        ),
+        replacement='PUBLIC_SCOPE_PREDICATE = "TRUE"  # DELIBERATE BREAK',
+        command=PUBLIC_SCOPE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="an identical ingestion rerun must remain a no-op",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor='    conflict_action = sql.SQL("DO NOTHING")',
+        replacement=(
+            '    conflict_action = sql.SQL("DO UPDATE SET {} = EXCLUDED.{}").format(\n'
+            "        sql.Identifier(table.key[0]), sql.Identifier(table.key[0])\n"
+            "    )  # DELIBERATE BREAK"
+        ),
+        command=INGEST_RERUN_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="changed source facts must be rejected before merge",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor="    _raise_if_changed(conn, table, staging, source_count)",
+        replacement="    pass  # DELIBERATE BREAK: conflict comparison disabled",
+        command=INGEST_CONFLICT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a late ingestion failure must roll back earlier table merges",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor='    return {\n        "inserted": inserted,',
+        replacement=(
+            '    if table.name == "matches":\n'
+            "        conn.commit()  # DELIBERATE BREAK\n"
+            "    return {\n"
+            '        "inserted": inserted,'
+        ),
+        command=INGEST_ROLLBACK_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="an ordinary handled failure must become a failed manifest",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor=(
+            "SET status = 'failed', current_phase = 'failed', phase_updated_at = CURRENT_TIMESTAMP,"
+        ),
+        replacement=(
+            "SET status = 'interrupted', current_phase = 'failed', "
+            "phase_updated_at = CURRENT_TIMESTAMP, -- DELIBERATE BREAK"
+        ),
+        command=INGEST_ROLLBACK_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the ingestion advisory lock must reject an active concurrent owner",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor=(
+            '"SELECT pg_try_advisory_lock("\n'
+            '                "hashtext(current_database()), hashtext(current_schema()))"'
+        ),
+        replacement='"SELECT TRUE  -- DELIBERATE BREAK"',
+        command=INGEST_LOCK_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a later lock owner must recover an abandoned running manifest",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor="        _recover_interrupted(control)",
+        replacement="        pass  # DELIBERATE BREAK: abandoned run left running",
+        command=INGEST_RECOVERY_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="manifest recovery requires exclusive lifecycle ownership",
+        path=ROOT / "backend/src/touchline/ingest/run.py",
+        anchor=(
+            "def _lock_lifecycle_exclusive(conn: psycopg.Connection) -> None:\n"
+            '    """Prove that no active invocation can own a running manifest before '
+            'recovery."""\n'
+            "    with conn.cursor() as cur:\n"
+            "        cur.execute(\n"
+            '            "SELECT pg_advisory_lock("\n'
+            "            \"hashtextextended(current_database() || ':' || current_schema() \"\n"
+            "            \"|| ':ingestion_manifest_lifecycle', 0))\"\n"
+            "        )\n"
+            "    conn.commit()"
+        ),
+        replacement=(
+            "def _lock_lifecycle_exclusive(conn: psycopg.Connection) -> None:\n"
+            "    with conn.cursor() as cur:\n"
+            "        cur.execute(\n"
+            '            "SELECT pg_advisory_lock_shared("\n'
+            "            \"hashtextextended(current_database() || ':' || current_schema() \"\n"
+            "            \"|| ':ingestion_manifest_lifecycle', 0))\"\n"
+            "        )\n"
+            "    conn.commit()  # DELIBERATE BREAK: recovery has only shared ownership"
+        ),
+        command=INGEST_LIFECYCLE_RACE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="ingestion scope evidence must not cascade away with its parent manifest",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0006_ingestion_runs.sql",
+        anchor="    run_id uuid NOT NULL REFERENCES ingestion_runs (run_id),",
+        replacement=(
+            "    run_id uuid NOT NULL REFERENCES ingestion_runs (run_id) "
+            "ON DELETE CASCADE, -- DELIBERATE BREAK"
+        ),
+        command=INGEST_SCOPE_EVIDENCE_TEST,
+        cwd=ROOT,
     ),
     Break(
         contract="an absent shot location must stay NULL, never be coerced to a real coordinate",
@@ -409,16 +576,15 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="event x coordinates must remain within the StatsBomb pitch",
-        path=ROOT / "backend/src/touchline/ingest/migrations/0005_event_and_lineup_constraints.sql",
+        contract="event x coordinates must retain the measured 120.1 source boundary",
+        path=ROOT / "backend/src/touchline/ingest/migrations/0007_measured_event_x_boundary.sql",
         anchor=(
-            "    ADD CONSTRAINT events_location_x_bounds "
-            "CHECK (location_x IS NULL OR location_x BETWEEN 0.0 AND 120.0),"
+            "    ADD CONSTRAINT events_location_x_measured_source_bounds\n"
+            "        CHECK (location_x IS NULL OR location_x BETWEEN 0.0 AND 120.1);"
         ),
         replacement=(
-            "    ADD CONSTRAINT events_location_x_bounds "
-            "CHECK (location_x IS NULL OR location_x BETWEEN -1000.0 AND 1000.0), "
-            "-- DELIBERATE BREAK"
+            "    ADD CONSTRAINT events_location_x_measured_source_bounds\n"
+            "        CHECK (location_x IS NULL OR location_x >= 0.0); -- DELIBERATE BREAK"
         ),
         command=MIGRATION_TESTS,
         cwd=ROOT,

@@ -55,6 +55,8 @@ class LoadCounts:
 
 
 TABLES = (
+    "ingestion_run_scopes",
+    "ingestion_runs",
     "shot_freeze_frame_players",
     "shots",
     "event_relations",
