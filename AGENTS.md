@@ -41,11 +41,11 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 0.6 deployment | done — 18/18 deployed smoke checks pass |
 | 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
 | 1.2 relational schema, ERD, ordered migrations, constraints | done — full approved schema and ingestion implemented; independent Sol review and CI passed |
-| 1.3 fixed cohort, idempotent ingestion, run manifest | in progress — implementation and local acceptance verification underway; not closed before Sol review and CI |
+| 1.3 fixed cohort, idempotent ingestion, run manifest | done — full-source acceptance, mutation verification, independent Sol review and CI passed |
 
-M1 has completed WP1.1 and WP1.2. WP1.3 is in progress: the fixed four-tournament cohort,
-idempotent conflict policy and durable manifest lifecycle are accepted in ADR 0010. WP1.1 being
-closed does not clear its two documented publication gates.
+M1 has completed WP1.1, WP1.2 and WP1.3. The fixed four-tournament cohort, idempotent conflict
+policy and durable manifest lifecycle are accepted in ADR 0010. WP1.1 being closed does not clear
+its two documented publication gates. WP1.4 is next; it has not started.
 
 ## 3. Documents that own the detail
 

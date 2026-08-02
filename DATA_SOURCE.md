@@ -1,8 +1,8 @@
 # Data source, coverage, and dictionary
 
 This document owns the source revision, measured core-cohort coverage, and physical field meanings.
-The ordered SQL migrations and loader are the implementation source of truth. WP1.1 and WP1.2 are
-complete; WP1.3 is in progress.
+The ordered SQL migrations and loader are the implementation source of truth. WP1.1, WP1.2 and
+WP1.3 are complete; WP1.4 has not started.
 
 ## Source, rights, and attribution
 
