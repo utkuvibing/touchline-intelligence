@@ -1,8 +1,9 @@
 # Data source, coverage, and dictionary
 
 This document owns the source revision, measured core-cohort coverage, and physical field meanings.
-The ordered SQL migrations and loader are the implementation source of truth. WP1.1, WP1.2 and
-WP1.3 are complete; WP1.4 has not started.
+The ordered SQL migrations and loader are the implementation source of truth. WP1.1 through WP1.4
+are complete. WP1.4's read-only scoped reconciliation report records whether the database audit
+actually executed; author manual sampling verification and independent review passed on 2026-08-02.
 
 ## Source, rights, and attribution
 
@@ -89,6 +90,17 @@ This avoids a giant sparse table while keeping stable, cross-event fields querya
 Missing optional source values remain NULL. Present malformed structures raise; for example, a
 location must be exactly two numeric values. Raw provider coordinates are preserved without
 clamping, rounding or direction normalization.
+
+WP1.4 quality reporting treats the future shot cohort's player, period, location, outcome,
+body-part, technique and shot-type fields as zero-tolerance: their missingness is a validation error,
+not an imputation opportunity. Generic-event and lineup NULLs are reported with their denominators
+and rates only; they do not imply a source-completeness or position-chronology rule.
+
+Category checks enforce only bidirectional ID/name consistency observed inside the scoped snapshot
+for shot outcome/body part/technique/type and event play pattern/position. They do not claim
+completeness against an external provider taxonomy. Event-player to lineup-membership coverage is
+joined at `(match_id, team_id, player_id)` and remains an observation; neither a match event nor
+lineup membership is converted into appearance or minutes evidence.
 
 ## Physical data dictionary
 

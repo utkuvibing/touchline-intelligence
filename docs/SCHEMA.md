@@ -151,4 +151,8 @@ WP1.3 owns the fixed four-tournament ingestion, reject-on-change idempotency pol
 manifest. Temporary staging tables use transaction-local key indexes only; no durable secondary
 performance index is added. The live Neon database is not migrated automatically. Migration on
 application boot remains out of scope. The public `/baseline` and `/shots` queries remain explicitly
-WC 2022-only. Coverage thresholds beyond exact source/final reconciliation remain WP1.4 work.
+WC 2022-only. WP1.4's `quality` CLI is an independent read-only audit: it compares the latest
+successful exact-scope manifest's parsed source counts to committed table counts and evaluates
+cross-row/coverage checks after ingestion has finished. It intentionally does not invent a generic
+event completeness threshold, a position-interval chronology rule, or an appearance/minutes
+interpretation from lineup membership.

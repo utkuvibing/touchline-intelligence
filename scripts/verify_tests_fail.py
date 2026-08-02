@@ -47,6 +47,59 @@ PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # break is invisible unless a TOUCHLINE_* variable is exported. The script reports MISSED otherwise,
 # which is honest: an unrun test protects nothing.
 LOAD_TESTS = "uv run pytest backend/tests/test_ingest_load_integration.py -q"
+QUALITY_UNIT_TESTS = "uv run pytest backend/tests/test_quality.py -q"
+QUALITY_TESTS = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_independent_quality_report_reconciles_the_fixture_after_commit "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_fails_an_exact_source_count_mismatch "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_reconciles_source_missingness_counters "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_counts_matches_with_no_participant_rows "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_exposes_time_and_category_pair_violations "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_reconciles_source_player_missingness "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_inspection_enforces_its_own_read_only_transaction "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_exposes_integrity_defects_beyond_database_constraints "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_checks_observed_category_mappings_and_lineup_event_coverage "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_preserves_the_measured_event_x_exception "
+    "backend/tests/test_ingest_load_integration.py::"
+    "test_quality_manifest_selection_uses_relational_scope_evidence -q"
+)
+QUALITY_SOURCE_PLAYER_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_reconciles_source_player_missingness -q"
+)
+QUALITY_SOURCE_LOCATION_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_reconciles_source_missingness_counters -q"
+)
+QUALITY_READ_ONLY_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_inspection_enforces_its_own_read_only_transaction -q"
+)
+QUALITY_INTEGRITY_DEFECT_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_exposes_integrity_defects_beyond_database_constraints -q"
+)
+QUALITY_CATEGORY_COVERAGE_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_checks_observed_category_mappings_and_lineup_event_coverage -q"
+)
+QUALITY_COVERAGE_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_independent_quality_report_reconciles_the_fixture_after_commit -q"
+)
+QUALITY_X_EXCEPTION_TEST = (
+    "uv run pytest backend/tests/test_ingest_load_integration.py::"
+    "test_quality_report_preserves_the_measured_event_x_exception -q"
+)
 BASELINE_TESTS = "uv run pytest backend/tests/test_baseline_integration.py -q"
 SHOTS_TESTS = "uv run pytest backend/tests/test_shots_integration.py -q"
 PUBLIC_SCOPE_TESTS = (
@@ -101,7 +154,295 @@ class Break:
     cwd: Path
 
 
+QUALITY_DENOMINATOR_MUTATIONS = (
+    ("shots_without_location", "shots", "events"),
+    ("shots_without_attributed_player", "shots", "events"),
+    ("shots_missing_any_future_cohort_field", "shots", "events"),
+    ("lineup_memberships_without_position_interval", "memberships", "events"),
+    ("events_at_measured_x_120_1", "events", "shots"),
+    ("events_without_player", "events", "shots"),
+    ("events_without_location", "events", "shots"),
+    ("events_without_position", "events", "shots"),
+    ("events_without_duration", "events", "shots"),
+    ("event_actors_without_same_match_team_lineup_membership", "event_actors", "events"),
+)
+
+
 BREAKS: list[Break] = [
+    Break(
+        contract="generated quality reports must carry StatsBomb attribution",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='attribution: str = "Data provided by StatsBomb."',
+        replacement='attribution: str = "Attribution omitted"  # DELIBERATE BREAK',
+        command=QUALITY_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the committed manual sampling checklist must carry StatsBomb attribution",
+        path=ROOT / "reports/wp1.4-sampling-checklist.md",
+        anchor="Data provided by StatsBomb.",
+        replacement="Attribution omitted.  <!-- DELIBERATE BREAK -->",
+        command=QUALITY_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality coverage must calculate integer basis points from count/denominator",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            '        "basis_points": 0 if denominator == 0 else count * 10_000 // denominator,'
+        ),
+        replacement=(
+            '        "basis_points": 0 if denominator == 0 else count * 1_000 // denominator,'
+            "  # DELIBERATE BREAK"
+        ),
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    *(
+        Break(
+            contract=f"quality coverage denominator for {metric} must remain {denominator}",
+            path=ROOT / "backend/src/touchline/quality.py",
+            anchor=f'        "{metric}": {denominator},',
+            replacement=f'        "{metric}": {wrong},  # DELIBERATE BREAK',
+            command=QUALITY_COVERAGE_TEST,
+            cwd=ROOT,
+        )
+        for metric, denominator, wrong in QUALITY_DENOMINATOR_MUTATIONS
+    ),
+    Break(
+        contract="quality reconciliation must report a source/database count mismatch",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=("        if expected[name] != database_counts[name]\n    ]"),
+        replacement=("        if False  # DELIBERATE BREAK\n    ]"),
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality must reconcile source shot-location missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='if values["shots_without_location"] != source_counts.shots_without_location:',
+        replacement="if False:  # DELIBERATE BREAK",
+        command=QUALITY_SOURCE_LOCATION_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality must reconcile source shot-player missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            'if values["shots_without_attributed_player"] != source_counts.shots_without_player:'
+        ),
+        replacement="if False:  # DELIBERATE BREAK",
+        command=QUALITY_SOURCE_PLAYER_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality inspection must enforce its own read-only transaction",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='    conn.execute("SET TRANSACTION READ ONLY")',
+        replacement="    pass  # DELIBERATE BREAK",
+        command=QUALITY_READ_ONLY_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect raw event coordinate violations",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"WHERE location_x < 0 OR location_x > 120.1 OR location_y < 0 OR location_y > 80"',
+        replacement='"WHERE false"  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect orphan event relations",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"WHERE a.event_id IS NULL OR b.event_id IS NULL"',
+        replacement='"WHERE false"  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect provider xG in residual JSON",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            "\"WHERE type_data IS NOT NULL AND jsonb_path_exists(type_data, '$.**.statsbomb_xg')\""
+        ),
+        replacement='"WHERE false"  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must reconcile Shot events and typed details",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor="\"WHERE (e.event_type_name = 'Shot') <> (s.event_id IS NOT NULL)\"",
+        replacement='"WHERE false"  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect observed category mapping conflicts",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"GROUP BY outcome_id HAVING count(DISTINCT outcome_name) > 1 UNION ALL "',
+        replacement='"GROUP BY outcome_id HAVING false UNION ALL "  # DELIBERATE BREAK',
+        command=QUALITY_CATEGORY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect reverse shot category mapping conflicts",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"GROUP BY body_part_name HAVING count(DISTINCT body_part_id) > 1 UNION ALL "',
+        replacement='"GROUP BY body_part_name HAVING false UNION ALL "  # DELIBERATE BREAK',
+        command=QUALITY_CATEGORY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect event category mapping conflicts",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"HAVING count(DISTINCT play_pattern_name) > 1 UNION ALL "',
+        replacement='"HAVING false UNION ALL "  # DELIBERATE BREAK',
+        command=QUALITY_CATEGORY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect reverse event category mapping conflicts",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"HAVING count(DISTINCT position_id) > 1) SELECT count(*) FROM conflicts"',
+        replacement='"HAVING false) SELECT count(*) FROM conflicts"  # DELIBERATE BREAK',
+        command=QUALITY_CATEGORY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect shot-end coordinate violations",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"end_location_x < 0 OR end_location_x > 120 OR "',
+        replacement='"false OR "  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect embedded freeze-frame coordinate violations",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"f.location_x < 0 OR f.location_x > 120 OR "',
+        replacement='"false OR "  # DELIBERATE BREAK',
+        command=QUALITY_INTEGRITY_DEFECT_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must expose unmatched same-match-team event actors",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"AND lm.player_id IS NULL",',
+        replacement='"AND false",  # DELIBERATE BREAK',
+        command=QUALITY_CATEGORY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="future cohort shot fields must have zero missing values",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='if values["shots_missing_any_future_cohort_field"]:',
+        replacement="if False:  # DELIBERATE BREAK",
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the two-team invariant must include matches with zero participant rows",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"LEFT JOIN match_teams mt USING (match_id) GROUP BY sm.match_id "',
+        replacement='"JOIN match_teams mt USING (match_id) GROUP BY sm.match_id "',
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect invalid event clock values",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=('"WHERE period NOT BETWEEN 1 AND 5 OR minute < 0 OR second NOT BETWEEN 0 AND 59 "'),
+        replacement=(
+            '"WHERE period NOT BETWEEN 1 AND 5 OR minute < 0 OR second < 0 " # DELIBERATE BREAK'
+        ),
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect incomplete shot category id/name pairs",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"(outcome_id IS NULL) <> (outcome_name IS NULL) OR "',
+        replacement='"false OR "  # DELIBERATE BREAK',
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must detect incomplete event category id/name pairs",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"(play_pattern_id IS NULL) <> (play_pattern_name IS NULL) OR "',
+        replacement='"false OR "  # DELIBERATE BREAK',
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve lineup-position missingness coverage",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"WHERE lp.player_id IS NULL",',
+        replacement='"WHERE false",  # DELIBERATE BREAK',
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve the measured 120.1 event coverage",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor='"WHERE location_x = 120.1",',
+        replacement='"WHERE false",  # DELIBERATE BREAK',
+        command=QUALITY_X_EXCEPTION_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve generic-event player missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            '"SELECT count(*) FROM events JOIN scoped_matches USING (match_id) "\n'
+            '            "WHERE player_id IS NULL",'
+        ),
+        replacement='"SELECT 0",  # DELIBERATE BREAK',
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve generic-event location missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            '"SELECT count(*) FROM events JOIN scoped_matches USING (match_id) "\n'
+            '            "WHERE location_x IS NULL",'
+        ),
+        replacement='"SELECT 0",  # DELIBERATE BREAK',
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve generic-event position missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            '"SELECT count(*) FROM events JOIN scoped_matches USING (match_id) "\n'
+            '            "WHERE position_id IS NULL",'
+        ),
+        replacement='"SELECT 0",  # DELIBERATE BREAK',
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality reporting must preserve generic-event duration missingness",
+        path=ROOT / "backend/src/touchline/quality.py",
+        anchor=(
+            '"SELECT count(*) FROM events JOIN scoped_matches USING (match_id) "\n'
+            '            "WHERE duration IS NULL",'
+        ),
+        replacement='"SELECT 0",  # DELIBERATE BREAK',
+        command=QUALITY_COVERAGE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="quality manifest selection must use relational exact-scope evidence",
+        path=ROOT / "backend/src/touchline/quality_cli.py",
+        anchor=("            if persisted_scope == wanted and isinstance(attempted_counts, dict):"),
+        replacement="            if False:  # DELIBERATE BREAK",
+        command=QUALITY_TESTS,
+        cwd=ROOT,
+    ),
     Break(
         contract="/health must not touch the database (liveness)",
         path=ROOT / "backend/src/touchline/main.py",

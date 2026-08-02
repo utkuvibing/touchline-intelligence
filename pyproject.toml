@@ -41,6 +41,7 @@ check = ["format-check", "lint", "typecheck", "test"]
 api = "uvicorn touchline.main:app --reload --app-dir backend/src"
 migrate = "python -m touchline.ingest.migrate"
 ingest = "python -m touchline.ingest.cli"
+quality = "python -m touchline.quality_cli"
 
 [tool.ruff]
 line-length = 100

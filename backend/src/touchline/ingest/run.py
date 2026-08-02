@@ -86,9 +86,7 @@ def _unique[T](rows: Iterable[T], key: Callable[[T], object]) -> list[T]:
 
 def _scope_counts(scope: CollectedScope) -> dict[str, int]:
     return {
-        field.name: int(getattr(scope.source_counts, field.name))
-        for field in fields(SourceCounts)
-        if field.name not in {"shots_without_location", "shots_without_player"}
+        field.name: int(getattr(scope.source_counts, field.name)) for field in fields(SourceCounts)
     }
 
 

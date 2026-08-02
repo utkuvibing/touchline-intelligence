@@ -209,6 +209,8 @@ def test_populated_wc_extends_and_identical_full_rerun_changes_no_facts(
         "event_relations": 1227110,
         "shots": 5829,
         "shot_freeze_frame_players": 78866,
+        "shots_without_location": 0,
+        "shots_without_player": 0,
     }
     assert first.entity_counts["events"]["unchanged"] == wc_2022.source_counts.events
     assert first.entity_counts["shots"]["unchanged"] == wc_2022.source_counts.shots
@@ -216,9 +218,9 @@ def test_populated_wc_extends_and_identical_full_rerun_changes_no_facts(
     with factory() as conn:
         assert _wc_fingerprints(conn) == wc_before
         cohort_after_first = _cohort_fingerprints(conn)
-        assert set(cohort_after_first) == set(first.source_counts)
+        assert set(cohort_after_first) == set(first.entity_counts)
         assert {name: fingerprint[0] for name, fingerprint in cohort_after_first.items()} == (
-            first.source_counts
+            {name: first.source_counts[name] for name in cohort_after_first}
         )
         baseline = compute_base_rate(conn)
         page = fetch_shots(conn, limit=1)

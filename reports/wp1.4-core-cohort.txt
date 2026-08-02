@@ -1,0 +1,78 @@
+Touchline WP1.4 data-quality report
+Database execution: executed
+Source commit: b0bc9f22dd77c206ddedc1d742893b3bbe64baec
+Successful ingestion manifest: 85ca7311-4d2b-4c82-91a6-10ef43b9bcf4
+Scope: 43/3, 55/43, 43/106, 55/282
+Errors
+  none
+Warnings
+  event coordinate exception: 120.1 accepted as the documented raw boundary
+Reconciliation (source, database, status)
+  competitions: 2, 2, OK
+  seasons: 4, 4, OK
+  competition_seasons: 4, 4, OK
+  teams: 54, 54, OK
+  players: 1989, 1989, OK
+  matches: 230, 230, OK
+  match_teams: 460, 460, OK
+  lineups: 460, 460, OK
+  lineup_memberships: 11062, 11062, OK
+  lineup_positions: 9615, 9615, OK
+  lineup_cards: 825, 825, OK
+  possessions: 39262, 39262, OK
+  events: 843050, 843050, OK
+  event_relations: 1227110, 1227110, OK
+  shots: 5829, 5829, OK
+  shot_freeze_frame_players: 78866, 78866, OK
+Invariant violations (count, status)
+  event_category_id_name_mismatches: 0, OK
+  events_outside_raw_bounds: 0, OK
+  events_outside_time_bounds: 0, OK
+  freeze_frame_coordinates_outside_bounds: 0, OK
+  matches_without_exactly_two_teams: 0, OK
+  observed_category_mapping_conflicts: 0, OK
+  orphan_event_relations: 0, OK
+  provider_xg_in_residual_json: 0, OK
+  shot_category_id_name_mismatches: 0, OK
+  shot_end_coordinates_outside_bounds: 0, OK
+  shot_event_detail_mismatches: 0, OK
+Coverage (count, denominator, basis points)
+  event_actors_without_same_match_team_lineup_membership_basis_points: 0
+  event_actors_without_same_match_team_lineup_membership_count: 0
+  event_actors_without_same_match_team_lineup_membership_denominator: 836930
+  events_at_measured_x_120_1_basis_points: 0
+  events_at_measured_x_120_1_count: 1
+  events_at_measured_x_120_1_denominator: 843050
+  events_without_duration_basis_points: 2998
+  events_without_duration_count: 252752
+  events_without_duration_denominator: 843050
+  events_without_location_basis_points: 108
+  events_without_location_count: 9120
+  events_without_location_denominator: 843050
+  events_without_player_basis_points: 72
+  events_without_player_count: 6120
+  events_without_player_denominator: 843050
+  events_without_position_basis_points: 72
+  events_without_position_count: 6120
+  events_without_position_denominator: 843050
+  lineup_memberships_without_position_interval_basis_points: 3717
+  lineup_memberships_without_position_interval_count: 4112
+  lineup_memberships_without_position_interval_denominator: 11062
+  shots_missing_any_future_cohort_field_basis_points: 0
+  shots_missing_any_future_cohort_field_count: 0
+  shots_missing_any_future_cohort_field_denominator: 5829
+  shots_without_attributed_player_basis_points: 0
+  shots_without_attributed_player_count: 0
+  shots_without_attributed_player_denominator: 5829
+  shots_without_location_basis_points: 0
+  shots_without_location_count: 0
+  shots_without_location_denominator: 5829
+Exclusions
+  provider_xg: not persisted by design; report verifies residual JSON only
+Known limitations
+  Generic-event and lineup NULLs are observed coverage, not completeness failures.
+  Category checks enforce observed scoped ID/name consistency, not an external taxonomy.
+  Position intervals are preserved without inferred chronology.
+  Lineup membership is not an appearance or minutes-played denominator.
+  Embedded shot freeze frames are not StatsBomb 360 or continuous tracking data.
+Data provided by StatsBomb.
