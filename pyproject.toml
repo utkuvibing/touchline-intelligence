@@ -42,6 +42,7 @@ api = "uvicorn touchline.main:app --reload --app-dir backend/src"
 migrate = "python -m touchline.ingest.migrate"
 ingest = "python -m touchline.ingest.cli"
 quality = "python -m touchline.quality_cli"
+reproducibility-fixture = "pytest backend/tests/test_wp1_6_fixture_manifest.py backend/tests/test_wp1_6_reproducibility_integration.py"
 
 [tool.ruff]
 line-length = 100

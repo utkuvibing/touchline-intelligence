@@ -1,9 +1,11 @@
 # Data source, coverage, and dictionary
 
 This document owns the source revision, measured core-cohort coverage, and physical field meanings.
-The ordered SQL migrations and loader are the implementation source of truth. WP1.1 through WP1.4
+The ordered SQL migrations and loader are the implementation source of truth. WP1.1 through WP1.6
 are complete. WP1.4's read-only scoped reconciliation report records whether the database audit
-actually executed; author manual sampling verification and independent review passed on 2026-08-02.
+actually executed; author manual sampling verification passed on 2026-08-02. WP1.6's clean-rebuild
+record pins the exact succeeded database run proposed as the Phase 2 input. The two publication
+gates below remain open and are not cleared by milestone completion.
 
 ## Source, rights, and attribution
 
@@ -139,6 +141,13 @@ The command rebuilds through migrations 0001–0007 and loads all entities. Norm
 require `--reset`: identical rows are no-ops, changed source facts are rejected, and every run is
 recorded. Parsed source rows, exact scoped reconciliation and the successful manifest transition
 commit atomically; handled failures record only sanitized terminal evidence after rollback.
+
+The 2026-08-02 clean rebuild and identical rerun are recorded in
+[`reports/wp1.6-clean-rebuild.json`](reports/wp1.6-clean-rebuild.json). The clean-build manifest
+`a30ac223-d7a0-4386-800a-06d1ef249645`, pinned source commit, exact scope, provenance SHA-256,
+migration checksums, counts and quality-report hashes form the Phase 2 input evidence. A future
+rebuild may replace the UUID only through an explicit evidence update with equivalent source,
+scope, provenance and canonical counts; consumers must not silently select “latest succeeded”.
 
 The repository migration does **not** migrate the live Neon database automatically. Applying code,
 applying schema, loading the full source, and verifying live endpoint results are separate release
