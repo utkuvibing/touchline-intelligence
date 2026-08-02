@@ -19,6 +19,12 @@ completion does not clear those gates. WP1.2 through WP1.6 delivered the relatio
 idempotent full-cohort ingestion, quality report, SQL analysis pack and reproducibility release.
 The final clean rebuild, no-op rerun, mutation verification and independent Sol review passed.
 
+M2 has started with WP2.1. The internal modelling cohort is now a versioned, read-only SQL contract:
+5,606 eligible non-penalty shots and 507 recorded goals across the four accepted tournaments. The
+target, required-field exclusions, separate regulation/shootout penalty counts, own-goal boundary,
+class-balance policy, and feature availability/leakage decisions are documented. No split has been
+created and no model has been trained or evaluated yet.
+
 ## Documentation
 
 | Document | What it covers |

@@ -140,6 +140,27 @@ INGEST_SCOPE_EVIDENCE_TEST = (
     "test_ingestion_scope_evidence_prevents_parent_manifest_deletion -q"
 )
 WP15_TESTS = "uv run pytest backend/tests/test_wp1_5_analysis_integration.py -q"
+WP21_TESTS = "uv run pytest backend/tests/test_wp2_1_cohort_integration.py -q"
+WP21_AVAILABILITY_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_every_candidate_has_the_exact_availability_decision -q"
+)
+WP21_CATEGORY_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_category_coverage_has_support_only_and_no_target_aggregates -q"
+)
+WP21_PENALTY_BREAKDOWN_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_penalty_breakdown_is_reproducible_by_tournament -q"
+)
+WP21_PROJECTION_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_cohort_projection_exposes_no_forbidden_input_columns -q"
+)
+WP21_REQUIRED_PREDICATES_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_cohort_keeps_every_required_null_exclusion_explicit -q"
+)
 WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
 FRONTEND_TESTS = "npm test"
 
@@ -171,6 +192,114 @@ QUALITY_DENOMINATOR_MUTATIONS = (
 
 
 BREAKS: list[Break] = [
+    Break(
+        contract="WP2.1 model cohort must exclude Penalty shot types",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="  AND s.shot_type_name <> 'Penalty'\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP21_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 model cohort must independently exclude period five",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="  AND e.period <> 5\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP21_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 target must map only recorded Goal outcomes to one",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="    CASE WHEN s.outcome_name = 'Goal' THEN 1 ELSE 0 END AS is_goal\n",
+        replacement=(
+            "    CASE WHEN s.outcome_name = 'Saved' THEN 1 ELSE 0 END AS is_goal "
+            "-- DELIBERATE BREAK\n"
+        ),
+        command=WP21_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 cohort must independently require a known x coordinate",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="  AND e.location_x IS NOT NULL\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP21_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 cohort must independently require a known y coordinate",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="  AND e.location_y IS NOT NULL\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP21_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 cohort projection must reject post-event fields",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="    e.under_pressure,\n",
+        replacement="    e.under_pressure,\n    e.duration, -- DELIBERATE BREAK\n",
+        command=WP21_PROJECTION_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 cohort must keep the explicit e.player_id NULL exclusion",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="WHERE e.player_id IS NOT NULL\n",
+        replacement="WHERE true -- DELIBERATE BREAK\n",
+        command=WP21_REQUIRED_PREDICATES_TEST,
+        cwd=ROOT,
+    ),
+    *(
+        Break(
+            contract=f"WP2.1 cohort must keep the explicit {field} NULL exclusion",
+            path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+            anchor=f"  AND {field} IS NOT NULL\n",
+            replacement="  AND true -- DELIBERATE BREAK\n",
+            command=WP21_REQUIRED_PREDICATES_TEST,
+            cwd=ROOT,
+        )
+        for field in (
+            "e.period",
+            "s.outcome_name",
+            "s.body_part_name",
+            "s.technique_name",
+            "s.shot_type_name",
+        )
+    ),
+    Break(
+        contract="WP2.1 category coverage must report exact support",
+        path=ROOT / "backend/sql/wp2_1/03_category_coverage.sql",
+        anchor="    count(*) AS shots\n",
+        replacement="    count(*) + 1 AS shots -- DELIBERATE BREAK\n",
+        command=WP21_CATEGORY_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.1 tournament penalty evidence must remain reproducible",
+        path=ROOT / "backend/sql/wp2_1/04_penalty_breakdown.sql",
+        anchor=") AS regulation_penalties,\n",
+        replacement=") + 1 AS regulation_penalties, -- DELIBERATE BREAK\n",
+        command=WP21_PENALTY_BREAKDOWN_TEST,
+        cwd=ROOT,
+    ),
+    *(
+        Break(
+            contract=f"WP2.1 leakage table must classify {candidate} as Unavailable",
+            path=ROOT / "docs/modeling/wp2_1-cohort-and-leakage-contract.md",
+            anchor=f"| {candidate} | Unavailable |",
+            replacement=f"| {candidate} | Available | <!-- DELIBERATE BREAK -->",
+            command=WP21_AVAILABILITY_TEST,
+            cwd=ROOT,
+        )
+        for candidate in (
+            "Outcome ID/name",
+            "Shot end `x/y/z`",
+            "Provider `statsbomb_xg`",
+            "Future events, final score, later match state",
+        )
+    ),
     Break(
         contract="WP1.6 fixture manifest must pin the exact fictional source bytes",
         path=ROOT / "data/fixtures/statsbomb/manifest.json",

@@ -3,8 +3,8 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-02, WP1.5 complete. Update the "Where we are" section when a work package
-closes; do not let it drift.
+Last updated: 2026-08-02, WP2.1 complete. Update the "Where we are" section
+when a work package closes; do not let it drift.
 
 ---
 
@@ -45,6 +45,7 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 1.4 data-quality suite and reconciliation report | done — full-cohort report, author sampling verification, mutation verification and independent Sol review passed |
 | 1.5 SQL analysis pack and measured query plans | done — 10 read-only queries, full-cohort results, two measured plans and rejected speculative index; focused tests, mutation verification and independent Sol review passed |
 | 1.6 deterministic fixture, integration proof, clean rebuild | done — fixture byte pinning, network-free two-clean-build proof, full-cohort clean rebuild and no-op rerun, release evidence, mutation verification and independent Sol review passed |
+| 2.1 model cohort, target, exclusions, penalty and leakage contract | done — versioned read-only SQL, full-cohort reconciliation, feature availability review, mutation verification and independent Sol review passed |
 
 M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
 four-tournament cohort, idempotent conflict policy
@@ -54,6 +55,12 @@ WP1.5 adds ten hand-written, read-only analytical queries and measured full-coho
 secondary index was retained without a recurring workload. WP1.6 pins the deterministic fixture,
 the clean-build manifest proposed for Phase 2, the full-cohort reconciliation evidence and the
 identical no-op rerun. Completing M1 does not clear WP1.1's two documented publication gates.
+
+M2 has started. WP2.1 fixes the internal model-development population at 5,606 eligible
+non-penalty shots and 507 goals, keeps all 223 penalties and own-goal events visible in separate
+reconciliation evidence, and records an available/uncertain/unavailable decision for every proposed
+feature family. It creates no split, model, or performance claim; those begin in later M2 work
+packages. The public API remains restricted to WC 2022.
 
 ## 3. Documents that own the detail
 
