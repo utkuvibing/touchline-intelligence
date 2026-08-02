@@ -14,9 +14,9 @@ evidence trail that makes every number defensible.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
 M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
-publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2, WP1.3 and WP1.4 are
-complete: the quality suite, full-cohort report, author sampling verification, mutation verification
-and independent Sol review passed. WP1.5 is next and has not started.
+publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 through WP1.5 are
+complete. WP1.5's ten-query SQL analysis pack passed focused validation, mutation verification, and
+independent Sol review. WP1.6 is next and has not started.
 
 ## Documentation
 
@@ -218,6 +218,20 @@ shot outcome/body-part/technique/type and event play-pattern/position ID must ma
 each observed name to one ID. This is not a claim that the database validates an external provider
 taxonomy. Non-null event actors without lineup membership are joined at the same match-team-player
 grain; that warning is coverage evidence, never proof of an appearance or minutes played.
+
+## SQL analysis pack (WP1.5)
+
+Ten hand-written PostgreSQL queries live in [`backend/sql/wp1_5/`](backend/sql/wp1_5/). They cover
+competition and match coverage, team results, home/away checks, descriptive shot prevalence,
+player shot volume, event-type distribution and missingness, lineup participation evidence, and a
+possession-scoped `LAG` sequence exercise. Each file documents its grain, join strategy, NULL
+behaviour, and interpretation boundary.
+
+The checked full-cohort results and two measured `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)` plans are in
+[`docs/analysis/wp1_5_sql_analysis_pack.md`](docs/analysis/wp1_5_sql_analysis_pack.md). A narrow
+event-type index improved one manual aggregate but was rejected: it added about 5.6 MiB plus write
+maintenance and served no recurring or production workload. No speculative secondary index was
+retained.
 
 ## The baseline (WP0.4)
 

@@ -139,6 +139,7 @@ INGEST_SCOPE_EVIDENCE_TEST = (
     "uv run pytest backend/tests/test_migrations_integration.py::"
     "test_ingestion_scope_evidence_prevents_parent_manifest_deletion -q"
 )
+WP15_TESTS = "uv run pytest backend/tests/test_wp1_5_analysis_integration.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -169,6 +170,40 @@ QUALITY_DENOMINATOR_MUTATIONS = (
 
 
 BREAKS: list[Break] = [
+    Break(
+        contract="WP1.5 competition coverage must report zero teams for an empty declared scope",
+        path=ROOT / "backend/sql/wp1_5/01_competition_coverage.sql",
+        anchor="    coalesce(tc.team_count, 0) AS team_count,",
+        replacement="    tc.team_count,  -- DELIBERATE BREAK",
+        command=WP15_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP1.5 descriptive prevalence must exclude penalties",
+        path=ROOT / "backend/sql/wp1_5/05_shot_prevalence.sql",
+        anchor="  AND s.shot_type_name <> 'Penalty'\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP15_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP1.5 lineup evidence must preserve memberships with no supporting evidence",
+        path=ROOT / "backend/sql/wp1_5/09_lineup_participation_evidence.sql",
+        anchor="LEFT JOIN position_evidence AS pe USING (match_id, team_id, player_id)",
+        replacement=(
+            "JOIN position_evidence AS pe USING (match_id, team_id, player_id) -- DELIBERATE BREAK"
+        ),
+        command=WP15_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP1.5 sequence must order events by their recorded source index",
+        path=ROOT / "backend/sql/wp1_5/10_pre_shot_event_sequence.sql",
+        anchor="            ORDER BY event_index\n",
+        replacement="            ORDER BY event_index DESC -- DELIBERATE BREAK\n",
+        command=WP15_TESTS,
+        cwd=ROOT,
+    ),
     Break(
         contract="generated quality reports must carry StatsBomb attribution",
         path=ROOT / "backend/src/touchline/quality.py",
