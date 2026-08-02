@@ -163,6 +163,27 @@ tournament changes time and competition composition together. Say so rather than
 - Review results must be reported honestly as `PASS`, `PASS WITH REQUIRED FIXES`, or `FAIL`.
 - A `PASS` claim must not be made unless the review actually ran.
 
+## Bounded review protocol
+
+Reviews must preserve correctness, security, data integrity, leakage protection,
+reproducibility, and evidence quality without reopening implementation unnecessarily.
+
+- Terra performs routine implementation and localized repairs.
+- Sol is reserved for architecture, security, leakage, migrations, data integrity,
+  methodology, and independent final judgment.
+- Development uses focused tests.
+- Full-cohort acceptance and full mutation verification run once after stabilization.
+- Expensive suites rerun only when a change touches the behavior they protect.
+- Final review uses a stable evidence packet and the actual diff.
+- Findings are classified as blocker, release-required, or non-blocking.
+- Only blocker and release-required findings are fixed during final review.
+- A finding is release-required only if shipping without it would make an existing
+  acceptance claim false, unreproducible, insecure, or materially misleading.
+- After repairs, run affected tests and perform one delta-based re-review.
+- When acceptance evidence is complete, no blocker remains, and the reviewer returns
+  PASS, stop. Record non-blocking findings for later work.
+- After commit, make no file changes; only push and verify the remote SHA.
+
 ## 7. Working agreement
 
 Scope changes come from the author, not from an agent's judgement that something would be nice.
