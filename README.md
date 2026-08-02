@@ -13,10 +13,11 @@ evidence trail that makes every number defensible.
 > and recorded outcomes; the conversion rate is a description of the loaded data, not a prediction.
 > See [`docs/PLAN.md`](docs/PLAN.md) for what each milestone adds.
 
-M1 is underway. WP1.1's dated source review, measured coverage, data dictionary, and two unresolved
-publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md). WP1.2 through WP1.5 are
-complete. WP1.5's ten-query SQL analysis pack passed focused validation, mutation verification, and
-independent Sol review. WP1.6 is next and has not started.
+M1 Data Foundation is complete. WP1.1's dated source review, measured coverage, data dictionary,
+and two unresolved publication gates are recorded in [`DATA_SOURCE.md`](DATA_SOURCE.md); milestone
+completion does not clear those gates. WP1.2 through WP1.6 delivered the relational schema,
+idempotent full-cohort ingestion, quality report, SQL analysis pack and reproducibility release.
+The final clean rebuild, no-op rerun, mutation verification and independent Sol review passed.
 
 ## Documentation
 
@@ -85,6 +86,7 @@ dependency — there is nothing extra to install on Windows.
 | `uv run poe migrate` | Apply pending ordered PostgreSQL migrations (Neon requires its direct URL) |
 | `uv run poe ingest` | Idempotently merge the fixed four-tournament core cohort (Neon requires its direct URL) |
 | `uv run poe ingest --reset` | Destructively rebuild locally, then load the fixed core cohort |
+| `uv run poe reproducibility-fixture` | Check fixture bytes and prove two isolated, network-free clean rebuilds agree (requires local PostgreSQL for the integration half) |
 | `uv run poe api` | Run the API at http://localhost:8000 |
 | `uv run python scripts/verify_tests_fail.py` | Break each protected behaviour once and confirm the tests catch it |
 | `cd frontend && npm run dev` | Next.js dev server |
@@ -118,6 +120,15 @@ TOUCHLINE_FULL_SOURCE=1 uv run pytest backend/tests/test_full_cohort_acceptance.
 It exercises populated-WP1.2 upgrade, full reconciliation, the WC 2022 public boundary, provider-xG
 absence, and an identical no-op rerun whose source-owned columns are fingerprinted across all four
 tournaments and all 16 source-derived tables.
+
+WP1.6 adds a focused two-clean-build fixture proof, separate from the full-source acceptance test.
+It starts an isolated schema from no tables, applies production migrations, runs production ingestion
+against fictional committed bytes in offline mode, runs independent quality inspection, then rebuilds
+again and compares source facts and migration checksums. The fixture manifest, full-cohort clean
+rebuild and Phase 2 input pin are documented in
+[`docs/reproducibility/wp1_6_clean_rebuild.md`](docs/reproducibility/wp1_6_clean_rebuild.md).
+The M1 technical and stakeholder release artifact is
+[`docs/releases/m1-data-foundation.md`](docs/releases/m1-data-foundation.md).
 
 ## Repository layout
 

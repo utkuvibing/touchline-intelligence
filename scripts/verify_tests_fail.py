@@ -140,6 +140,7 @@ INGEST_SCOPE_EVIDENCE_TEST = (
     "test_ingestion_scope_evidence_prevents_parent_manifest_deletion -q"
 )
 WP15_TESTS = "uv run pytest backend/tests/test_wp1_5_analysis_integration.py -q"
+WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
 FRONTEND_TESTS = "npm test"
 
 
@@ -170,6 +171,14 @@ QUALITY_DENOMINATOR_MUTATIONS = (
 
 
 BREAKS: list[Break] = [
+    Break(
+        contract="WP1.6 fixture manifest must pin the exact fictional source bytes",
+        path=ROOT / "data/fixtures/statsbomb/manifest.json",
+        anchor="99f9297a5a83b392dbbff9ce6f025bc0cf6ee5a5a4d86362a4b095c1312ee766",
+        replacement="0000000000000000000000000000000000000000000000000000000000000000",
+        command=WP16_FIXTURE_MANIFEST_TESTS,
+        cwd=ROOT,
+    ),
     Break(
         contract="WP1.5 competition coverage must report zero teams for an empty declared scope",
         path=ROOT / "backend/sql/wp1_5/01_competition_coverage.sql",

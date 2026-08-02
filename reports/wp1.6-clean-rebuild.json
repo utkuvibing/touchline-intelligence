@@ -1,0 +1,76 @@
+{
+  "status": "passed",
+  "executed_at": "2026-08-02",
+  "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "scope": [[43, 3], [55, 43], [43, 106], [55, 282]],
+  "source_file_count": 465,
+  "provenance_manifest": {
+    "path": "data/provenance/core-cohort.json",
+    "sha256": "4960d5993235ebe682835718de3cac5312c631c1a8d18fef8476b077694bc312"
+  },
+  "clean_build": {
+    "command": "uv run poe ingest --offline --reset",
+    "succeeded_run_uuid": "a30ac223-d7a0-4386-800a-06d1ef249645",
+    "source_counts": {
+      "competitions": 2,
+      "seasons": 4,
+      "competition_seasons": 4,
+      "teams": 54,
+      "players": 1989,
+      "matches": 230,
+      "match_teams": 460,
+      "lineups": 460,
+      "lineup_memberships": 11062,
+      "lineup_positions": 9615,
+      "lineup_cards": 825,
+      "possessions": 39262,
+      "events": 843050,
+      "event_relations": 1227110,
+      "shots": 5829,
+      "shot_freeze_frame_players": 78866,
+      "shots_without_location": 0,
+      "shots_without_player": 0
+    },
+    "all_source_rows_inserted": true,
+    "all_updated_rejected_unchanged_counts_zero": true
+  },
+  "identical_rerun": {
+    "command": "uv run poe ingest --offline",
+    "succeeded_run_uuid": "94107ada-fb27-40eb-b322-175ab6c10541",
+    "source_counts_equal_clean_build": true,
+    "all_inserted_updated_rejected_counts_zero": true,
+    "all_unchanged_counts_equal_source_and_final_scoped": true
+  },
+  "schema_migrations": {
+    "0001_initial": "26bc066b30e3ff73cc2e31ed9d5ff4d9af717e2cfcdd70729410e1e56b240c09",
+    "0002_relational_constraints": "cc2b9793c6d98f7daf7a139c77f257cee3cb0fd1d923ee88c10981e8abf8b4b2",
+    "0003_normalize_competition_seasons": "3275e25ea3c9de6b37fac731d48a1fd74ec367665d51bc303ef1c0951d07289d",
+    "0004_event_and_lineup_core": "6b1af2ccc68405afc121736505f85d5bb6c2893cfe0fbc007f5ac502028c7c96",
+    "0005_event_and_lineup_constraints": "c75f11134d7f368d0873e86490249f27d95f82ed1d6f5f36d2f14bc374e59c4e",
+    "0006_ingestion_runs": "8baf8ed25d02ba0c424fc37ed9d5c3ffae87c65e665e6c8e4a06bedf3205a537",
+    "0007_measured_event_x_boundary": "155e32bcd6f05b9af0fccaaabdce35fbe151e380aa01667b16bda118460142a4"
+  },
+  "quality": {
+    "command": "uv run poe quality",
+    "manifest_run_uuid": "a30ac223-d7a0-4386-800a-06d1ef249645",
+    "errors": 0,
+    "invariant_violations": 0,
+    "reconciliation_status": "all 16 persisted source grains matched",
+    "json_report": "reports/wp1.4-core-cohort.json",
+    "json_report_sha256": "a04c7b6ffce0ae49df05c77dacc5aec2fe7249efb2317b93783668121d3490f0",
+    "text_report": "reports/wp1.4-core-cohort.txt",
+    "text_report_sha256": "16530431448a92bf7174511f59598cb2774f548886bd87a3d16490aff96a7d37"
+  },
+  "phase_2_input_pin": {
+    "succeeded_run_uuid": "a30ac223-d7a0-4386-800a-06d1ef249645",
+    "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+    "provenance_sha256": "4960d5993235ebe682835718de3cac5312c631c1a8d18fef8476b077694bc312",
+    "rule": "M2 records must cite this exact run UUID or deliberately replace the pin with another succeeded run having the same source, scope, provenance and canonical counts."
+  },
+  "comparison_exclusions": [
+    "ingestion run UUID and owner identity",
+    "ingestion lifecycle timestamps",
+    "migration application timestamps"
+  ],
+  "attribution": "Data provided by StatsBomb."
+}

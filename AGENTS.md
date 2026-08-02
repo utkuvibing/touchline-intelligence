@@ -44,13 +44,16 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 1.3 fixed cohort, idempotent ingestion, run manifest | done — full-source acceptance, mutation verification, independent Sol review and CI passed |
 | 1.4 data-quality suite and reconciliation report | done — full-cohort report, author sampling verification, mutation verification and independent Sol review passed |
 | 1.5 SQL analysis pack and measured query plans | done — 10 read-only queries, full-cohort results, two measured plans and rejected speculative index; focused tests, mutation verification and independent Sol review passed |
+| 1.6 deterministic fixture, integration proof, clean rebuild | done — fixture byte pinning, network-free two-clean-build proof, full-cohort clean rebuild and no-op rerun, release evidence, mutation verification and independent Sol review passed |
 
-M1 has completed WP1.1 through WP1.5. The fixed four-tournament cohort, idempotent conflict policy
+M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
+four-tournament cohort, idempotent conflict policy
 and durable manifest lifecycle are accepted in ADR 0010. The WP1.4 read-only audit reconciles the
 full cohort, reports invariants and missingness, and records completed author sampling verification.
 WP1.5 adds ten hand-written, read-only analytical queries and measured full-cohort query plans; no
-secondary index was retained without a recurring workload. WP1.1 being closed does not clear its
-two documented publication gates. WP1.6 is next; it has not started.
+secondary index was retained without a recurring workload. WP1.6 pins the deterministic fixture,
+the clean-build manifest proposed for Phase 2, the full-cohort reconciliation evidence and the
+identical no-op rerun. Completing M1 does not clear WP1.1's two documented publication gates.
 
 ## 3. Documents that own the detail
 

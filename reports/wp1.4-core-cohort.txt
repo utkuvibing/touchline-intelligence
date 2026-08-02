@@ -1,7 +1,7 @@
 Touchline WP1.4 data-quality report
 Database execution: executed
 Source commit: b0bc9f22dd77c206ddedc1d742893b3bbe64baec
-Successful ingestion manifest: 85ca7311-4d2b-4c82-91a6-10ef43b9bcf4
+Successful ingestion manifest: a30ac223-d7a0-4386-800a-06d1ef249645
 Scope: 43/3, 55/43, 43/106, 55/282
 Errors
   none
