@@ -1,5 +1,10 @@
 # Phase 2 — Shot Quality Engine
 
+> **Status: superseded planning sketch.** This file is retained as history and does not govern M2.
+> [`docs/PLAN.md`](../PLAN.md) and accepted ADRs own the current work-package sequence and decisions.
+> In particular, the “do not add neural networks” line and WP2.6–WP2.8 numbering below are obsolete:
+> current WP2.6 requires the bounded PyTorch artifact accepted in ADR 0005.
+
 **Estimate:** 100–130 hours, roughly 6–9 weeks at 15–20 hours/week  
 **Release:** first complete data → model → API → web vertical slice  
 **Application milestone:** earliest credible flagship release when every mandatory gate passes.
@@ -20,7 +25,8 @@ This phase teaches the developer to turn a football question into a leakage-awar
 - transparent heuristic/reference-rate benchmark plus logistic-regression baseline;
 - one gradient-boosting model compared on the same locked populations/splits;
 - feature dictionary with availability time and leakage review;
-- match-grouped development validation and one locked temporal holdout;
+- the named three-way split: match-grouped development validation, a disjoint calibration set, and
+  one locked later-tournament holdout;
 - Brier score, log loss, ROC AUC and/or PR AUC with class prevalence, calibration curve/table, and uncertainty or fold variability;
 - calibration decision tested without fitting on final holdout;
 - segment error analysis by at least distance band, angle band, body part, play pattern/set piece, header/non-header, competition/season, and sample-size-aware rare groups;
@@ -58,7 +64,12 @@ Fit preprocessing on training data only. Handle missing/unknown categories expli
 
 ### WP2.3 — Split and evaluation design (10–14 hours)
 
-Lock one final temporal period before comparing models. On the earlier development period, group splits by match so shots from one match never cross folds. Where data permits, use expanding/rolling temporal checks in addition to grouped folds to show season/competition shift. Explain that grouped validation protects shared match context, while temporal validation measures performance on later football/data conditions; neither proves causal generalization.
+Lock the later Euro 2024 tournament holdout before comparing models. Split the earlier tournaments
+into match-disjoint development and calibration populations; group development folds by match so
+shots from one match never cross folds. The holdout changes both time and tournament composition,
+so call it a tournament holdout and state that confounding rather than presenting it as a clean
+temporal-drift test. Grouped validation protects shared match context; neither design proves causal
+generalization.
 
 Choose Brier/log loss as primary probability-quality measures, calibration curves/tables for reliability, and discrimination metrics for ranking. Include naive base-rate and geometry-only baselines. Define how hyperparameters and calibration are selected without touching the final holdout.
 
@@ -74,7 +85,11 @@ Choose one maintained gradient-boosting implementation, not a tournament of libr
 
 ### WP2.6 — Calibration, interpretation, and error analysis (14–18 hours)
 
-Produce reliability plots with bin counts, predicted/observed tables, proper scores, fold dispersion, and the final untouched temporal result. Analyze false/high-confidence errors and segments, always displaying support. Check for systematic shifts across time, competition, shot type, and missingness. Use interpretation to describe association and model behaviour, not causal effects.
+Produce reliability plots with bin counts, predicted/observed tables, proper scores, fold dispersion,
+and the final untouched tournament-holdout result. Analyze false/high-confidence errors and
+segments, always displaying support. Check for systematic shifts across time, competition, shot
+type, and missingness. Use interpretation to describe association and model behaviour, not causal
+effects.
 
 Write a model card covering intended use, data, target, exclusions, features, splits, metrics, calibration, ethical/use limitations, monitoring/retraining assumptions, and version.
 
@@ -92,7 +107,7 @@ Train the selected config from a clean data manifest and Git state, validate art
 
 - statistical problem definition and binary classification;
 - feature engineering and shared training/serving contracts;
-- grouped and temporal model validation;
+- match-grouped validation and a confounded later-tournament holdout;
 - leakage prevention, calibration, discrimination, and proper scoring rules;
 - interpretable baselines and controlled model comparison;
 - reproducible ML engineering and lightweight experiment tracking;
@@ -108,7 +123,7 @@ Explain or derive without AI:
 - how distance and visible goal angle are calculated and what edge cases break naive formulas;
 - why random row splitting can leak shared match context and misrepresent future performance;
 - what grouped validation protects against and what it does not;
-- what temporal validation measures, including dataset and football-concept drift;
+- what the tournament holdout measures, including its time/competition confounding;
 - data leakage and feature availability at prediction time;
 - why discrimination and calibration are different;
 - Brier score versus log loss, and why accuracy is weak for probabilistic xG;
@@ -167,7 +182,9 @@ Acceptance protocol:
 - **Unit tests:** geometry with hand-computed cases; coordinate orientation; penalty/outcome/cohort rules; category/missing handling; metric calculations; artifact metadata; API input validation.
 - **Integration tests:** SQL cohort from fixture database through feature pipeline, model training on deterministic fixture, saved artifact reload, FastAPI endpoint prediction, frontend/API contract.
 - **Data-quality tests:** one row per shot/source ID; valid targets/probabilities; coordinate and category coverage; no forbidden features; match dates/groups present; exclusion counts reconciled.
-- **Model validation:** base-rate and geometry baselines; grouped folds; locked temporal holdout; Brier/log loss and discrimination; calibration with counts; segment metrics/support; fold or bootstrap variability; leakage checklist.
+- **Model validation:** base-rate and geometry baselines; grouped folds; locked tournament holdout;
+  Brier/log loss and discrimination; calibration with counts; segment metrics/support; fold or
+  bootstrap variability; leakage checklist.
 - **Manual acceptance:** inspect at least 50 mapped shots and 30 high-error cases against source context; verify UI locations/outcomes; try invalid API inputs and empty filters; check attribution/limitations on the page.
 - **Reproducibility:** clean run from pinned ingestion manifest/config/commit recreates split IDs, metrics within declared tolerance, plots, and artifact metadata; API returns the reproduced model version.
 
@@ -178,8 +195,15 @@ Model tests check expected relationships and reproducibility, not a magically fi
 - **English write-up:** “Building and evaluating a leakage-aware shot quality model,” including baseline reasoning, split diagram, calibration, slices, limitations, and model choice.
 - **Demo:** 4–6 minute flow from a historical shot map to API response, model card, experiment table, and one revealing error segment.
 - **GitHub deliverable:** reproducible config/command, cohort SQL, feature tests, experiment records, model card, API contract, UI, and green validation suite.
-- **Draft CV claim:** “Built an end-to-end shot-quality engine on a versioned StatsBomb Open Data cohort, comparing regularized logistic regression with gradient boosting under match-grouped and temporal validation, with calibration/error analysis, FastAPI serving, and a TypeScript shot-map interface.”
-- **Interview story (problem–decision–result):** Problem—random split accuracy would overstate how an xG model handles new matches and later seasons. Decision—lock a temporal holdout, group development folds by match, start with geometry/logistic regression, and compare calibration and proper scores before complexity. Result—the selected model has a defensible evidence trail and exposed limitations, then runs unchanged behind the API and UI.
+- **Draft CV claim:** “Built an end-to-end shot-quality engine on a versioned StatsBomb Open Data
+  cohort, comparing regularized logistic regression with gradient boosting under match-grouped
+  validation and a later-tournament holdout, with calibration/error analysis, FastAPI serving, and
+  a TypeScript shot-map interface.”
+- **Interview story (problem–decision–result):** Problem—random split accuracy would overstate how
+  an xG model handles new matches and later tournaments. Decision—lock a tournament holdout, group
+  development folds by match, start with geometry/logistic regression, and compare calibration and
+  proper scores before complexity. Result—the selected model has a defensible evidence trail and
+  exposed limitations, then runs unchanged behind the API and UI.
 
 Insert actual cohort sizes and measured metrics only after the final locked run. Never imply club deployment.
 
@@ -187,7 +211,8 @@ Insert actual cohort sizes and measured metrics only after the final locked run.
 
 - Cohort, target, exclusions, penalty policy, feature availability, and source coverage are versioned and reconciled.
 - Geometry passes hand-derived and automated edge-case tests.
-- Match IDs do not cross grouped folds; final holdout is chronologically later and remains untouched until the declared final evaluation.
+- Match IDs do not cross grouped folds; the later-tournament holdout remains untouched until the
+  declared final evaluation, and its time/competition confounding is explicit.
 - Naive, geometry/logistic, and one boosting candidate share identical locked evaluation rows/splits.
 - Release table includes Brier, log loss, discrimination, calibration with counts, and at least eight supported error slices.
 - Calibration/model selection uses no final-holdout labels; leakage checklist has no unresolved blocker.
@@ -222,4 +247,3 @@ Cut first: SHAP/polish, residual heat maps, extra boosting variants, extra categ
 ## Estimated effort
 
 **100–130 hours / 6–9 weeks.** Suggested allocation: 10 hours research/cohort, 15 geometry/features, 12 splits/metrics learning, 28–35 modelling/evaluation, 18–23 API/UI, 10–15 tests/reproducibility, and 7–10 report/demo. If the phase exceeds nine weeks, ship the calibrated transparent baseline and defer optional boosting interpretation/polish.
-

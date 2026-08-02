@@ -20,6 +20,7 @@ from touchline.shots import fetch_shots
 DB_URL = os.environ.get("TOUCHLINE_DB_URL")
 FULL_SOURCE = os.environ.get("TOUCHLINE_FULL_SOURCE") == "1"
 CACHE = Path("data/statsbomb") / SOURCE_COMMIT[:12]
+WP21_COHORT_SQL = Path("backend/sql/wp2_1/01_model_shot_cohort.sql")
 TEST_SCHEMA = "wp13_full_source_acceptance"
 
 pytestmark = [
@@ -237,6 +238,11 @@ def test_populated_wc_extends_and_identical_full_rerun_changes_no_facts(
                 "AND jsonb_path_exists(type_data, '$.**.statsbomb_xg')"
             )
             assert cur.fetchone() == (0,)
+            cur.execute(WP21_COHORT_SQL.read_text(encoding="utf-8"))
+            wp21_rows = cur.fetchall()
+            assert len(wp21_rows) == 5606
+            assert sum(int(row[-1]) for row in wp21_rows) == 507
+            assert len({row[0] for row in wp21_rows}) == len(wp21_rows)
 
     second = run_ingestion(factory, StatsBombSource(offline=True), CORE_COHORT)
     assert all(
