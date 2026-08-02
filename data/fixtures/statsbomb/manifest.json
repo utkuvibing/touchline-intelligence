@@ -1,0 +1,14 @@
+{
+  "fixture_name": "fictional-statsbomb-shaped-two-match-scope",
+  "format_version": 1,
+  "network": "forbidden",
+  "source_commit_for_manifest_contract": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "files_sha256": {
+    "competitions.json": "99f9297a5a83b392dbbff9ce6f025bc0cf6ee5a5a4d86362a4b095c1312ee766",
+    "events/900001.json": "fca77a3d391f0011a4f243defb834a46c995a0ca6e0708134d35efda0cd77a3a",
+    "events/900002.json": "8746ad1be27e4d4ce6fbe1b241c92d1097d600b9bb6131e96d2c972d6fa8612e",
+    "lineups/900001.json": "975f3b972c7b44468e41876df32ae4cf46049b63e9c75ace408ec57b954073f6",
+    "lineups/900002.json": "5bea6ed07002421d74468d40b2d9bb646e58c3d829147b002918267de107b73d",
+    "matches/43/106.json": "620a34494116eabcf6377d1e6cb806378231e83a74b27c14b479c734f6bb8359"
+  }
+}
