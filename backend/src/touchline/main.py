@@ -10,6 +10,7 @@ is the right thing to publish first.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, Literal
 
@@ -18,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from touchline import baseline, shots
+from touchline import baseline, schema_state, shots
 from touchline.config import Settings, get_settings
 
 app = FastAPI(
@@ -48,33 +49,60 @@ class Health(BaseModel):
 
 
 class Readiness(BaseModel):
-    """Readiness response. Answers 'can this instance serve traffic', which here means
-    'is PostgreSQL reachable'."""
+    """Readiness response. Answers 'can this instance serve traffic'.
+
+    That question has two independent failure modes, and collapsing them loses the one that is
+    hardest to notice. `database` reports whether PostgreSQL answered at all; `database_schema`
+    reports whether the relations this build queries are present in it. A database can be
+    perfectly reachable and still be unable to serve a single request, which is exactly the state
+    this deployment was in while reporting itself ready.
+
+    The field is `database_schema` rather than `schema` because a Pydantic model may not carry a
+    field named `schema` — it shadows an attribute on `BaseModel` and raises at class definition.
+    """
 
     status: Literal["ready", "degraded"]
     database: Literal["reachable", "unreachable"]
+    database_schema: Literal["current", "behind", "unknown"] = "unknown"
     detail: str | None = None
 
 
-def _check_database(settings: Settings) -> tuple[bool, str | None]:
-    """Open a connection and run the cheapest possible statement.
+@dataclass(frozen=True, slots=True)
+class DatabaseState:
+    """What a readiness probe learned, kept as three separate facts rather than one boolean."""
 
-    Returns ``(reachable, detail)``. The detail is the exception class name only — connection
-    strings and driver messages can carry host and credential fragments, which must not leak into
-    an unauthenticated endpoint.
+    reachable: bool
+    schema_current: bool
+    detail: str | None
+
+
+def _check_database(settings: Settings) -> DatabaseState:
+    """Open a connection, prove PostgreSQL answers, then prove it holds the expected relations.
+
+    The connection detail is the exception class name only — connection strings and driver
+    messages can carry host and credential fragments, which must not leak into an unauthenticated
+    endpoint. The schema detail is a fixed constant plus relation names, which carry neither; the
+    schema is published in `docs/SCHEMA.md` and naming the absent tables is what makes the probe
+    actionable instead of merely red.
     """
     try:
-        with (
-            psycopg.connect(settings.db_url_str, connect_timeout=3) as conn,
-            conn.cursor() as cur,
-        ):
-            cur.execute("SELECT 1")
-            cur.fetchone()
+        with psycopg.connect(settings.db_url_str, connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+            missing = schema_state.missing_required_tables(conn)
     except Exception as exc:
         # Any failure at all means "not reachable" - a readiness probe that only catches
         # OperationalError would report ready during an auth or DNS failure.
-        return False, type(exc).__name__
-    return True, None
+        return DatabaseState(reachable=False, schema_current=False, detail=type(exc).__name__)
+
+    if missing:
+        return DatabaseState(
+            reachable=True,
+            schema_current=False,
+            detail=f"{schema_state.SCHEMA_NOT_MIGRATED_DETAIL}; absent: {', '.join(missing)}",
+        )
+    return DatabaseState(reachable=True, schema_current=True, detail=None)
 
 
 @app.get("/health", response_model=Health, tags=["ops"])
@@ -90,11 +118,16 @@ def ready() -> Readiness:
     """Readiness probe. Touches the database, because an instance that cannot query is not
     ready to serve even though it is alive."""
     settings = get_settings()
-    reachable, detail = _check_database(settings)
+    state = _check_database(settings)
     return Readiness(
-        status="ready" if reachable else "degraded",
-        database="reachable" if reachable else "unreachable",
-        detail=detail,
+        # Ready requires both: an instance whose queries all raise UndefinedTable is not ready,
+        # however cheerfully it can run SELECT 1.
+        status="ready" if state.reachable and state.schema_current else "degraded",
+        database="reachable" if state.reachable else "unreachable",
+        database_schema=(
+            "unknown" if not state.reachable else "current" if state.schema_current else "behind"
+        ),
+        detail=state.detail,
     )
 
 
@@ -142,6 +175,10 @@ def shot_conversion_rate() -> BaselineResponse:
         # 503 rather than 404: the resource is meaningful, this instance just has nothing loaded
         # yet. A 404 would suggest the endpoint does not exist.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except psycopg.errors.UndefinedTable as exc:
+        raise HTTPException(
+            status_code=503, detail=schema_state.SCHEMA_NOT_MIGRATED_DETAIL
+        ) from exc
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
 
@@ -205,6 +242,10 @@ def list_shots(
     try:
         with psycopg.connect(settings.db_url_str, connect_timeout=5) as conn:
             page = shots.fetch_shots(conn, match_id=match_id, limit=limit, offset=offset)
+    except psycopg.errors.UndefinedTable as exc:
+        raise HTTPException(
+            status_code=503, detail=schema_state.SCHEMA_NOT_MIGRATED_DETAIL
+        ) from exc
     except psycopg.Error as exc:
         raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
 

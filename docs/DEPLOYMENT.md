@@ -101,6 +101,12 @@ need it.
    A Railway code deploy does **not** run either command. Migration-on-application-boot is deferred
    to M3.3, so an operator must apply and verify schema and data separately before claiming the live
    database has WP1.3 coverage. Repository delivery must not be described as a live Neon migration.
+
+   **This is a release-ordering obligation, not a note.** Any release whose queries reach a
+   relation the deployed database does not have takes the public endpoints down until `poe migrate`
+   is run against it, and it has already done so once — see the first row of *Failure modes worth
+   recognising*. Merging a migration and deploying the code that depends on it are two separate
+   acts, and the second one is not finished until the first has been run against every environment.
    The internal database then holds four tournaments, while the current public `/baseline` and
    `/shots` endpoints remain explicitly restricted to WC 2022.
 
@@ -114,9 +120,16 @@ need it.
    Leave `TOUCHLINE_CORS_ORIGINS` for step 4 — the Vercel URL does not exist yet.
 4. Generate a public domain (Settings → Networking → Generate Domain).
 5. Confirm the deploy: `GET /health` should be `ok` and `GET /ready` should report
-   `database: reachable`. If `/ready` says `degraded`, the database URL is wrong or Neon is
-   unreachable — `/health` will still be `ok`, which is the distinction those two endpoints exist to
-   make.
+   `status: ready`, `database: reachable` **and `database_schema: current`**. `/ready` reports
+   three states, because there are three distinct things that go wrong:
+
+   | `/ready` says | Meaning | Fix |
+   |---|---|---|
+   | `ready` / `reachable` / `current` | serving | — |
+   | `degraded` / `unreachable` / `unknown` | the database is not answering | `TOUCHLINE_DB_URL` is wrong, or Neon is unreachable |
+   | `degraded` / `reachable` / `behind` | PostgreSQL answers, but does not hold the relations this build queries | run `poe migrate` against it (see step 1) |
+
+   `/health` stays `ok` in all three, which is the distinction those two endpoints exist to make.
 
 ### 3. Vercel (frontend)
 
@@ -167,6 +180,7 @@ Exit code 0 means every check passed. Record the run in the release notes.
 
 | Symptom | Likely cause |
 |---|---|
+| **`/baseline` and `/shots` return 503 while `/health` and `/ready` look fine** | **The deployed database was never migrated to the revision being served. This happened: the API was redeployed with WP1.2 queries that join `events`, against a Neon database still at the unversioned M0 five-table schema. Every data endpoint raised `UndefinedTable`. Run `poe migrate` against the deployed database — a code deploy does not. `/ready` now reports `database_schema: behind` for exactly this state instead of `ready`.** |
 | `/health` ok, `/ready` degraded | `TOUCHLINE_DB_URL` wrong, or Neon asleep/unreachable. The API is alive; the database is not. |
 | `/baseline` returns 503 with "no shots are loaded" | The database is reachable but empty — step 1's ingestion has not been run against it. |
 | `poe migrate` or `poe ingest` rejects `-pooler` | The command was given Railway's pooled API URL. Temporarily set `TOUCHLINE_DB_URL` to Neon's direct URL for that command; do not change the Railway API setting. |

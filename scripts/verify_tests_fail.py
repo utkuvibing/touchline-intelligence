@@ -163,6 +163,7 @@ WP21_REQUIRED_PREDICATES_TEST = (
 )
 WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
 FRONTEND_TESTS = "npm test"
+SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
 
 @dataclass(frozen=True)
@@ -1213,6 +1214,37 @@ BREAKS: list[Break] = [
         ),
         command=MIGRATION_TESTS,
         cwd=ROOT,
+    ),
+    # The three below protect the repair for the deployment outage in which the served build's
+    # queries had moved ahead of the database's schema. Each mutation restores one part of the
+    # behaviour that let a completely unservable deployment report itself healthy.
+    Break(
+        contract="readiness must detect a reachable database whose schema is behind the build",
+        path=ROOT / "backend/src/touchline/schema_state.py",
+        anchor="    return tuple(table for table in REQUIRED_TABLES if table not in present)\n",
+        replacement="    return ()  # DELIBERATE BREAK\n",
+        command=SCHEMA_DRIFT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a schema-drift 503 must explain the cause, not echo the driver's symbol",
+        path=ROOT / "backend/src/touchline/schema_state.py",
+        anchor=(
+            "SCHEMA_NOT_MIGRATED_DETAIL = (\n"
+            '    "database schema is behind this build; the ordered migrations have not been '
+            'applied to it"\n)'
+        ),
+        replacement='SCHEMA_NOT_MIGRATED_DETAIL = "UndefinedTable"  # DELIBERATE BREAK',
+        command=SCHEMA_DRIFT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a production frontend must not silently fall back to a localhost API",
+        path=FRONTEND / "lib/api.ts",
+        anchor="    throw new ApiBaseNotConfiguredError();\n",
+        replacement="    return LOCAL_API_BASE; // DELIBERATE BREAK\n",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
     ),
 ]
 

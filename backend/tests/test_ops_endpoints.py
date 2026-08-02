@@ -99,6 +99,17 @@ def test_ready_reports_degraded_when_the_database_is_unreachable(client: TestCli
     assert body["database"] == "unreachable"
 
 
+def test_ready_does_not_claim_to_know_the_schema_of_a_database_it_cannot_reach(
+    client: TestClient,
+) -> None:
+    """Unreachable and behind are different diagnoses pointing at different fixes.
+
+    Reporting the schema as "current" here would be a guess, and reporting it as "behind" would
+    send an operator to run migrations against a database that is not answering at all.
+    """
+    assert client.get("/ready").json()["database_schema"] == "unknown"
+
+
 def test_ready_reports_only_an_exception_class_name(client: TestClient) -> None:
     """Driver errors can echo host, port, user and database name, and /ready is unauthenticated.
 
