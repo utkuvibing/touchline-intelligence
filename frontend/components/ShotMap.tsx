@@ -22,6 +22,19 @@ const VIEW_LENGTH = 120 - VIEW_MIN_X;
 
 const MARKER_RADIUS = 0.7;
 
+/**
+ * Sizing, and why each part of it matters.
+ *
+ * `width: 100%` with `height: auto` and no explicit height leaves the proportions entirely to the
+ * viewBox, so the drawn half stays exactly 60 long by 80 wide — a 0.75 ratio — at every rendered
+ * size, and the map still shrinks to fit a narrow screen rather than overflowing it.
+ *
+ * `maxWidth` therefore only caps how large the map may grow. At 56rem it rendered around 1,200px
+ * tall on a desktop and pushed the conversion rate and its caveat below the fold; the map is one
+ * part of the page, not the page.
+ */
+const MAP_STYLE = { width: "100%", height: "auto", maxWidth: "44rem" } as const;
+
 interface ShotMapProps {
   shots: PlottableShot[];
 }
@@ -69,7 +82,7 @@ export function ShotMap({ shots }: ShotMapProps) {
         viewBox={`${VIEW_MIN_X} 0 ${VIEW_LENGTH} ${PITCH_WIDTH}`}
         role="img"
         aria-label={`Shot map: ${shots.length} recorded shots, of which ${goals.length} were goals. Attacking towards the right.`}
-        style={{ width: "100%", height: "auto", maxWidth: "56rem" }}
+        style={MAP_STYLE}
       >
         <PitchMarkings />
 

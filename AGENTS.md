@@ -173,6 +173,14 @@ tournament changes time and competition composition together. Say so rather than
 - Review results must be reported honestly as `PASS`, `PASS WITH REQUIRED FIXES`, or `FAIL`.
 - A `PASS` claim must not be made unless the review actually ran.
 
+**Outstanding deferral.** The production repair in `0c1046a` (deployed database schema behind its
+served build: readiness drift detection, the actionable schema-drift 503, and the frontend API-base
+resolution rule) has **not** received its independent Sol review. It is deferred on model quota,
+not waived, and the author has accepted it as a non-blocker for continuing M2. It carries no `PASS`
+claim. The change is covered by focused tests, three registered mutation contracts (CAUGHT 3,
+MISSED 0) and an 18/18 deployed smoke run; none of that is a substitute for the review, and this
+line stays here until the review actually runs.
+
 ## Bounded review protocol
 
 Reviews must preserve correctness, security, data integrity, leakage protection,
