@@ -81,6 +81,34 @@ nominal pitch scale is 120.1. Values below 0 or above 120.1 remain invalid; y, s
 freeze-frame bounds remain unchanged. Future model features must distinguish raw stored coordinates
 from any later normalized or geometry-safe representation.
 
+WP2.2 measured that this event is a **Shot** inside the model cohort — a `Corner` shot type, so the
+recorded location is the corner arc where the goal line meets the touchline. Its raw coordinate is
+unchanged by modelling: `touchline.features.geometry` applies a bounded source-coordinate tolerance
+adjustment for the derived distance and angle only, admissible up to `120.1 + 1e-12` and raising
+beyond it. See [`docs/modeling/wp2_2-geometry-contract.md`](docs/modeling/wp2_2-geometry-contract.md).
+
+## Pitch and goal coordinate system
+
+Source: **StatsBomb Open Data Specification v1.1, Appendix 2 "Locations"** (`doc/` directory of the
+pinned Open Data repository), checked **2026-08-03**. Appendix 2 carries the coordinate system as
+diagrams rather than prose, so the values are recorded here rather than left implicit in modelling
+code.
+
+| Feature | Coordinates | Page |
+|---|---|---|
+| Pitch | `(0,0)` to `(120,80)`, centre spot `(60,40)` | 35 |
+| Penalty spot (attacking) | `(108,40)` | 35 |
+| Goalmouth, ground | `(120, 36, 0)` and `(120, 44, 0)` | 36 |
+| Goalmouth, crossbar | `(120, 36, 2.67)` and `(120, 44, 2.67)` | 36 |
+
+The body text corroborates the scale independently ("the center of the field is (60,40)"; shot
+`end_location` examples `(120, 50)` and `(120, 32.5, 1.2)`).
+
+**The specification states nothing about direction of play.** Whether coordinates are recorded from
+the attacking team's perspective is therefore established empirically, not cited: WP2.2 measured 9
+shots of 5,606 below the halfway line and a minimum `location_x` of 48.1. No direction transform is
+applied.
+
 ## Relational / JSONB boundary
 
 Shared event identity, ordering, clock, attribution, possession, flags, play pattern, position,
