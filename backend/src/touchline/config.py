@@ -183,7 +183,7 @@ def require_local_write_target(db_url: PostgresDsn, *, command: str) -> None:
     and the deployed smoke checks are expected to run against a deployment and are unaffected.
 
     Schema migration is also deliberately outside this guard. Applying ordered migrations to the
-    deployed database is a documented operator step in ``docs/DEPLOYMENT.md``, it changes structure
+    deployed database is a deliberate operator step run on its own, it changes structure
     rather than application data, and folding it in here as a side effect of protecting ingestion
     would break the release runbook without anyone having decided to. It is assessed on its own
     terms; see the note in that document.
@@ -234,5 +234,5 @@ def get_settings() -> Settings:
         raise MissingConfigurationError(
             f"Missing required environment variable(s): {', '.join(missing)}. "
             "Set them in the deployment platform's variables, or copy .env.example to .env "
-            "for local development. See docs/DEPLOYMENT.md."
+            "for local development. See README.md."
         ) from exc

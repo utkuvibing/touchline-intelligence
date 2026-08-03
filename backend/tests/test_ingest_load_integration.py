@@ -20,6 +20,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from support.db_safety import connect_local
 
 from touchline.ingest import load as loader
 from touchline.ingest.cli import (
@@ -72,7 +73,7 @@ pytestmark = [
 def conn() -> Iterator[psycopg.Connection]:
     """A connection whose tables live in a throwaway schema, dropped afterwards."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as connection:
+    with connect_local(DB_URL) as connection:
         with connection.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')
@@ -97,7 +98,7 @@ def fixture_data() -> CollectedScope:
 def _counts_in_new_transaction() -> loader.LoadCounts:
     """Read counts over a *separate* connection, so only committed data is visible."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as other, other.cursor() as cur:
+    with connect_local(DB_URL) as other, other.cursor() as cur:
         cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
         counts = {}
         for table in loader.LoadCounts.__dataclass_fields__:

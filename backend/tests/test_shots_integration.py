@@ -17,6 +17,7 @@ from typing import Any
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from support.db_safety import connect_local
 
 from touchline.ingest import load as loader
 from touchline.ingest.cli import collect
@@ -47,7 +48,7 @@ pytestmark = [
 def loaded_conn() -> Iterator[psycopg.Connection]:
     assert DB_URL is not None
     collected = collect(StatsBombSource(FIXTURES, offline=True), 43, 106)
-    with psycopg.connect(DB_URL) as conn:
+    with connect_local(DB_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')

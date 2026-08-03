@@ -172,6 +172,12 @@ WP21_AVAILABILITY_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_every_candidate_has_the_exact_availability_decision -q"
 )
+WP21_PROVIDER_XG_TEST = (
+    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
+    "test_the_cohort_sql_never_exposes_provider_xg -q"
+)
+# Authored locally and deliberately unpublished, so mutations against it are conditional.
+WP21_CONTRACT_DOC = ROOT / "docs/modeling/wp2_1-cohort-and-leakage-contract.md"
 WP21_CATEGORY_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_category_coverage_has_support_only_and_no_target_aggregates -q"
@@ -312,21 +318,37 @@ BREAKS: list[Break] = [
         command=WP21_PENALTY_BREAKDOWN_TEST,
         cwd=ROOT,
     ),
+    # The leakage contract document is authored locally and is not published in this repository, so
+    # these four mutations only exist where it does. The leakage guarantee itself does not depend on
+    # them: provider xG's absence from the cohort projection is mutated below against the SQL, which
+    # is tracked and therefore verified in every checkout.
     *(
         Break(
             contract=f"WP2.1 leakage table must classify {candidate} as Unavailable",
-            path=ROOT / "docs/modeling/wp2_1-cohort-and-leakage-contract.md",
+            path=WP21_CONTRACT_DOC,
             anchor=f"| {candidate} | Unavailable |",
             replacement=f"| {candidate} | Available | <!-- DELIBERATE BREAK -->",
             command=WP21_AVAILABILITY_TEST,
             cwd=ROOT,
         )
         for candidate in (
-            "Outcome ID/name",
-            "Shot end `x/y/z`",
-            "Provider `statsbomb_xg`",
-            "Future events, final score, later match state",
+            (
+                "Outcome ID/name",
+                "Shot end `x/y/z`",
+                "Provider `statsbomb_xg`",
+                "Future events, final score, later match state",
+            )
+            if WP21_CONTRACT_DOC.exists()
+            else ()
         )
+    ),
+    Break(
+        contract="the WP2.1 cohort projection must never select provider xG",
+        path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
+        anchor="    s.shot_type_id,\n",
+        replacement="    s.shot_type_id, NULL AS statsbomb_xg, -- DELIBERATE BREAK\n",
+        command=WP21_PROVIDER_XG_TEST,
+        cwd=ROOT,
     ),
     Break(
         contract="WP1.6 fixture manifest must pin the exact fictional source bytes",
@@ -676,8 +698,13 @@ BREAKS: list[Break] = [
     Break(
         contract="/ready must report an exception class name only (no secret leak)",
         path=ROOT / "backend/src/touchline/main.py",
-        anchor="        return False, type(exc).__name__",
-        replacement="        return False, str(exc)  # DELIBERATE BREAK",
+        # The anchor went stale when this function started returning a DatabaseState, and a break
+        # whose anchor matches nothing verifies nothing. Re-pointed at the line that actually
+        # decides what an unauthenticated /ready is allowed to disclose.
+        anchor="        return DatabaseState(reachable=False, schema_current=False, "
+        "detail=type(exc).__name__)",
+        replacement="        return DatabaseState(reachable=False, schema_current=False, "
+        "detail=str(exc))  # DELIBERATE BREAK",
         command=OPS_TESTS,
         cwd=ROOT,
     ),

@@ -20,7 +20,7 @@ Data is provided by **StatsBomb** through the
 | Public API scope | FIFA World Cup 2022, competition `43`, season `106` |
 | Local cache | `data/statsbomb/b0bc9f22dd77/`, git-ignored and revision-keyed |
 | Provenance | [`data/provenance/core-cohort.json`](data/provenance/core-cohort.json) |
-| Terms review | 2026-08-01; [evidence note](docs/research/statsbomb-open-data-terms-review-2026-08-01.md) |
+| Terms review | 2026-08-01 — the repository README and the linked Public Data User Agreement PDF at the pinned revision |
 
 The reviewed README requires StatsBomb attribution and logo use for published analysis. Text
 attribution is present in the repository, deployed page, and published material. Two release gates
@@ -85,7 +85,9 @@ WP2.2 measured that this event is a **Shot** inside the model cohort — a `Corn
 recorded location is the corner arc where the goal line meets the touchline. Its raw coordinate is
 unchanged by modelling: `touchline.features.geometry` applies a bounded source-coordinate tolerance
 adjustment for the derived distance and angle only, admissible up to `120.1 + 1e-12` and raising
-beyond it. See [`docs/modeling/wp2_2-geometry-contract.md`](docs/modeling/wp2_2-geometry-contract.md).
+beyond it. The measured evidence for that adjustment is in
+[`reports/wp2.2-geometry-evidence.md`](reports/wp2.2-geometry-evidence.md), and the constants it
+relies on are declared in `backend/src/touchline/features/geometry.py`.
 
 ## Pitch and goal coordinate system
 
@@ -134,9 +136,11 @@ lineup membership is converted into appearance or minutes evidence.
 
 ## Physical data dictionary
 
-[`docs/SCHEMA.md`](docs/SCHEMA.md) owns grains, relationships, keys, and constraints. The table below
-maps every persisted data column to its source meaning; generated identity columns and the migration
-ledger are implementation metadata.
+The seven ordered SQL migrations in `backend/src/touchline/ingest/migrations/` own grains,
+relationships, keys and constraints, and they are the implementation source of truth for the
+physical schema. The table
+below maps every persisted data column to its source meaning; generated identity columns and the
+migration ledger are implementation metadata.
 
 | Table | Columns and meanings |
 |---|---|
@@ -179,4 +183,4 @@ scope, provenance and canonical counts; consumers must not silently select “la
 
 The repository migration does **not** migrate the live Neon database automatically. Applying code,
 applying schema, loading the full source, and verifying live endpoint results are separate release
-operations. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+operations, each run deliberately by an operator.

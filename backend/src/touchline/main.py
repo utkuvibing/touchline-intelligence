@@ -82,7 +82,7 @@ def _check_database(settings: Settings) -> DatabaseState:
     The connection detail is the exception class name only — connection strings and driver
     messages can carry host and credential fragments, which must not leak into an unauthenticated
     endpoint. The schema detail is a fixed constant plus relation names, which carry neither; the
-    schema is published in `docs/SCHEMA.md` and naming the absent tables is what makes the probe
+    schema is defined by the ordered migrations and naming the absent tables is what makes the probe
     actionable instead of merely red.
     """
     try:

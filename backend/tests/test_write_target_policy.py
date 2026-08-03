@@ -310,9 +310,9 @@ def test_migration_is_deliberately_outside_the_write_target_guard(
     """Applying migrations to a deployment is a documented operator step, not an accident path.
 
     Recorded as an executable decision rather than left implicit: migration changes structure, not
-    application data, and `docs/DEPLOYMENT.md` depends on being able to run it against Neon. If the
-    guard is ever extended to cover migration, this test fails and the runbook gets revisited with
-    it instead of breaking silently in a release.
+    application data, and the operator release runbook depends on being able to run it against
+    Neon. If the guard is ever extended to cover migration, this test fails and the runbook gets
+    revisited with it instead of breaking silently in a release.
     """
     monkeypatch.setenv("TOUCHLINE_DB_URL", PRODUCTION_DSN)
     reached: list[str] = []

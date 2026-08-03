@@ -8,6 +8,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from support.db_safety import connect_local
 
 from touchline.baseline import compute_base_rate
 from touchline.ingest.cli import CollectedScope, collect
@@ -37,7 +38,7 @@ pytestmark = [
 
 def _factory() -> psycopg.Connection:
     assert DB_URL is not None
-    connection = psycopg.connect(DB_URL)
+    connection = connect_local(DB_URL)
     with connection.cursor() as cur:
         cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
     connection.commit()
@@ -48,7 +49,7 @@ def _factory() -> psycopg.Connection:
 def populated_wp12() -> Iterator[tuple[Callable[[], psycopg.Connection], CollectedScope]]:
     """Build the committed 0005 schema and load the real WC 2022 source without a manifest."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+    with connect_local(DB_URL) as conn, conn.cursor() as cur:
         cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
         cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')
         cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
@@ -99,7 +100,7 @@ def populated_wp12() -> Iterator[tuple[Callable[[], psycopg.Connection], Collect
     try:
         yield _factory, wc_2022
     finally:
-        with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+        with connect_local(DB_URL) as conn, conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             conn.commit()
 

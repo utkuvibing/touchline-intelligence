@@ -14,6 +14,7 @@ from typing import Any
 
 import psycopg
 import pytest
+from support.db_safety import connect_local
 
 from touchline.ingest import load as loader
 from touchline.ingest import run as ingestion_run
@@ -44,7 +45,7 @@ pytestmark = [
 @pytest.fixture
 def connection_factory() -> Iterator[Callable[[], psycopg.Connection]]:
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as setup:
+    with connect_local(DB_URL) as setup:
         with setup.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')
@@ -53,7 +54,7 @@ def connection_factory() -> Iterator[Callable[[], psycopg.Connection]]:
         setup.commit()
 
     def make_connection() -> psycopg.Connection:
-        connection = psycopg.connect(DB_URL)
+        connection = connect_local(DB_URL)
         with connection.cursor() as cur:
             cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
         connection.commit()
@@ -62,7 +63,7 @@ def connection_factory() -> Iterator[Callable[[], psycopg.Connection]]:
     try:
         yield make_connection
     finally:
-        with psycopg.connect(DB_URL) as cleanup:
+        with connect_local(DB_URL) as cleanup:
             with cleanup.cursor() as cur:
                 cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cleanup.commit()

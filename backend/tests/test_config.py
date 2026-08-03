@@ -102,7 +102,7 @@ def test_missing_variable_error_names_the_environment_variable(
 
     message = str(exc.value)
     assert "TOUCHLINE_DB_URL" in message
-    assert "docs/DEPLOYMENT.md" in message
+    assert "README.md" in message
 
 
 def test_a_present_but_invalid_value_still_raises_the_validation_error(

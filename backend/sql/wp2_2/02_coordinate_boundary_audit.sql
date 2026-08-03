@@ -5,7 +5,7 @@
 -- Three questions this answers, none of which are safe to guess:
 --
 --   1. Does any eligible shot sit on or behind the goal line? `atan2` returns a negative angle for
---      x > GOAL_LINE_X, which breaks the angle invariant outright. `docs/SCHEMA.md` records that
+--      x > GOAL_LINE_X, which breaks the angle invariant outright. `DATA_SOURCE.md` records that
 --      the pinned revision holds exactly one event at x = 120.1 but does not say what type of
 --      event it is, so whether it reaches this population was an open question. This query
 --      answered it: the event is a Shot, and it is in the cohort.
