@@ -1,6 +1,9 @@
 # Planning scratch — durable decisions are promoted to docs/adr/ and docs/research/
 .scratch/
 
+# Local knowledge-graph output from the graphify tool. Regenerated on demand, never authoritative.
+graphify-out/
+
 # Python
 __pycache__/
 *.py[cod]
