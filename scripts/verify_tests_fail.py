@@ -39,9 +39,33 @@ DB_URL_BROKEN = (
     "        description="
 )
 
+UNKNOWN_HOST_ANCHOR = "    if not isinstance(host, str) or not host:\n        return False\n"
+UNKNOWN_HOST_BROKEN = (
+    "    if not isinstance(host, str) or not host:\n        return True  # DELIBERATE BREAK\n"
+)
+
+WRITE_GUARD_ANCHOR = (
+    "    if is_local_write_target(db_url):\n        return\n\n    target = write_target(db_url)"
+)
+WRITE_GUARD_BROKEN = (
+    "    if True:  # DELIBERATE BREAK\n        return\n\n    target = write_target(db_url)"
+)
+
+OVERRIDE_ANCHOR = '    if os.environ.get(REMOTE_WRITE_OVERRIDE_VAR, "").strip() == target:\n'
+OVERRIDE_BROKEN = (
+    '    if os.environ.get(REMOTE_WRITE_OVERRIDE_VAR, "").strip():  # DELIBERATE BREAK\n'
+)
+
+SANITIZED_TARGET_ANCHOR = (
+    '    database = (db_url.path or "").lstrip("/")\n'
+    '    return f"{label}/{database}" if database else label\n'
+)
+SANITIZED_TARGET_BROKEN = "    return str(db_url)  # DELIBERATE BREAK\n"
+
 OPS_TESTS = "uv run pytest backend/tests/test_ops_endpoints.py -q"
 CONFIG_TESTS = "uv run pytest backend/tests/test_config.py -q"
 DIRECT_DATABASE_COMMAND_TESTS = "uv run pytest backend/tests/test_ingest_command_policy.py -q"
+WRITE_TARGET_TESTS = "uv run pytest backend/tests/test_write_target_policy.py -q"
 PARSE_TESTS = "uv run pytest backend/tests/test_ingest_parse.py -q"
 # Database-backed mutations only prove anything when TOUCHLINE_DB_URL is set, and the hermeticity
 # break is invisible unless a TOUCHLINE_* variable is exported. The script reports MISSED otherwise,
@@ -1245,6 +1269,50 @@ BREAKS: list[Break] = [
         replacement="    return LOCAL_API_BASE; // DELIBERATE BREAK\n",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
+    ),
+    # The write-target guard. Each break is one of the plausible ways it could be weakened into
+    # something that still passes a casual reading: an open-by-default classification, a generic
+    # truthy override, trusting the self-declared environment label, and leaking the DSN into the
+    # refusal it prints.
+    Break(
+        contract="an unclassifiable write target must be refused, not assumed local",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=UNKNOWN_HOST_ANCHOR,
+        replacement=UNKNOWN_HOST_BROKEN,
+        command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a non-local write target must be refused without the deliberate override",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=WRITE_GUARD_ANCHOR,
+        replacement=WRITE_GUARD_BROKEN,
+        command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a generic truthy override must not unlock a remote write",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=OVERRIDE_ANCHOR,
+        replacement=OVERRIDE_BROKEN,
+        command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the refusal must name the target without printing the DSN",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=SANITIZED_TARGET_ANCHOR,
+        replacement=SANITIZED_TARGET_BROKEN,
+        command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="ingestion must consult the write-target guard before any work",
+        path=ROOT / "backend/src/touchline/ingest/cli.py",
+        anchor='        require_local_write_target(settings.db_url, command="ingest")\n',
+        replacement="        pass  # DELIBERATE BREAK\n",
+        command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
     ),
 ]
 

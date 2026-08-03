@@ -66,11 +66,17 @@ need it.
    section and the `-pooler` hostname later for the Railway serving API. Both end in
    `?sslmode=require`; keep that parameter. This is a temporary command-level substitution of the
    same `TOUCHLINE_DB_URL`, not a second application variable.
-3. Load the pinned four-tournament core cohort **from your machine**, not from CI:
+3. Load the pinned four-tournament core cohort **from your machine**, not from CI. Ingestion writes
+   application data, so it refuses any non-local target unless that exact database is named for the
+   run — see "Writing to a non-local database" below:
 
    ```bash
+   TOUCHLINE_ALLOW_REMOTE_WRITES='ep-xxx.eu-central-1.aws.neon.tech/touchline' \
    TOUCHLINE_DB_URL='postgresql://user:pw@ep-xxx.eu-central-1.aws.neon.tech/touchline?sslmode=require' uv run poe ingest
    ```
+
+   The override value is the sanitized `host[:port]/database` the refusal prints. It carries no
+   credentials, so it is safe in a runbook; the DSN beside it is not, and stays out of tracked files.
 
    This reads the cached snapshot at the commit pinned in
    `backend/src/touchline/ingest/source.py`, reconciles source counts against the database inside
@@ -87,6 +93,14 @@ need it.
    ```bash
    TOUCHLINE_DB_URL='postgresql://user:pw@ep-xxx.eu-central-1.aws.neon.tech/touchline?sslmode=require' uv run poe migrate
    ```
+
+   **`poe migrate` needs no write-target override, and that is a decision rather than an oversight.**
+   It was assessed separately from ingestion: it changes schema structure, not application data; it
+   is a required step of this runbook, invoked deliberately with an explicit DSN; and `/ready`
+   reports `database_schema: behind` precisely so an operator is *told* to run it. Extending the
+   ingestion guard over it as a side effect would have broken this step without anyone deciding to.
+   `backend/tests/test_write_target_policy.py` records the decision as an executable test, so
+   changing it later fails a test and forces this section to be revisited with it.
 
    Both commands reject a known Neon `-pooler` hostname before opening a connection, taking a lock,
    writing a manifest, running a migration, or staging data. The error names the required direct
@@ -160,6 +174,41 @@ incomplete-tournament states.
 
 Exit code 0 means every check passed. Record the run in the release notes.
 
+## Writing to a non-local database
+
+`poe ingest` is the only repository command that mutates application data, and it fails closed:
+unless `TOUCHLINE_DB_URL` resolves to a local PostgreSQL, it refuses before opening a connection,
+opening the source snapshot, taking a lock or writing a manifest.
+
+| Target | Default | How to proceed deliberately |
+|---|---|---|
+| `localhost`, any loopback address, `*.localhost` | allowed | — |
+| Neon, staging, any other remote host | **refused** | `TOUCHLINE_ALLOW_REMOTE_WRITES='<host[:port]/database>'` for that one command |
+| Unclassifiable or malformed DSN | **refused** | fix the DSN |
+
+The override must equal the sanitized target exactly — the same `host[:port]/database` string the
+refusal prints. A generic `1` or `true` is rejected: such a value can be left exported from an
+unrelated experiment and would then disarm the guard for every later command, whereas a value
+naming one specific database cannot be reused by accident against a different one. Supply it inline
+per command; do not export it into a shell profile or a platform variable.
+
+Staging and production follow the same rule. A production-only deny-list would need maintaining,
+and the run that hurts is the one against a host nobody remembered to add to it.
+
+Classification is derived from the DSN and **never** from `TOUCHLINE_ENVIRONMENT`. That variable is
+free-text, exists to label `/health` output, and can read `local` in front of a deployment DSN — in
+this repository it has. A safety control that trusted it would fail at exactly the moment the label
+is the thing that is wrong.
+
+The refusal names only `host[:port]/database`. Username, password and query parameters — where Neon
+puts its credentials and endpoint tokens — are never read into the message, so the guard cannot leak
+a DSN into a terminal, a CI log or a pasted bug report.
+
+**Not covered, deliberately:** `poe migrate` (see step 1), every read-only command (`poe quality`,
+the SQL analysis packs, `scripts/smoke_deployed.py`), and direct programmatic use of
+`touchline.ingest` internals by the test suite, which runs against whatever database the test
+environment provides.
+
 ## What is deliberately not here
 
 - **No CD.** GitHub Actions builds and checks; it does not deploy. Railway and Vercel deploy from
@@ -171,6 +220,9 @@ Exit code 0 means every check passed. Record the run in the release notes.
   `-pooler` hostname before database work. Railway continues to use the pooled endpoint for normal
   API requests; operators temporarily supply the direct URL to the same variable when running a
   command locally.
+- **No environment-name allow-list.** The write-target guard classifies from the DSN host alone. A
+  list of "safe" environment names is a second source of truth that drifts from the DSN it is meant
+  to describe, and it drifts silently.
 - **No drift or model monitoring.** There is no model. Structured request logging and health
   endpoints are the whole observability story, recorded as an accepted gap in ADR 0006.
 - **No custom domain, no CDN configuration, no autoscaling.** Smallest paid/free plans, portfolio

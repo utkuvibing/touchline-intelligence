@@ -22,8 +22,10 @@ import psycopg
 
 from touchline.config import (
     DirectDatabaseUrlRequiredError,
+    RemoteWriteBlockedError,
     get_settings,
     require_direct_database_url,
+    require_local_write_target,
 )
 from touchline.ingest import load as loader
 from touchline.ingest.parse import parse_competitions, parse_events, parse_lineups, parse_matches
@@ -237,6 +239,15 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     settings = get_settings()
+    # Checked before the source is opened and before any connection, so a blocked run costs
+    # nothing and cannot have touched the database on its way to the refusal. `--reset` needs no
+    # separate branch: it is strictly more destructive than a plain load, so the guard that covers
+    # the load covers it too.
+    try:
+        require_local_write_target(settings.db_url, command="ingest")
+    except RemoteWriteBlockedError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     try:
         require_direct_database_url(settings.db_url)
     except DirectDatabaseUrlRequiredError as exc:
