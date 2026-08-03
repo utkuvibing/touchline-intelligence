@@ -89,6 +89,7 @@ dependency — there is nothing extra to install on Windows.
 | `uv run poe typecheck` | mypy (strict) |
 | `uv run poe test` | pytest (integration tests skip unless the database is up) |
 | `uv run pytest -m integration` | Integration tests against the running PostgreSQL |
+| `uv run pytest -m full_cohort` | WP2.2 measured-evidence tests; needs `TOUCHLINE_FULL_COHORT_DB_URL` (see below) |
 | `uv run poe migrate` | Apply pending ordered PostgreSQL migrations (Neon requires its direct URL) |
 | `uv run poe ingest` | Idempotently merge the fixed four-tournament core cohort (Neon requires its direct URL) |
 | `uv run poe ingest --reset` | Destructively rebuild locally, then load the fixed core cohort |
@@ -126,6 +127,36 @@ TOUCHLINE_FULL_SOURCE=1 uv run pytest backend/tests/test_full_cohort_acceptance.
 It exercises populated-WP1.2 upgrade, full reconciliation, the WC 2022 public boundary, provider-xG
 absence, and an identical no-op rerun whose source-owned columns are fingerprinted across all four
 tournaments and all 16 source-derived tables.
+
+### Two different database promises
+
+`TOUCHLINE_DB_URL` and `TOUCHLINE_FULL_COHORT_DB_URL` are not interchangeable, and the difference
+is what a test is allowed to assume:
+
+| Variable | Promises | Satisfied by |
+|---|---|---|
+| `TOUCHLINE_DB_URL` | a reachable PostgreSQL | Docker Compose, CI's service container — either may be empty |
+| `TOUCHLINE_FULL_COHORT_DB_URL` | **this database already holds the ingested four-tournament cohort** | only a local database that has been migrated *and* ingested |
+
+Every other database-backed module builds what it needs in an isolated schema, so any empty
+PostgreSQL satisfies it. The WP2.2 measured-evidence tests are the exception: they read 5,606 rows
+that must already exist, because evidence measured on a different population is not evidence.
+
+```bash
+TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline' \
+    uv run pytest -m full_cohort
+```
+
+CI sets only the first variable. Its PostgreSQL is healthy but empty — CI never downloads or
+ingests the real dataset — so the measured-evidence tests skip there with that reason printed, and
+the reported 5,606-row numbers come from a local run. Keying them off `TOUCHLINE_DB_URL` instead
+made them execute against CI's empty database and fail on `UndefinedTable`; the gate is an
+environment contract checked before any connection, never an `UndefinedTable` caught mid-query and
+relabelled as a skip, which would hide a genuinely broken schema behind the same green tick.
+
+CI does apply the ordered migrations to its own database before the suite, so the schema-readiness
+checks assert against a current schema rather than reporting drift that is an artefact of the
+runner. That step is schema only: no download, no ingestion, no cohort.
 
 WP1.6 adds a focused two-clean-build fixture proof, separate from the full-source acceptance test.
 It starts an isolated schema from no tables, applies production migrations, runs production ingestion

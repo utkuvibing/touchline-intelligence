@@ -5,9 +5,10 @@
 -- Three questions this answers, none of which are safe to guess:
 --
 --   1. Does any eligible shot sit on or behind the goal line? `atan2` returns a negative angle for
---      x > GOAL_LINE_X, which breaks the angle invariant outright. The documented x = 120.1 event
---      in `docs/SCHEMA.md` is a Pass, not a Shot, but that is a statement about one event and not
---      about this population.
+--      x > GOAL_LINE_X, which breaks the angle invariant outright. `docs/SCHEMA.md` records that
+--      the pinned revision holds exactly one event at x = 120.1 but does not say what type of
+--      event it is, so whether it reaches this population was an open question. This query
+--      answered it: the event is a Shot, and it is in the cohort.
 --   2. Does any eligible shot sit exactly on a goalpost? There the two post vectors give
 --      cross = dot = 0 and Python's atan2(0.0, 0.0) returns 0.0 without complaint -- a silently
 --      wrong answer that a guard has to intercept.

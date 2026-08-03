@@ -8,6 +8,17 @@ not queried.
 This is descriptive geometry evidence. No split was created, no model was fitted, and no target
 column was read.
 
+Reproduce against a local database that has been migrated and ingested:
+
+```bash
+TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline' \
+    uv run pytest backend/tests/test_wp2_2_geometry_integration.py -m full_cohort
+```
+
+GitHub Actions does **not** run these tests. Its PostgreSQL service container is empty by design —
+CI never downloads or ingests the StatsBomb dataset — so `TOUCHLINE_FULL_COHORT_DB_URL` is unset
+there and the module skips with that reason stated. The numbers below come from a local run.
+
 ## Population
 
 `backend/sql/wp2_2/01_geometry_inputs.sql` returned **5,606 rows**, matching WP2.1's locked
@@ -64,8 +75,10 @@ Exactly **one** row of 5,606 received an adjusted coordinate:
 | `visible_goal_angle` | 0.0 |
 
 This is the same event `docs/SCHEMA.md` records as the pinned revision's measured event-coordinate
-exception. Its shot type is `Corner`, so the recorded location is the corner arc where the goal
-line meets the touchline; the 0.1 places it fractionally behind the goal line.
+exception. That document states the coordinate and identifies the event, but does not say what type
+of event it is; whether it reached the shot cohort was open until this audit measured it. Its shot
+type is `Corner`, so the recorded location is the corner arc where the goal line meets the
+touchline; the 0.1 places it fractionally behind the goal line.
 
 **The StatsBomb source data is not modified by this decision.** `events.location_x` still stores
 `120.1`, the ingestion contract and the `0.0 <= location_x <= 120.1` database constraint are

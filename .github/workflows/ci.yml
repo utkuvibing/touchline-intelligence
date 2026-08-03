@@ -40,6 +40,10 @@ jobs:
       # Setting this un-skips the integration tests; without it they are skipped, which is the
       # right default for a developer with no database running.
       TOUCHLINE_DB_URL: postgresql://touchline:localdev@localhost:5433/touchline
+      # TOUCHLINE_FULL_COHORT_DB_URL is deliberately NOT set. It gates the WP2.2 measured-evidence
+      # tests, which read the ingested four-tournament cohort. CI never downloads or loads the real
+      # StatsBomb dataset, so it has no cohort to read and those tests skip with a stated reason.
+      # Setting it here would make CI assert 5,606 rows against a database that has none.
 
     steps:
       - uses: actions/checkout@v7
@@ -54,6 +58,14 @@ jobs:
       # never locked cannot pass CI.
       - name: Install dependencies
         run: uv sync --locked
+
+      # The service container starts healthy but empty. Tests that build their own isolated schema
+      # do not care, but the readiness checks read the *default* schema and would see a database
+      # permanently "behind" this build — reporting drift that is an artefact of the runner rather
+      # than of the code. Applying the ordered migrations gives them a current schema to assert
+      # against. This is schema only: no StatsBomb download, no ingestion, no cohort.
+      - name: Apply ordered migrations to the CI database
+        run: uv run poe migrate
 
       # Deliberately the same single command as `uv run poe check` locally. If CI and local
       # commands drift apart, CI stops meaning anything.

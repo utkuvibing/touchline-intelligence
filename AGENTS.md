@@ -66,8 +66,10 @@ packages. The public API remains restricted to WC 2022.
 WP2.2 is **partially complete**. Slice A ships the two continuous geometry features — distance to
 the goal centre and the visible goal angle in a numerically stable two-post form — over exactly
 WP2.1's 5,606 rows. The goal constants are verified against StatsBomb Open Data Specification v1.1
-Appendix 2 rather than assumed, and the measurement found what an assumption would have hidden: the
-pinned revision's one `location_x = 120.1` event is a Shot inside the cohort, not a non-shot event.
+Appendix 2 rather than assumed, and the measurement found what an assumption would have hidden.
+`docs/SCHEMA.md` records that the pinned revision holds exactly one event at `location_x = 120.1`
+but never established its event type; the WP2.2 boundary audit measured that it is a **Shot**, and
+that it is inside the model cohort.
 It is handled by a bounded source-coordinate tolerance adjustment that changes the derived feature
 only and raises past the measured maximum instead of clamping; the StatsBomb source is unmodified.
 Evidence: [`reports/wp2.2-geometry-evidence.md`](reports/wp2.2-geometry-evidence.md); decisions:

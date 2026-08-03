@@ -1,14 +1,25 @@
 """Read-only cohort contract for the WP2.2 Slice A geometry.
 
-Unlike the WP2.1 integration test this module creates no schema, applies no migration and seeds no
-fixture. It opens a READ ONLY transaction against whatever database `TOUCHLINE_DB_URL` names and
-asserts against rows that are already there, so a write reaching this path fails at the database
-rather than succeeding quietly.
+Unlike every other database-backed module in this suite, this one creates no schema, applies no
+migration and seeds no fixture. It opens a READ ONLY transaction and asserts against 5,606 rows
+that must *already* be there — the measured evidence behind
+`reports/wp2.2-geometry-evidence.md` is only evidence if it was measured on the real cohort.
 
-Run against the local full-cohort database, never the deployed one:
+That makes it the one module a generic PostgreSQL cannot satisfy, so it is gated on its own
+variable rather than on `TOUCHLINE_DB_URL`:
 
-    TOUCHLINE_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline' \\
-        uv run pytest backend/tests/test_wp2_2_geometry_integration.py -m integration
+    TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline' \\
+        uv run pytest backend/tests/test_wp2_2_geometry_integration.py -m full_cohort
+
+`TOUCHLINE_DB_URL` means "a PostgreSQL is reachable", which CI's service container satisfies with
+an empty database; keying these tests off it made them run there and fail on `UndefinedTable`. The
+separate variable states the stronger fact they actually need: *this specific database holds the
+loaded four-tournament cohort.* Skipping is decided from the environment before any connection is
+opened — an `UndefinedTable` caught mid-query and reported as a skip would hide a genuinely broken
+schema behind the same green tick as a deliberately unconfigured one.
+
+Never point this at the deployed database. Every statement here is read-only, but the deployed
+instance holds a different population and would silently produce different evidence.
 """
 
 from __future__ import annotations
@@ -32,7 +43,11 @@ from touchline.features.geometry import (
     visible_goal_angle,
 )
 
-DB_URL = os.environ.get("TOUCHLINE_DB_URL")
+#: Deliberately NOT ``TOUCHLINE_DB_URL``. See the module docstring: that variable promises a
+#: reachable PostgreSQL, this one promises the loaded four-tournament cohort.
+FULL_COHORT_DB_URL_VAR = "TOUCHLINE_FULL_COHORT_DB_URL"
+
+DB_URL = os.environ.get(FULL_COHORT_DB_URL_VAR)
 SQL_DIR = Path(__file__).parents[1] / "sql" / "wp2_2"
 
 # WP2.1's locked population. WP2.2 derives features for exactly these rows and changes none of them.
@@ -44,7 +59,16 @@ MEASURED_EXCEPTION_SHOT_ID = "78116cc8-afbe-4bae-975b-57ce6983d045"
 
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(DB_URL is None, reason="TOUCHLINE_DB_URL is not set"),
+    pytest.mark.full_cohort,
+    pytest.mark.skipif(
+        DB_URL is None,
+        reason=(
+            f"{FULL_COHORT_DB_URL_VAR} is not set. These tests measure the loaded 5,606-row "
+            "four-tournament cohort and cannot run against an empty or fixture-only database. "
+            "Set it to a local PostgreSQL that has been migrated and ingested, e.g. "
+            "postgresql://touchline:localdev@localhost:5433/touchline"
+        ),
+    ),
 ]
 
 

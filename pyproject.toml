@@ -74,4 +74,8 @@ addopts = "-q --strict-markers"
 markers = [
     "integration: requires a running PostgreSQL (skipped unless TOUCHLINE_DB_URL is set)",
     "full_source: slow acceptance test over the cached pinned four-tournament source",
+    # Distinct from `integration`: those tests build what they need in an isolated schema, so any
+    # empty PostgreSQL satisfies them. These read a database that must already hold the ingested
+    # four-tournament cohort, which CI's service container deliberately does not.
+    "full_cohort: requires a database already holding the ingested four-tournament cohort (skipped unless TOUCHLINE_FULL_COHORT_DB_URL is set)",
 ]
