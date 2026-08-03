@@ -1,0 +1,50 @@
+Copyright (c) 2026 Utku Şahin. All rights reserved.
+
+This repository is published so that it can be READ — by potential employers,
+collaborators, reviewers, and investors. It is source-available, not open
+source. No open-source licence applies to it.
+
+WHAT YOU MAY DO
+
+  - View, read, and study the source code and documentation.
+  - Clone or fork the repository through GitHub for the purpose of reading and
+    evaluating the work, as permitted by GitHub's Terms of Service for public
+    repositories.
+  - Quote short excerpts with clear attribution when writing about, reviewing,
+    teaching from, or commenting on this project.
+
+WHAT YOU MAY NOT DO WITHOUT WRITTEN PERMISSION
+
+  - Use this software, or any substantial part of it, in any product, service,
+    project, or internal system — commercial or non-commercial.
+  - Copy, modify, merge, publish, distribute, sublicense, sell, or host it.
+  - Train machine-learning models on this repository's source code as a
+    substantial input to a model intended to reproduce or substitute for it.
+  - Remove or alter this notice, the authorship attribution, or the data-source
+    attribution.
+
+DATA IS NOT COVERED BY THIS NOTICE
+
+This repository contains no match data. It reads StatsBomb Open Data, which is
+owned by StatsBomb / Hudl and governed exclusively by their own Public Data
+User Agreement. Nothing here grants any right to that data. See DATA_SOURCE.md
+before touching it, and obtain the data from its official source under its own
+terms.
+
+Committed test fixtures are synthetic, fictional data written for this project.
+
+NO WARRANTY
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT
+OF, OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+PERMISSION REQUESTS
+
+Want to use part of this? Ask — the answer is often yes. Open an issue on the
+repository, or reach the author here:
+
+  Utku Şahin
+  https://www.linkedin.com/in/utku-%C5%9Fahin-696397210/

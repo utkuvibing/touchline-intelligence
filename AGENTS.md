@@ -95,7 +95,8 @@ caught are not substitutes for that review, and this sentence stays here until i
 | [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from 30 real job postings |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosts, cost, environment variables, order of operations, failure modes |
 | [`CLAUDE.md`](CLAUDE.md) | Standing working agreement for AI agents on this repo |
-| [`README.md`](README.md) | Setup, commands, current limitations |
+| [`README.md`](README.md) | Public project introduction — what it is, features, architecture, quick start, credits |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Full command matrix, testing contract, ingestion internals, endpoint semantics, current limitations |
 
 `.scratch/` holds planning records and is git-ignored. Durable decisions are promoted to
 `docs/adr/`; nothing in `.scratch/` is authoritative.
