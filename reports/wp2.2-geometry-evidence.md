@@ -74,7 +74,7 @@ Exactly **one** row of 5,606 received an adjusted coordinate:
 | `distance_to_goal` | 39.2 |
 | `visible_goal_angle` | 0.0 |
 
-This is the same event `docs/SCHEMA.md` records as the pinned revision's measured event-coordinate
+This is the same event `DATA_SOURCE.md` records as the pinned revision's measured event-coordinate
 exception. That document states the coordinate and identifies the event, but does not say what type
 of event it is; whether it reached the shot cohort was open until this audit measured it. Its shot
 type is `Corner`, so the recorded location is the corner arc where the goal line meets the

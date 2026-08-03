@@ -37,7 +37,7 @@ import math
 # (120, 36, 0), (120, 44, 0), (120, 36, 2.67) and (120, 44, 2.67).
 #
 # Both appendix pages carry these numbers as diagrams rather than prose, so they are recorded here
-# and in docs/modeling/wp2_2-geometry-contract.md instead of being left implicit in the formulas.
+# and in reports/wp2.2-geometry-evidence.md instead of being left implicit in the formulas.
 # ---------------------------------------------------------------------------
 
 PITCH_LENGTH = 120.0
@@ -50,7 +50,7 @@ RIGHT_POST_Y = 44.0
 GOAL_WIDTH = RIGHT_POST_Y - LEFT_POST_Y
 CROSSBAR_Z = 2.67  # Recorded for completeness; Slice A is two-dimensional and never reads it.
 
-# The one measured source-coordinate exception. DATA_SOURCE.md and docs/SCHEMA.md record that the
+# The one measured source-coordinate exception. DATA_SOURCE.md records that the
 # pinned revision stores exactly one event at location_x = 120.1, and the WP2.2 boundary audit
 # measured that this event is a Shot inside the model cohort. See `effective_location` below.
 MEASURED_MAX_SOURCE_X = 120.1

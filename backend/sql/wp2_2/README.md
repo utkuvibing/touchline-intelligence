@@ -19,7 +19,7 @@ Neither creates schema, applies migrations, seeds fixtures, or writes anything.
 
 The measured output is recorded in [`reports/wp2.2-geometry-evidence.md`](../../../reports/wp2.2-geometry-evidence.md);
 the decisions it supports are in
-[`docs/modeling/wp2_2-geometry-contract.md`](../../../docs/modeling/wp2_2-geometry-contract.md).
+[`reports/wp2.2-geometry-evidence.md`](../../../reports/wp2.2-geometry-evidence.md).
 
 These queries define no split, no model feature set, and no evaluation baseline. Those belong to
 WP2.2 Slice B, WP2.3 and WP2.4.

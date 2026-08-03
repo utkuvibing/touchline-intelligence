@@ -7,6 +7,7 @@ from collections.abc import Iterator
 
 import psycopg
 import pytest
+from support.db_safety import connect_local
 
 from touchline.ingest.migrate import MigrationDriftError, apply_migrations, read_migrations
 
@@ -25,7 +26,7 @@ pytestmark = [
 @pytest.fixture
 def conn() -> Iterator[psycopg.Connection]:
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as connection:
+    with connect_local(DB_URL) as connection:
         with connection.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')

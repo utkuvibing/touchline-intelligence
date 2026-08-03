@@ -12,7 +12,8 @@ $queries | Get-Content | docker exec -i touchline-postgres psql -X -v ON_ERROR_S
 
 Each query states its question, output grain, join strategy, and NULL interpretation in its header.
 The checked full-cohort results and query-plan evidence live in
-[`docs/analysis/wp1_5_sql_analysis_pack.md`](../../../docs/analysis/wp1_5_sql_analysis_pack.md).
+each query file's own header, which records its grain, join strategy, NULL behaviour and
+interpretation boundary.
 
 Important boundaries:
 

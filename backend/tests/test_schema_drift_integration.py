@@ -27,6 +27,7 @@ from collections.abc import Iterator
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from support.db_safety import connect_local
 
 from touchline import schema_state
 from touchline.ingest.migrate import apply_migrations, read_migrations
@@ -62,7 +63,7 @@ def _drop_schema(conn: psycopg.Connection) -> None:
 def behind_conn() -> Iterator[psycopg.Connection]:
     """The unversioned M0 schema: the five original tables, and no `events`."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as conn:
+    with connect_local(DB_URL) as conn:
         _fresh_schema(conn)
         with conn.cursor() as cur:
             cur.execute(read_migrations()[0].sql)
@@ -77,7 +78,7 @@ def behind_conn() -> Iterator[psycopg.Connection]:
 def current_conn() -> Iterator[psycopg.Connection]:
     """The schema this build's queries were written against."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as conn:
+    with connect_local(DB_URL) as conn:
         _fresh_schema(conn)
         apply_migrations(conn)
         conn.commit()

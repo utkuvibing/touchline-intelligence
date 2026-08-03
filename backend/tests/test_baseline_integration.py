@@ -19,6 +19,7 @@ from pathlib import Path
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from support.db_safety import connect_local
 
 from touchline import baseline
 from touchline.ingest import load as loader
@@ -51,7 +52,7 @@ def fixture_data() -> CollectedScope:
 def loaded_conn(fixture_data: CollectedScope) -> Iterator[psycopg.Connection]:
     """A connection with the fixture loaded into a throwaway schema."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as conn:
+    with connect_local(DB_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')
@@ -87,7 +88,7 @@ def loaded_conn(fixture_data: CollectedScope) -> Iterator[psycopg.Connection]:
 def empty_conn() -> Iterator[psycopg.Connection]:
     """A connection with the schema created but no rows loaded."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as conn:
+    with connect_local(DB_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')

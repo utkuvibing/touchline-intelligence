@@ -13,6 +13,7 @@ from typing import Any
 
 import psycopg
 import pytest
+from support.db_safety import connect_local
 
 from touchline.ingest.cli import SourceCounts
 from touchline.ingest.migrate import apply_migrations, read_migrations
@@ -54,14 +55,14 @@ pytestmark = [
 def connection_factory() -> Iterator[Callable[[], psycopg.Connection]]:
     """Give the proof an empty, disposable schema and no access to loaded developer data."""
     assert DB_URL is not None
-    with psycopg.connect(DB_URL) as setup, setup.cursor() as cur:
+    with connect_local(DB_URL) as setup, setup.cursor() as cur:
         cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
         cur.execute(f'CREATE SCHEMA "{TEST_SCHEMA}"')
         setup.commit()
 
     def factory() -> psycopg.Connection:
         assert DB_URL is not None
-        connection = psycopg.connect(DB_URL)
+        connection = connect_local(DB_URL)
         with connection.cursor() as cur:
             cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
         connection.commit()
@@ -70,7 +71,7 @@ def connection_factory() -> Iterator[Callable[[], psycopg.Connection]]:
     try:
         yield factory
     finally:
-        with psycopg.connect(DB_URL) as cleanup, cleanup.cursor() as cur:
+        with connect_local(DB_URL) as cleanup, cleanup.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             cleanup.commit()
 

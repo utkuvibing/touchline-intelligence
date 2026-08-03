@@ -9,14 +9,13 @@ with an evidence trail behind every number.
 
 [**Live app**](https://touchline-intelligence.vercel.app) ·
 [**API docs**](https://touchline-intelligence-production.up.railway.app/docs) ·
-[Development guide](docs/DEVELOPMENT.md) ·
-[Plan & roadmap](docs/PLAN.md)
+[Data source & coverage](DATA_SOURCE.md)
 
 `Python 3.12` · `FastAPI` · `PostgreSQL` · `Next.js 16` · `TypeScript` · `Docker`
 
 </div>
 
-![Touchline Intelligence dashboard showing the World Cup 2022 shot map and recorded conversion summary](docs/assets/touchline-dashboard.png)
+![Touchline Intelligence dashboard showing the World Cup 2022 shot map and recorded conversion summary](assets/touchline-dashboard.png)
 
 ---
 
@@ -138,8 +137,13 @@ uv run poe api
 The API is then on `http://localhost:8000` (docs at `/docs`), and `npm --prefix frontend run dev`
 serves the interface on `http://localhost:3000`.
 
-Full command matrix, testing contract, ingestion internals, and endpoint semantics live in the
-[**development guide**](docs/DEVELOPMENT.md).
+`uv run poe check` runs what CI runs: format check, lint, strict type check and the test suite.
+`uv run poe quality` re-audits an ingested database against the source and writes a report to
+`reports/`.
+
+Database-backed tests build their own schema and refuse any target that is not a local PostgreSQL,
+so pointing `TOUCHLINE_DB_URL` at a hosted database fails before a connection is opened rather than
+mutating it.
 
 ## Repository layout
 
@@ -150,9 +154,9 @@ backend/tests/           pytest — unit, integration, data-quality, reproducibi
 frontend/                Next.js + TypeScript + Vitest
 infra/                   Docker Compose for local PostgreSQL
 data/provenance/         Committed source manifests (commit SHA + per-file hashes)
-docs/                    Plan, schema, ADRs, research, experiment records, releases
 scripts/                 Documented developer entry points
 reports/                 Generated quality and evidence reports
+assets/                  Images used by this README
 ```
 
 ## Roadmap
@@ -165,36 +169,20 @@ reports/                 Generated quality and evidence reports
 | **M3** Analyst interface & serving | Prediction API with model versioning, full analyst UI with calibration views, deployment hardening | ⬜ Planned |
 | **M4** Release & communication | Technical write-up, stakeholder summary, model card, demo | ⬜ Planned |
 
-Detail, acceptance criteria, and the reasoning behind each scope decision are in
-[`docs/PLAN.md`](docs/PLAN.md).
-
 ## How this project works
 
 A few working rules that shape everything in here — they are the reason some obvious features are
-missing and some documentation is not optional:
+deliberately absent:
 
 - **No unevaluated number is presented as a result.** The API's conversion rate says in its own
   payload that it is a description of loaded data, not a prediction.
 - **The shot map encodes recorded outcomes only** — uniform marker size, no colour ramp. Both are
   how expected-goals maps draw a *model output*, and there is no model yet.
-- **Tests protect named contracts, not coverage percentages.** A mutation script has already caught
-  three tests that passed for the wrong reason.
-- **Decisions that are expensive to reverse become ADRs**, with the evidence and the trigger that
-  would reopen them.
-
-## Documentation
-
-| Document | What it covers |
-|---|---|
-| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Commands, testing contract, ingestion internals, endpoint semantics, known gaps |
-| [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design |
-| [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, terms review, coverage inventory, data dictionary |
-| [`docs/SCHEMA.md`](docs/SCHEMA.md) | ERD, table grain, migrations, constraints |
-| [`CONTEXT.md`](CONTEXT.md) | Canonical domain language |
-| [`docs/adr/`](docs/adr/) | Architecture decision records |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Railway + Neon setup, environment variables, smoke test |
-| [`docs/experiments/README.md`](docs/experiments/README.md) | Experiment record format and comparison rules |
-| [`AGENTS.md`](AGENTS.md) | Working agreement for AI agents contributing to this repo |
+- **Tests protect named contracts, not coverage percentages.** A mutation script breaks each
+  protected behaviour on purpose and has already caught three tests that passed for the wrong
+  reason.
+- **Measured evidence is committed, not summarised.** The reconciliation and geometry reports under
+  `reports/` are the output of real runs against the pinned source.
 
 ## Credits & attribution
 
