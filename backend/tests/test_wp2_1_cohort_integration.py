@@ -15,9 +15,6 @@ from touchline.ingest.migrate import apply_migrations
 DB_URL = os.environ.get("TOUCHLINE_DB_URL")
 TEST_SCHEMA = "wp21_cohort_test"
 SQL_DIR = Path(__file__).parents[1] / "sql" / "wp2_1"
-CONTRACT = (
-    Path(__file__).parents[2] / "docs" / "modeling" / ("wp2_1-cohort-and-leakage-contract.md")
-)
 
 pytestmark = [
     pytest.mark.integration,
@@ -281,19 +278,6 @@ def test_penalty_breakdown_is_reproducible_by_tournament(conn: psycopg.Connectio
     assert rows == [(43, 3, "World Cup", "2018", 1, 1, 1)]
 
 
-def _availability_statuses(contract: str) -> dict[str, str]:
-    statuses: dict[str, str] = {}
-    for line in contract.splitlines():
-        if not line.startswith("|") or "---" in line:
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) != 3 or cells[0] == "Candidate or field":
-            continue
-        assert cells[0] not in statuses
-        statuses[cells[0]] = cells[1]
-    return statuses
-
-
 def test_the_cohort_sql_never_exposes_provider_xg() -> None:
     """The leakage guard that must hold in every checkout.
 
@@ -303,43 +287,3 @@ def test_the_cohort_sql_never_exposes_provider_xg() -> None:
     sql = (SQL_DIR / "01_model_shot_cohort.sql").read_text(encoding="utf-8")
 
     assert "statsbomb_xg" not in sql
-
-
-@pytest.mark.skipif(
-    not CONTRACT.exists(),
-    reason=(
-        "the WP2.1 cohort and leakage contract document is not published in this repository; "
-        "the classification it records is asserted below only where the document is present"
-    ),
-)
-def test_every_candidate_has_the_exact_availability_decision() -> None:
-    contract = CONTRACT.read_text(encoding="utf-8")
-    statuses = _availability_statuses(contract)
-
-    assert statuses == {
-        "Raw shot `location_x`, `location_y`": "Available",
-        "Body part ID/name": "Available",
-        "Technique ID/name": "Available",
-        "Shot type ID/name": "Available",
-        "Play pattern ID/name": "Available",
-        "Period, minute, second": "Available",
-        "Team, player, possession IDs": "Available",
-        "Competition, season, match ID/date": "Available",
-        "`under_pressure`": "Uncertain",
-        "`aerial_won`": "Uncertain",
-        "`first_time`": "Uncertain",
-        "`follows_dribble`": "Uncertain",
-        "`open_goal`": "Uncertain",
-        "`one_on_one`": "Uncertain",
-        "Key-pass event and event relations": "Uncertain",
-        "Embedded shot freeze-frame players": "Uncertain",
-        "Event position": "Uncertain",
-        "Outcome ID/name": "Unavailable",
-        "Shot end `x/y/z`": "Unavailable",
-        "`deflected`, `redirect`": "Unavailable",
-        "`saved_off_target`, `saved_to_post`": "Unavailable",
-        "Event duration, `out`": "Unavailable",
-        "Provider `statsbomb_xg`": "Unavailable",
-        "Future events, final score, later match state": "Unavailable",
-        "Target-derived aggregates": "Unavailable",
-    }

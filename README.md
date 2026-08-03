@@ -141,9 +141,9 @@ serves the interface on `http://localhost:3000`.
 `uv run poe quality` re-audits an ingested database against the source and writes a report to
 `reports/`.
 
-Database-backed tests build their own schema and refuse any target that is not a local PostgreSQL,
-so pointing `TOUCHLINE_DB_URL` at a hosted database fails before a connection is opened rather than
-mutating it.
+Database-mutating integration tests build isolated schemas and refuse any non-local target before a
+connection is opened. Read-only full-cohort evidence tests use a separate explicit database variable
+and READ ONLY transactions.
 
 ## Repository layout
 

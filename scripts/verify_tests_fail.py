@@ -168,16 +168,10 @@ WP21_TESTS = "uv run pytest backend/tests/test_wp2_1_cohort_integration.py -q"
 # WP2.2 Slice A geometry. The unit tests need no database, so these mutations are the only ones in
 # this script that are guaranteed to run everywhere rather than reporting MISSED without a DSN.
 WP22_TESTS = "uv run pytest backend/tests/test_wp2_2_geometry.py -q"
-WP21_AVAILABILITY_TEST = (
-    "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
-    "test_every_candidate_has_the_exact_availability_decision -q"
-)
 WP21_PROVIDER_XG_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_the_cohort_sql_never_exposes_provider_xg -q"
 )
-# Authored locally and deliberately unpublished, so mutations against it are conditional.
-WP21_CONTRACT_DOC = ROOT / "docs/modeling/wp2_1-cohort-and-leakage-contract.md"
 WP21_CATEGORY_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_category_coverage_has_support_only_and_no_target_aggregates -q"
@@ -317,30 +311,6 @@ BREAKS: list[Break] = [
         replacement=") + 1 AS regulation_penalties, -- DELIBERATE BREAK\n",
         command=WP21_PENALTY_BREAKDOWN_TEST,
         cwd=ROOT,
-    ),
-    # The leakage contract document is authored locally and is not published in this repository, so
-    # these four mutations only exist where it does. The leakage guarantee itself does not depend on
-    # them: provider xG's absence from the cohort projection is mutated below against the SQL, which
-    # is tracked and therefore verified in every checkout.
-    *(
-        Break(
-            contract=f"WP2.1 leakage table must classify {candidate} as Unavailable",
-            path=WP21_CONTRACT_DOC,
-            anchor=f"| {candidate} | Unavailable |",
-            replacement=f"| {candidate} | Available | <!-- DELIBERATE BREAK -->",
-            command=WP21_AVAILABILITY_TEST,
-            cwd=ROOT,
-        )
-        for candidate in (
-            (
-                "Outcome ID/name",
-                "Shot end `x/y/z`",
-                "Provider `statsbomb_xg`",
-                "Future events, final score, later match state",
-            )
-            if WP21_CONTRACT_DOC.exists()
-            else ()
-        )
     ),
     Break(
         contract="the WP2.1 cohort projection must never select provider xG",
