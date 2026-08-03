@@ -2,7 +2,8 @@
 
 **Supersedes:** `PLAN-v1-superseded.md` and `phases/phase-0..5-*.md`. Those files remain on disk as
 reference; where they conflict with this document, this document wins.
-**Companion:** [`TARGETING.md`](TARGETING.md) — role fit tiers, employers, artifact↔requirement mapping.
+**Companion:** a private targeting note — role fit tiers, employers, artifact↔requirement mapping.
+It concerns the author's job search rather than the software, and is deliberately not published.
 
 ## How to read this plan
 
@@ -45,8 +46,8 @@ StatsBomb Open Data JSON
 ### Why this shape
 
 Scope is driven by a scan of 30 real job postings across clubs, data providers, betting/trading and
-general applied-ML. Methodology and results:
-[`research/job-market-methodology.md`](research/job-market-methodology.md).
+general applied-ML. The methodology and full frequency results are kept in a private research note;
+the conclusions that shaped this plan are reproduced below.
 
 | Requirement | Essential in | Consequence |
 |---|---:|---|
@@ -65,7 +66,7 @@ Two findings shaped the sequence more than any technology choice:
 1. **The most reachable role shape is engineering, not data science.** M1 is therefore a first-class
    milestone, not a warm-up for the model.
 2. **Personal projects count as evidence in junior/graduate postings**, several of which state it
-   outright. No mid/senior posting does. Targeting follows this in `TARGETING.md`.
+   outright. No mid/senior posting does. The private targeting note follows this.
 
 ---
 
@@ -264,7 +265,7 @@ correctly; a rebuild from an empty database is documented and has been performed
 | 4.2 | **Non-technical stakeholder summary** — the "explain this to a coach" artifact (§6) |
 | 4.3 | Demo video in English + screenshots |
 | 4.4 | README, repo tidy, final model card, attribution audit |
-| 4.5 | CV rewrite against `TARGETING.md`; application list; tracking sheet |
+| 4.5 | CV rewrite against the private targeting note; application list; tracking sheet |
 
 **Must be able to defend:** every claim in §6's CV list, out loud, without notes — and the
 limitations section as fluently as the results.
@@ -456,7 +457,7 @@ Constraints established by research:
 - Store Parquet. **Do not load tracking into PostgreSQL.**
 - Licence care: PFF FC terms could not be verified (HTTP 530 at check time) — write no code against
   it until the actual agreement is read. Metrica has no formal licence: use, do not redistribute.
-- If it does not happen, the gap is stated plainly in `TARGETING.md` rather than papered over.
+- If it does not happen, the gap is stated plainly in the targeting note rather than papered over.
 
 **A StatsBomb 360 freeze frame is not tracking data and is never presented as such.**
 

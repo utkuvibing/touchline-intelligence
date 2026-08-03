@@ -4,6 +4,12 @@
 # Local knowledge-graph output from the graphify tool. Regenerated on demand, never authoritative.
 graphify-out/
 
+# Author-private material. Kept locally, never published: it documents the job search behind the
+# project rather than the project itself, and the CV carries personal contact details.
+docs/TARGETING.md
+docs/research/job-market-methodology.md
+docs/*.pdf
+
 # Python
 __pycache__/
 *.py[cod]

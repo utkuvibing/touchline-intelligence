@@ -87,12 +87,12 @@ caught are not substitutes for that review, and this sentence stays here until i
 | Document | Owns |
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, and per-milestone "must be able to defend" lists |
-| [`docs/TARGETING.md`](docs/TARGETING.md) | Role fit tiers, employers, visa reality, artifact↔requirement mapping |
+| `docs/TARGETING.md` *(local only, git-ignored)* | Role fit tiers, employers, visa reality, artifact↔requirement mapping |
 | [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, data dictionary, publication gates |
 | [`CONTEXT.md`](CONTEXT.md) | Canonical domain terms and meanings |
 | [`docs/SCHEMA.md`](docs/SCHEMA.md) | ERD, table grain, migration lifecycle, constraints, and validation boundaries |
 | [`docs/adr/`](docs/adr/) | Decisions that are expensive to reverse, with the evidence and the review trigger |
-| [`docs/research/job-market-methodology.md`](docs/research/job-market-methodology.md) | How scope was decided from 30 real job postings |
+| `docs/research/job-market-methodology.md` *(local only, git-ignored)* | How scope was decided from 30 real job postings |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosts, cost, environment variables, order of operations, failure modes |
 | [`CLAUDE.md`](CLAUDE.md) | Standing working agreement for AI agents on this repo |
 | [`README.md`](README.md) | Public project introduction — what it is, features, architecture, quick start, credits |

@@ -16,6 +16,8 @@ with an evidence trail behind every number.
 
 </div>
 
+![Touchline Intelligence dashboard showing the World Cup 2022 shot map and recorded conversion summary](docs/assets/touchline-dashboard.png)
+
 ---
 
 ## What this is
@@ -104,11 +106,17 @@ Two things this project deliberately does **not** do:
 You need [uv](https://docs.astral.sh/uv/), Node.js 24, and Docker Desktop.
 
 ```bash
-git clone <repo-url> && cd "football ml"
+git clone https://github.com/utkuvibing/touchline-intelligence.git
 ```
 
 ```bash
-cp .env.example .env && uv sync && (cd frontend && npm ci)
+cd touchline-intelligence
+```
+
+```bash
+cp .env.example .env
+uv sync
+npm --prefix frontend ci
 ```
 
 ```bash
@@ -116,14 +124,18 @@ docker compose -f infra/docker-compose.yml up -d
 ```
 
 ```bash
-uv run poe migrate && uv run poe ingest
+uv run poe migrate
+uv run poe ingest
 ```
+
+`ingest` downloads the pinned 465-file StatsBomb snapshot on first run, so give it a few minutes;
+reruns are no-ops.
 
 ```bash
 uv run poe api
 ```
 
-The API is then on `http://localhost:8000` (docs at `/docs`), and `cd frontend && npm run dev`
+The API is then on `http://localhost:8000` (docs at `/docs`), and `npm --prefix frontend run dev`
 serves the interface on `http://localhost:3000`.
 
 Full command matrix, testing contract, ingestion internals, and endpoint semantics live in the
@@ -225,7 +237,7 @@ built here is an independent estimate from open data.
 
 ### Author
 
-Built by **Utku Şahin** as a public, defensible portfolio project in football analytics and applied
+Built by **Utku Şahin** as an end-to-end portfolio project in football analytics and applied
 machine learning. Questions, corrections, and pointed criticism are all welcome — open an issue or
 get in touch:
 

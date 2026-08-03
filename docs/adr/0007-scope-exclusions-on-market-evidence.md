@@ -9,8 +9,8 @@ Accepted — 2026-07-31
 Scope decisions on a portfolio project are usually made from general industry advice, which is a poor
 guide because it describes the whole software market rather than the specific segments being targeted.
 A scan of 30 real postings across clubs, data providers, betting/trading and general applied-ML
-produced frequency data specific to these segments
-([`research/job-market-methodology.md`](../research/job-market-methodology.md)).
+produced frequency data specific to these segments. The scan methodology and frequency tables
+are kept in a private research note; the decisions they produced are recorded here.
 
 Several widely-recommended technologies turned out to be absent from this market, and one assumption
 carried in earlier planning was measurably wrong.
