@@ -6,7 +6,11 @@ from collections.abc import Callable
 
 import pytest
 
-from touchline.config import Settings, require_direct_database_url
+from touchline.config import (
+    REMOTE_WRITE_OVERRIDE_VAR,
+    Settings,
+    require_direct_database_url,
+)
 from touchline.ingest import cli, migrate
 
 POOLED_DSN = (
@@ -17,6 +21,7 @@ DIRECT_DSN = (
     "postgresql://operator:super-secret@"
     "ep-touchline.eu-central-1.aws.neon.tech/touchline?sslmode=require"
 )
+POOLED_TARGET = "ep-touchline-pooler.eu-central-1.aws.neon.tech/touchline"
 
 
 def _unexpected_work(*args: object, **kwargs: object) -> None:
@@ -48,7 +53,16 @@ def test_operator_commands_reject_neon_pooler_before_any_work(
     command: Callable[[], int],
     patch_source: bool,
 ) -> None:
+    """The pooled-endpoint policy, isolated from the write-target guard.
+
+    Ingestion now refuses any non-local target first, and a Neon pooler host is non-local, so this
+    test would otherwise measure the newer guard instead of the endpoint rule it was written for.
+    Supplying the deliberate override reproduces the situation the endpoint rule actually governs:
+    an operator who has decided to write to Neon and reached for the wrong endpoint flavour.
+    Migration is not covered by the write-target guard, so it needs no override here.
+    """
     monkeypatch.setenv("TOUCHLINE_DB_URL", POOLED_DSN)
+    monkeypatch.setenv(REMOTE_WRITE_OVERRIDE_VAR, POOLED_TARGET)
     monkeypatch.setattr("psycopg.connect", _unexpected_work)
     if patch_source:
         monkeypatch.setattr(cli, "StatsBombSource", _unexpected_work)

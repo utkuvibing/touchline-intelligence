@@ -32,7 +32,7 @@ dependency — there is nothing extra to install on Windows.
 | `uv run pytest -m integration` | Integration tests against the running PostgreSQL |
 | `uv run pytest -m full_cohort` | WP2.2 measured-evidence tests; needs `TOUCHLINE_FULL_COHORT_DB_URL` (see below) |
 | `uv run poe migrate` | Apply pending ordered PostgreSQL migrations (Neon requires its direct URL) |
-| `uv run poe ingest` | Idempotently merge the fixed four-tournament core cohort (Neon requires its direct URL) |
+| `uv run poe ingest` | Idempotently merge the fixed four-tournament core cohort (local target only by default — see below) |
 | `uv run poe ingest --reset` | Destructively rebuild locally, then load the fixed core cohort |
 | `uv run poe quality` | Independent read-only data-quality audit and reconciliation report |
 | `uv run poe reproducibility-fixture` | Check fixture bytes and prove two isolated, network-free clean rebuilds agree (requires local PostgreSQL for the integration half) |
@@ -43,6 +43,50 @@ dependency — there is nothing extra to install on Windows.
 | `cd frontend && npm run typecheck` | tsc |
 | `cd frontend && npm run lint` | ESLint |
 | `uv run python scripts/smoke_deployed.py --api ... --frontend ...` | Smoke-test a deployed instance |
+
+### Writing to a database that is not local
+
+`poe ingest` writes application data. It refuses to run unless `TOUCHLINE_DB_URL` points at a local
+PostgreSQL, and prints the target it refused:
+
+```
+Refusing to run 'ingest' against the non-local database ep-xxx.eu-central-1.aws.neon.tech/touchline.
+```
+
+The accident this prevents is ordinary. `.env` ends up holding a deployment DSN for some legitimate
+reason — checking a report, reproducing a bug — and a later `uv run poe ingest`, typed while
+thinking about the Docker Compose database, rewrites the deployed one instead. Nothing in the
+command or its output distinguishes the two beforehand.
+
+Three properties are deliberate:
+
+- **Classification comes from the DSN, never from `TOUCHLINE_ENVIRONMENT`.** That label is
+  free-text and surfaced by `/health`; it can read `local` while the DSN points at a managed
+  deployment. A guard that trusted it would fail exactly when the label is the thing that is wrong.
+- **Unrecognised targets are refused**, not assumed local, so a new deployment topology has to be
+  admitted deliberately rather than inheriting permission by omission.
+- **Staging is treated like production.** One rule, no allow-list to maintain — the run that hurts
+  is the one against a host nobody remembered to add to the list.
+
+To write to a non-local database on purpose, name that exact database for the one run:
+
+```bash
+TOUCHLINE_ALLOW_REMOTE_WRITES='ep-xxx.eu-central-1.aws.neon.tech/touchline' uv run poe ingest
+```
+
+A generic `1` or `true` is rejected. Such a value can be left exported from an unrelated experiment
+and would then silently disarm the guard for every later command; a value naming one specific
+database cannot be reused by accident against a different one. Supply it inline per command rather
+than exporting it into the shell.
+
+Two things are outside this guard on purpose:
+
+- **`poe migrate`.** Applying ordered migrations to the deployed database is a documented operator
+  step ([`DEPLOYMENT.md`](DEPLOYMENT.md) step 1) that changes structure, not application data.
+  Blocking it as a side effect of protecting ingestion would break the release runbook. Assessed
+  separately; a test records the decision so it cannot drift silently.
+- **Read-only workflows.** `poe quality`, the WP1.5/WP2.1/WP2.2 analysis queries and
+  `scripts/smoke_deployed.py` are expected to run against a deployment and are untouched.
 
 ### Ops endpoints
 
