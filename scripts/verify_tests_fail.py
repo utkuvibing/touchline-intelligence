@@ -141,6 +141,9 @@ INGEST_SCOPE_EVIDENCE_TEST = (
 )
 WP15_TESTS = "uv run pytest backend/tests/test_wp1_5_analysis_integration.py -q"
 WP21_TESTS = "uv run pytest backend/tests/test_wp2_1_cohort_integration.py -q"
+# WP2.2 Slice A geometry. The unit tests need no database, so these mutations are the only ones in
+# this script that are guaranteed to run everywhere rather than reporting MISSED without a DSN.
+WP22_TESTS = "uv run pytest backend/tests/test_wp2_2_geometry.py -q"
 WP21_AVAILABILITY_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_every_candidate_has_the_exact_availability_decision -q"
@@ -1245,6 +1248,58 @@ BREAKS: list[Break] = [
         replacement="    return LOCAL_API_BASE; // DELIBERATE BREAK\n",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
+    ),
+    # WP2.2 Slice A. Each break is one of the ways the geometry could look right and be wrong:
+    # the quadrant collapse the two-post form exists to prevent, a wrong constant, a distance that
+    # ignores one axis, and each of the three guards that keep an undefined input from returning a
+    # plausible number.
+    Break(
+        contract="the visible goal angle must recover the quadrant, not collapse it to a ratio",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="    return math.atan2(cross, dot)\n",
+        replacement="    return math.atan(cross / dot)  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="goalpost coordinates must match the StatsBomb specification",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="LEFT_POST_Y = 36.0\n",
+        replacement="LEFT_POST_Y = 35.0  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="distance to goal must use both axes",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="    return math.hypot(GOAL_LINE_X - effective_x, y - GOAL_CENTRE_Y)\n",
+        replacement="    return abs(GOAL_LINE_X - effective_x)  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a shot exactly on a goalpost must raise, not report a visible angle of zero",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="    if effective_x == GOAL_LINE_X and y in (LEFT_POST_Y, RIGHT_POST_Y):\n",
+        replacement="    if False:  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="the source-coordinate tolerance adjustment must stay bounded, never clamp",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="    elif x <= MEASURED_MAX_SOURCE_X + COORDINATE_TOLERANCE:\n",
+        replacement="    elif True:  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="a location off the pitch must raise rather than produce a feature",
+        path=ROOT / "backend/src/touchline/features/geometry.py",
+        anchor="    if not 0.0 <= y <= PITCH_WIDTH:\n",
+        replacement="    if False:  # DELIBERATE BREAK\n",
+        command=WP22_TESTS,
+        cwd=ROOT,
     ),
 ]
 

@@ -46,6 +46,7 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 1.5 SQL analysis pack and measured query plans | done — 10 read-only queries, full-cohort results, two measured plans and rejected speculative index; focused tests, mutation verification and independent Sol review passed |
 | 1.6 deterministic fixture, integration proof, clean rebuild | done — fixture byte pinning, network-free two-clean-build proof, full-cohort clean rebuild and no-op rerun, release evidence, mutation verification and independent Sol review passed |
 | 2.1 model cohort, target, exclusions, penalty and leakage contract | done — versioned read-only SQL, full-cohort reconciliation, feature availability review, mutation verification and independent Sol review passed |
+| 2.2 geometry and feature pipeline | **partial — Slice A only.** Distance and visible goal angle shipped with source-verified constants, full-cohort read-only evidence and 6/6 mutation verification. Slice B (categorical/context features, training-only preprocessing, training/serving contract) not started. **Independent Sol review not yet run.** |
 
 M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
 four-tournament cohort, idempotent conflict policy
@@ -61,6 +62,23 @@ non-penalty shots and 507 goals, keeps all 223 penalties and own-goal events vis
 reconciliation evidence, and records an available/uncertain/unavailable decision for every proposed
 feature family. It creates no split, model, or performance claim; those begin in later M2 work
 packages. The public API remains restricted to WC 2022.
+
+WP2.2 is **partially complete**. Slice A ships the two continuous geometry features — distance to
+the goal centre and the visible goal angle in a numerically stable two-post form — over exactly
+WP2.1's 5,606 rows. The goal constants are verified against StatsBomb Open Data Specification v1.1
+Appendix 2 rather than assumed, and the measurement found what an assumption would have hidden: the
+pinned revision's one `location_x = 120.1` event is a Shot inside the cohort, not a non-shot event.
+It is handled by a bounded source-coordinate tolerance adjustment that changes the derived feature
+only and raises past the measured maximum instead of clamping; the StatsBomb source is unmodified.
+Evidence: [`reports/wp2.2-geometry-evidence.md`](reports/wp2.2-geometry-evidence.md); decisions:
+[`docs/modeling/wp2_2-geometry-contract.md`](docs/modeling/wp2_2-geometry-contract.md).
+
+Two things are outstanding before WP2.2 can be called done, and neither is a formality. Slice B —
+categorical and context features, coverage and semantics decisions for WP2.1's `Uncertain` fields,
+training-only preprocessing, and the training/serving feature contract — has not started. And
+Slice A has **not** received its independent Sol review; it was implemented by Sol, so under the
+policy below Sol cannot also review it. `uv run poe check` passing and 6/6 geometry mutations
+caught are not substitutes for that review, and this sentence stays here until it actually runs.
 
 ## 3. Documents that own the detail
 
