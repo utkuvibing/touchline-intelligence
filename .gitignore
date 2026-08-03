@@ -10,6 +10,11 @@ docs/TARGETING.md
 docs/research/job-market-methodology.md
 docs/*.pdf
 
+# Superseded planning material. PLAN.md v2 replaced all of it; it is kept on disk so the earlier
+# reasoning stays recoverable, but publishing it only gives a reader two plans to reconcile.
+docs/phases/
+docs/PLAN-v1-superseded.md
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,7 +1,8 @@
 # Touchline Intelligence Platform — Execution Plan (v2)
 
-**Supersedes:** `PLAN-v1-superseded.md` and `phases/phase-0..5-*.md`. Those files remain on disk as
-reference; where they conflict with this document, this document wins.
+**Supersedes:** `PLAN-v1-superseded.md` and `phases/phase-0..5-*.md`. Those files are kept locally
+as reference and are git-ignored rather than published; where they conflict with this document, this
+document wins.
 **Companion:** a private targeting note — role fit tiers, employers, artifact↔requirement mapping.
 It concerns the author's job search rather than the software, and is deliberately not published.
 

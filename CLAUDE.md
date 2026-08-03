@@ -11,7 +11,7 @@ Build one modular football research and decision-support product that turns raw 
 ## Current source of truth
 
 - Treat `docs/PLAN.md` v2 as the authoritative execution plan. Files under `docs/phases/` are
-  superseded reference material and are not active instructions.
+  superseded reference material, git-ignored and local-only, and are not active instructions.
 - Follow accepted ADRs under `docs/adr/`.
 - Update relevant docs and add/supersede an ADR when architecture or research methodology changes.
 - Do not silently expand scope or add technologies.
