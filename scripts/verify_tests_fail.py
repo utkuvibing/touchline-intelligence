@@ -188,6 +188,26 @@ WP21_REQUIRED_PREDICATES_TEST = (
     "uv run pytest backend/tests/test_wp2_1_cohort_integration.py::"
     "test_cohort_keeps_every_required_null_exclusion_explicit -q"
 )
+# WP2.2 Slice B coverage. Like the Slice A full-cohort module, these need the ingested
+# four-tournament database rather than merely a reachable PostgreSQL, so they report MISSED unless
+# TOUCHLINE_FULL_COHORT_DB_URL is exported.
+WP22_COVERAGE_TESTS = "uv run pytest backend/tests/test_wp2_2_coverage_integration.py -q"
+WP22_PARTITION_TEST = (
+    "uv run pytest backend/tests/test_wp2_2_coverage_integration.py::"
+    "test_per_tournament_columns_partition_each_level -q"
+)
+WP22_ENCODING_FALSE_TEST = (
+    "uv run pytest backend/tests/test_wp2_2_coverage_integration.py::"
+    "test_no_candidate_boolean_ever_records_an_explicit_false -q"
+)
+WP22_ENCODING_COUNTS_TEST = (
+    "uv run pytest backend/tests/test_wp2_2_coverage_integration.py::"
+    "test_annotation_encoding_matches_the_measured_counts -q"
+)
+WP22_SPARSE_LEVEL_TEST = (
+    "uv run pytest backend/tests/test_wp2_2_coverage_integration.py::"
+    "test_only_the_corner_shot_type_is_missing_from_a_whole_tournament -q"
+)
 WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
@@ -318,6 +338,84 @@ BREAKS: list[Break] = [
         anchor="    s.shot_type_id,\n",
         replacement="    s.shot_type_id, NULL AS statsbomb_xg, -- DELIBERATE BREAK\n",
         command=WP21_PROVIDER_XG_TEST,
+        cwd=ROOT,
+    ),
+    # WP2.2 Slice B coverage evidence. The population anchors come first: every reading in the
+    # coverage report is only meaningful if it was measured on exactly WP2.1's 5,606 rows, and
+    # both Slice B queries duplicate that predicate set rather than importing it.
+    Break(
+        contract="WP2.2 categorical support must be measured on the non-penalty cohort",
+        path=ROOT / "backend/sql/wp2_2/03_categorical_support.sql",
+        anchor="      AND s.shot_type_name <> 'Penalty'\n",
+        replacement="      AND true -- DELIBERATE BREAK\n",
+        command=WP22_COVERAGE_TESTS,
+        cwd=ROOT,
+    ),
+    # The obvious companion mutation -- dropping `e.period <> 5` -- is deliberately absent. All 142
+    # period-five shots in this scope are Penalty shots, so on real data that predicate is fully
+    # redundant with the one above and its removal changes no count here. WP2.1 proves the two
+    # exclusions are independent with a seeded period-five non-penalty shot; a mutation that cannot
+    # fail would only have added a green tick that means nothing.
+    Break(
+        contract="WP2.2 annotation audit must be measured on the non-penalty cohort",
+        path=ROOT / "backend/sql/wp2_2/04_annotation_encoding_audit.sql",
+        anchor="      AND s.shot_type_name <> 'Penalty'\n",
+        replacement="      AND true -- DELIBERATE BREAK\n",
+        command=WP22_COVERAGE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.2 per-tournament columns must partition the cohort, not overlap",
+        path=ROOT / "backend/sql/wp2_2/03_categorical_support.sql",
+        anchor=(
+            "    count(*) FILTER (WHERE competition_id = 55 AND season_id = 282)     AS euro_2024"
+        ),
+        replacement=(
+            "    count(*) FILTER (WHERE competition_id = 55) AS euro_2024 -- DELIBERATE BREAK"
+        ),
+        command=WP22_PARTITION_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.2 must report a level that is missing from a whole tournament",
+        path=ROOT / "backend/sql/wp2_2/03_categorical_support.sql",
+        anchor=(
+            "    count(*) FILTER (WHERE competition_id = 43 AND season_id = 3)       AS wc_2018,"
+        ),
+        replacement=(
+            "    count(*) FILTER (WHERE competition_id = 43 AND season_id = 3 AND false) "
+            "AS wc_2018, -- DELIBERATE BREAK"
+        ),
+        command=WP22_SPARSE_LEVEL_TEST,
+        cwd=ROOT,
+    ),
+    # The absent-versus-false contract. If this column stopped distinguishing a recorded FALSE from
+    # an absent annotation, the audit would report zero explicit falses for the wrong reason and
+    # the WP2.1 question it closes would silently reopen.
+    Break(
+        contract="WP2.2 annotation audit must count a recorded false as a false",
+        path=ROOT / "backend/sql/wp2_2/04_annotation_encoding_audit.sql",
+        anchor=(
+            "    count(*) FILTER (WHERE flag IS FALSE)"
+            "                               AS recorded_false,"
+        ),
+        replacement=(
+            "    count(*) FILTER (WHERE flag IS NOT TRUE) AS recorded_false, -- DELIBERATE BREAK"
+        ),
+        command=WP22_ENCODING_FALSE_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.2 annotation audit must count only a recorded true as a true",
+        path=ROOT / "backend/sql/wp2_2/04_annotation_encoding_audit.sql",
+        anchor=(
+            "    count(*) FILTER (WHERE flag IS TRUE)"
+            "                                AS recorded_true,"
+        ),
+        replacement=(
+            "    count(*) FILTER (WHERE flag IS NOT FALSE) AS recorded_true, -- DELIBERATE BREAK"
+        ),
+        command=WP22_ENCODING_COUNTS_TEST,
         cwd=ROOT,
     ),
     Break(
