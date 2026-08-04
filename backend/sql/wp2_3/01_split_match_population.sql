@@ -1,6 +1,8 @@
 -- WP2.3 split population, version 1.
 -- Grain: one row per ingested match in the locked four-tournament core scope.
--- Target-free: this query reads and projects no outcome and no shot-level field.
+-- Target access: this query never projects or inspects the target. It duplicates WP2.1's
+-- eligibility predicate set verbatim, and the inherited `s.outcome_name IS NOT NULL` check is the
+-- only place it touches outcome data; no outcome category, value, or derived field is read.
 --
 -- `eligible_shots` counts the Shot rows that satisfy WP2.1's cohort predicate set, duplicated
 -- verbatim below rather than imported: if the two ever diverge, the 230-row / 5,606-shot anchors

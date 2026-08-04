@@ -86,7 +86,7 @@ matches**, including matches with zero eligible shots.
   endings. **Byte-pinned:** a fresh recomputation from the database reproduces the committed bytes
   exactly. SHA-256:
   `e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8`
-- `data/model/wp2_3_split_manifest.json` — version 1, `generated_utc` 2026-08-04T12:17:11Z,
+- `data/model/wp2_3_split_manifest.json` — version 1, `generated_utc` 2026-08-04T13:20:23Z,
   `source_commit` `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`, `cohort_sql_sha256`
   `379c25d26d17805f23b280691f329b586928a2267917c45279388fc44bac8d58`. Validated field-by-field
   against the exact allowed-key schema at every nesting level (unexpected keys fail), with every
@@ -95,15 +95,17 @@ matches**, including matches with zero eligible shots.
 
 ## Target access
 
-The committed WP2.3 SQL reads and projects no outcome; the split manifest contains no goal counts;
-the assignment input type carries no outcome field. The full-cohort tests execute the WP2.1 cohort
-query solely to compare its `shot_id` column. **No outcome value enters WP2.3's split logic,
-artifacts, protocol decisions, or assertions.**
+The committed WP2.3 SQL never projects or inspects the target: each query duplicates WP2.1's
+eligibility predicate set, and the inherited `outcome_name IS NOT NULL` check is the only place
+either query touches outcome data. The split manifest contains no goal counts; the assignment
+input type carries no outcome field. The full-cohort tests execute the WP2.1 cohort query solely
+to compare its `shot_id` column. **No outcome value enters WP2.3's split logic, artifacts,
+protocol decisions, or assertions.**
 
 That is a property of WP2.3's artifacts, not a claim about the whole development process: WP2.1's
 published reconciliation exposed descriptive per-tournament goal counts (including Euro 2024's),
 and WP2.2 recorded exploratory viewing of aggregate outcome rates before this split was frozen.
-See "Target-access history" in `docs/modeling/wp2_3-split-and-evaluation-contract.md`. The holdout
+See "Target access" in [`reports/wp2.3-split-contract.md`](wp2.3-split-contract.md). The holdout
 is locked from WP2.3 onward, **not blind**; it is prohibited from model, feature, calibration,
 threshold, and selection decisions, and the reliability-bin count is fixed a priori without holdout
 labels (ADR 0004 amendment, 2026-08-04).

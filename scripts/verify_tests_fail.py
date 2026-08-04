@@ -1573,11 +1573,14 @@ def _invalidate_bytecode(path: Path) -> None:
     looking fresh, so a later import silently runs the mutated code while the file shows the
     original — the test suite then fails for reasons that no longer exist. Deleting the pyc makes
     the restore real.
+    Python cache files are named for the module plus an interpreter tag — ``splits.cpython-313.pyc``
+    — so the glob must be keyed off ``path.stem`` (``splits``), never off ``path.name``
+    (``splits.py``), which would match nothing. See ``backend/tests/test_verify_tests_fail.py``.
     """
     cache = path.parent / "__pycache__"
     if not cache.is_dir():
         return
-    for pyc in cache.glob(f"{path.name}.*.pyc"):
+    for pyc in cache.glob(f"{path.stem}.*.pyc"):
         pyc.unlink()
 
 

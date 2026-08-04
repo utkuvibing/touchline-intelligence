@@ -1,8 +1,10 @@
 -- WP2.3 shot membership, version 1.
 -- Grain: one row per eligible non-penalty Shot event, identical to
 -- `backend/sql/wp2_1/01_model_shot_cohort.sql` in population.
--- Target-free: this query reads and projects no outcome; `shot_id` is `events.event_id` (the
--- `shots` primary key), aliased per WP2.1 convention.
+-- Target access: this query never projects or inspects the target; `shot_id` is
+-- `events.event_id` (the `shots` primary key), aliased per WP2.1 convention. It duplicates
+-- WP2.1's eligibility predicate set verbatim, and the inherited `s.outcome_name IS NOT NULL`
+-- check is the only place it touches outcome data.
 --
 -- This query powers the shot-level partition proof: every one of the 5,606 eligible shot ids
 -- must join to exactly one match assignment and exactly one top-level split, with no duplicates

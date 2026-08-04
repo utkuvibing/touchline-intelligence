@@ -26,11 +26,14 @@ What it proves, over exactly the locked four-tournament cohort:
   manifest's exact allowed-key schema at every nesting level with every value independently
   recomputed.
 
-**Target honesty boundary.** The WP2.1 cohort query is executed here solely to compare `shot_id`
-sets (its first column); only that column is consumed. No outcome value enters WP2.3's split
-logic, artifacts, protocol decisions, or assertions. That is not a claim that no target-bearing
-historical query was ever executed: WP2.1's published reconciliation read the target, and that
-exposure is disclosed in `docs/modeling/wp2_3-split-and-evaluation-contract.md`.
+**Target-access boundary.** The WP2.1 cohort query is executed here solely to compare `shot_id`
+sets (its first column); only that column is consumed. Both WP2.3 queries duplicate WP2.1's
+eligibility predicate set, which includes the inherited `outcome_name IS NOT NULL` check — the
+only place either query touches outcome data — and neither projects or inspects outcome
+categories or values. No outcome value enters WP2.3's split logic, artifacts, protocol decisions,
+or assertions. That is not a claim that no target-bearing historical query was ever executed:
+WP2.1's published reconciliation read the target, and that exposure is disclosed in
+`reports/wp2.3-split-contract.md`.
 """
 
 from __future__ import annotations
@@ -350,18 +353,22 @@ def test_manifest_schema_and_values_are_exact(population: _Population) -> None:
     assert manifest["assignments_sha256"] == _sha256_file(CSV_PATH)
 
 
-def test_wp23_sql_files_reference_no_outcome(population: _Population) -> None:
-    """Neither WP2.3 query may project the target.
+def test_wp23_sql_files_use_only_the_inherited_outcome_eligibility_predicate(
+    population: _Population,
+) -> None:
+    """Neither WP2.3 query may project or inspect the target beyond the inherited predicate.
 
-    The duplicated WP2.1 eligibility predicate necessarily references ``outcome_name`` once, in
-    its ``IS NOT NULL`` form — removing it would break the cohort set-equality proof. The check
-    therefore allows exactly that single predicate occurrence and forbids any other reference,
-    including any projection.
+    Both queries duplicate WP2.1's eligibility predicate set, so ``outcome_name`` necessarily
+    appears exactly once in the executable SQL, in its ``IS NOT NULL`` form — removing it would
+    break the cohort set-equality proof. Header comments may mention the predicate to document
+    the boundary; they are excluded from the count. Any other executable reference, including
+    any projection, fails.
     """
     for filename in ("01_split_match_population.sql", "02_split_shot_membership.sql"):
         lines = (SQL_DIR / filename).read_text(encoding="utf-8").splitlines()
         assert "is_goal" not in "\n".join(lines), filename
-        outcome_lines = [line for line in lines if "outcome_name" in line]
+        code_lines = [line for line in lines if not line.lstrip().startswith("--")]
+        outcome_lines = [line for line in code_lines if "outcome_name" in line]
         assert len(outcome_lines) == 1, filename
         assert outcome_lines[0].strip() == "AND s.outcome_name IS NOT NULL", filename
 

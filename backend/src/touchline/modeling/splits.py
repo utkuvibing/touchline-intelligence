@@ -23,8 +23,9 @@ separation applies only between the top-level splits (development < calibration 
 scope and date — no outcome field exists to leak — and the module never reads a target: no goal,
 label, provider xG, or outcome-derived statistic can enter the assignment or the fold balancing.
 
-Match counts above are the measured four-tournament population (`docs/PLAN.md`); the module itself
-is a pure function and recomputes the assignment from whatever match records it is given.
+Match counts above are the measured four-tournament population (recorded in the WP2.3 split
+contract and evidence report under `reports/`); the module itself is a pure function and
+recomputes the assignment from whatever match records it is given.
 """
 
 from __future__ import annotations

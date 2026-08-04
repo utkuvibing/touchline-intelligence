@@ -9,7 +9,9 @@ the assignment is insensitive to input row order.
 
 The WP2.1 cohort query is executed here only to compare `shot_id` sets (its first column). No
 outcome value from any query enters WP2.3's split logic, artifacts, protocol decisions, or
-assertions â€” see `backend/sql/wp2_3/README.md` for the precise honesty boundary.
+assertions — see `backend/sql/wp2_3/README.md` for the precise target-access boundary. Both WP2.3
+queries duplicate WP2.1's eligibility predicate set, which includes the inherited
+`outcome_name IS NOT NULL` check; they never inspect outcome categories or project the target.
 """
 
 from __future__ import annotations
