@@ -208,6 +208,11 @@ WP22_SPARSE_LEVEL_TEST = (
     "uv run pytest backend/tests/test_wp2_2_coverage_integration.py::"
     "test_only_the_corner_shot_type_is_missing_from_a_whole_tournament -q"
 )
+# WP2.3 split assignment. The unit tests need no database, so most of these mutations are the
+# second group in this script (after WP2.2 geometry) that are guaranteed to run everywhere.
+# The two SQL mutations need the fixture integration module, which requires TOUCHLINE_DB_URL.
+WP23_UNIT_TESTS = "uv run pytest backend/tests/test_wp2_3_splits.py -q"
+WP23_INTEGRATION_TESTS = "uv run pytest backend/tests/test_wp2_3_split_integration.py -q"
 WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
@@ -416,6 +421,84 @@ BREAKS: list[Break] = [
             "    count(*) FILTER (WHERE flag IS NOT FALSE) AS recorded_true, -- DELIBERATE BREAK"
         ),
         command=WP22_ENCODING_COUNTS_TEST,
+        cwd=ROOT,
+    ),
+    # WP2.3 split assignment. Each break is one of the ways the locked split could look right and
+    # be wrong: a scope constant that silently moves a tournament, a fold rule that no longer
+    # round-robins, a fold sort that drops the match_id tie-break, a NULL-date guard that stops
+    # raising, and either SQL query admitting a penalty into the population it must exclude.
+    Break(
+        contract="WP2.3 holdout scope must remain Euro 2024 (55,282)",
+        path=ROOT / "backend/src/touchline/modeling/splits.py",
+        anchor="HOLDOUT_SCOPE = (55, 282)",
+        replacement="HOLDOUT_SCOPE = (55, 43)  # DELIBERATE BREAK",
+        command=WP23_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 calibration scope must remain World Cup 2022 (43,106)",
+        path=ROOT / "backend/src/touchline/modeling/splits.py",
+        anchor="CALIBRATION_SCOPE = (43, 106)",
+        replacement="CALIBRATION_SCOPE = (43, 3)  # DELIBERATE BREAK",
+        command=WP23_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 folds must round-robin with index modulo the locked fold count",
+        path=ROOT / "backend/src/touchline/modeling/splits.py",
+        anchor=(
+            "match_id: index % N_FOLDS for index, (match_id, _match_date) in enumerate(development)"
+        ),
+        replacement=(
+            "match_id: (index + 1) % N_FOLDS for index, (match_id, _match_date) "
+            "in enumerate(development)  # DELIBERATE BREAK"
+        ),
+        command=WP23_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 fold sort must tie-break equal dates by match_id",
+        path=ROOT / "backend/src/touchline/modeling/splits.py",
+        anchor="    development.sort(key=lambda pair: (pair[1], pair[0]))",
+        replacement="    development.sort(key=lambda pair: (pair[1],))  # DELIBERATE BREAK",
+        command=WP23_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 assignment must fail explicitly on a missing match date",
+        path=ROOT / "backend/src/touchline/modeling/splits.py",
+        anchor="    if record.match_date is None:",
+        replacement="    if False:  # DELIBERATE BREAK",
+        command=WP23_UNIT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 match population must exclude Penalty shot types",
+        path=ROOT / "backend/sql/wp2_3/01_split_match_population.sql",
+        anchor="      AND s.shot_type_name <> 'Penalty'\n",
+        replacement="      AND true -- DELIBERATE BREAK\n",
+        command=WP23_INTEGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 shot membership must exclude Penalty shot types",
+        path=ROOT / "backend/sql/wp2_3/02_split_shot_membership.sql",
+        anchor="  AND s.shot_type_name <> 'Penalty'\n",
+        replacement="  AND true -- DELIBERATE BREAK\n",
+        command=WP23_INTEGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.3 assignment CSV must stay byte-pinned against silent edits",
+        path=ROOT / "data/model/wp2_3_match_assignments.csv",
+        anchor="match_id,competition_id,season_id,match_date,split,fold\n",
+        replacement=(  # DELIBERATE BREAK
+            "match_id,competition_id,season_id,match_date,split,foldX\n"
+        ),
+        command=(
+            "uv run pytest backend/tests/test_wp2_3_split_full_cohort.py::"
+            "test_committed_assignment_csv_is_byte_pinned -q"
+        ),
         cwd=ROOT,
     ),
     Break(

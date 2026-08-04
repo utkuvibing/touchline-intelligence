@@ -1,0 +1,79 @@
+{
+  "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+  "attribution": "Data provided by StatsBomb.",
+  "cohort_sql_sha256": "379c25d26d17805f23b280691f329b586928a2267917c45279388fc44bac8d58",
+  "folds": {
+    "0": {
+      "date_first": "2018-06-14",
+      "date_last": "2021-07-03",
+      "matches": 23
+    },
+    "1": {
+      "date_first": "2018-06-15",
+      "date_last": "2021-07-03",
+      "matches": 23
+    },
+    "2": {
+      "date_first": "2018-06-15",
+      "date_last": "2021-07-06",
+      "matches": 23
+    },
+    "3": {
+      "date_first": "2018-06-15",
+      "date_last": "2021-07-07",
+      "matches": 23
+    },
+    "4": {
+      "date_first": "2018-06-16",
+      "date_last": "2021-07-11",
+      "matches": 23
+    }
+  },
+  "generated_utc": "2026-08-04T12:17:11Z",
+  "rule": {
+    "calibration_scope": [
+      43,
+      106
+    ],
+    "development_scopes": [
+      [
+        43,
+        3
+      ],
+      [
+        55,
+        43
+      ]
+    ],
+    "fold_assignment": "development matches sorted by (match_date, match_id); fold = index % n_folds",
+    "fold_semantics": "deterministic match-grouped folds; not temporal; not forward-chaining; chronology applies only between top-level splits",
+    "holdout_scope": [
+      55,
+      282
+    ],
+    "n_folds": 5
+  },
+  "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "split_name": "wp2_3_tournament_split",
+  "splits": {
+    "calibration": {
+      "date_first": "2022-11-20",
+      "date_last": "2022-12-18",
+      "eligible_shots": 1430,
+      "matches": 64
+    },
+    "development": {
+      "date_first": "2018-06-14",
+      "date_last": "2021-07-11",
+      "eligible_shots": 2872,
+      "matches": 115
+    },
+    "holdout": {
+      "date_first": "2024-06-14",
+      "date_last": "2024-07-14",
+      "eligible_shots": 1304,
+      "matches": 51
+    }
+  },
+  "version": 1
+}

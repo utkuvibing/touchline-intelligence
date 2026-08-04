@@ -43,6 +43,9 @@ data/*
 # Provenance records are committed: they pin which StatsBomb bytes produced the measured counts
 # in ADR 0004, so another machine can verify it read the same source.
 !data/provenance/
+# The WP2.3 split lock (match assignments CSV + manifest) is committed model-development input:
+# WP2.4 trains against these exact match-to-split/fold assignments, so they must be trackable.
+!data/model/
 artifacts/*
 !artifacts/.gitkeep
 
