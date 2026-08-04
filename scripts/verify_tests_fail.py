@@ -1482,9 +1482,28 @@ def _tests_fail(command: str, cwd: Path) -> bool:
     return result.returncode != 0
 
 
+def _invalidate_bytecode(path: Path) -> None:
+    """Remove stale ``__pycache__`` entries for one source file.
+
+    A break's test run compiles the mutated source and writes a pyc whose header records the
+    source's integer-second mtime. Restoring the original within the same second leaves that pyc
+    looking fresh, so a later import silently runs the mutated code while the file shows the
+    original — the test suite then fails for reasons that no longer exist. Deleting the pyc makes
+    the restore real.
+    """
+    cache = path.parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    for pyc in cache.glob(f"{path.name}.*.pyc"):
+        pyc.unlink()
+
+
 def check(defect: Break) -> bool:
     """Apply one break, run its tests, restore the file. True when the break was caught."""
-    original = defect.path.read_text(encoding="utf-8")
+    original_bytes = defect.path.read_bytes()
+    # Normalize line endings for anchor matching, so anchors written with "\n" match both LF and
+    # CRLF checkouts (git's autocrlf converts LF checkouts to CRLF on Windows).
+    original = defect.path.read_text(encoding="utf-8").replace("\r\n", "\n")
     occurrences = original.count(defect.anchor)
     if occurrences != 1:
         print(
@@ -1501,11 +1520,16 @@ def check(defect: Break) -> bool:
             print(f"[MISSED] mutation produced invalid Python: {defect.contract}: {exc.msg}")
             return False
 
-    defect.path.write_text(mutated, encoding="utf-8")
+    # Byte-exact restore: text-mode writing would translate LF to CRLF on Windows (or be
+    # normalized away by git's autocrlf), which both corrupts byte-pinned artifacts such as the
+    # WP2.3 assignment CSV and churns every touched file's line endings in the working tree.
+    defect.path.write_bytes(mutated.encode("utf-8"))
     try:
         caught = _tests_fail(defect.command, defect.cwd)
     finally:
-        defect.path.write_text(original, encoding="utf-8")
+        defect.path.write_bytes(original_bytes)
+        if defect.path.suffix == ".py":
+            _invalidate_bytecode(defect.path)
 
     print(f"[{'CAUGHT' if caught else 'MISSED'}] {defect.contract}")
     return caught
