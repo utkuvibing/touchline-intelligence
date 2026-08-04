@@ -9,9 +9,10 @@ One-shot re-lock tool: reads the match population read-only from the database na
   (validated field-by-field by the full-cohort tests; not byte-pinned, because it carries
   ``generated_utc``).
 
-The generation is **failure-safe**: both outputs are rendered and validated fully in memory, then
-written to temporary files, and the committed artifacts are replaced only after both temporary
-files are on disk. A failed validation or a crash leaves the previous artifacts untouched.
+Both outputs are rendered and validated in memory, and both temporary files are written before
+replacement. Any failure before the replacement phase leaves the committed artifacts untouched.
+(The two ``os.replace`` calls that follow are sequential, not pair-atomic: a failure between them
+can leave one artifact replaced and the other not, which is a stated limitation, not a guarantee.)
 
 The script never writes to the database. Because it rewrites locked repository artifacts, it
 refuses to read from a non-local PostgreSQL — the same classification the ingestion guard uses —
@@ -229,9 +230,10 @@ def main() -> int:
 
     _validate_rendered(csv_text, manifest_text, records, eligible_shots, csv_sha256)
 
-    # Failure-safe replacement: write both temporary files first, and only then swap them into
-    # the committed paths. A failure at any point before the swaps leaves the previous artifacts
-    # untouched.
+    # Both temporary files are written before either replacement begins, so a failure at any
+    # point before the first os.replace leaves both committed artifacts untouched. The two
+    # replaces are sequential, not pair-atomic: a failure between them leaves one artifact
+    # replaced and the other not — an accepted limitation, not a rollback guarantee.
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     try:
         CSV_TMP.write_text(csv_text, encoding="utf-8", newline="\n")
