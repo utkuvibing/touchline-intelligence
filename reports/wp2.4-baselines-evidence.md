@@ -4,8 +4,8 @@ Measured 2026-08-05 against the local full-cohort PostgreSQL at
 `postgresql://touchline:localdev@localhost:5433/touchline` over the pinned StatsBomb Open Data
 revision `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Every database read was `READ ONLY`.
 
-**Provenance (second review round, fully reconciled).** The immutable code commit that produced
-this run is `8cb7a61297a730033a9dcadecc97e665cf17afcf` — recorded identically as `code_commit` and
+**Provenance (closeout round, fully reconciled).** The immutable code commit that produced
+this run is `81d4a56395985cb427fbcd13f38a0eb8c42e8be6` — recorded identically as `code_commit` and
 `reproduction_commit`; this is the clean pre-evidence commit containing the corrected artifact
 implementation, tests, `uv.lock` and the committed portable run-input config
 `experiments/run-configs/wp2_4-baselines.json` (SHA-256 `30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e`).
@@ -24,7 +24,7 @@ usernames, home/executable/temp paths or DSNs). The full fingerprint is recorded
 **Recreation (recorded in `artifact-manifest.json`):**
 
 ```
-git checkout 8cb7a61297a730033a9dcadecc97e665cf17afcf
+git checkout 81d4a56395985cb427fbcd13f38a0eb8c42e8be6
 uv sync --locked
 # set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database
 uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json
@@ -201,9 +201,11 @@ These are **presence indicators, never booleans**: absence of an annotation is e
 
 Full-cohort run evidence: `metrics.json` (rounded to 12 dp, canonical bytes),
 `config.json` (output snapshot, self-contained and rerunnable; code/reproduction commit
-`8cb7a612…`), `artifact-manifest.json` (model bundle SHA-256
-`4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1`, schema version 1, recreation
-instructions recorded). All paths in committed records are repository-relative POSIX; the ignored
+`81d4a563…`), `artifact-manifest.json` (model bundle SHA-256
+`9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca`, schema version 1, recreation
+instructions recorded). All paths in committed records are repository-relative POSIX — including
+the published `notes.md`, which records the input-config path through the same canonical
+repository-relative form and points readers only at committed public evidence. The ignored
 `model.pkl` hash matches every machine-readable reference, and the actual local artifact was
 loaded and scored in a fresh Python process.
 
@@ -257,13 +259,15 @@ Euro 2024; the loader surfaces only development. No holdout number appears anywh
 - Protocol run (the committed input config; provenance derived from the clean repository HEAD):
   `TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline'
   uv run poe train --config experiments/run-configs/wp2_4-baselines.json`.
-- Quality gates at the evidence commit: `uv run poe check` → **852 passed / 122 skipped / 0 failed**;
-  full-cohort structural tests **5/5**; mutation suite **157/157 CAUGHT, 0 MISSED** (incl. the
-  artifact-identity, feature-column contract, selected/index agreement, derived code-commit,
-  input-config and uv.lock hash, and runtime-fingerprint contracts). Cross-process artifact
-  load/inference test passes. Two consecutive `poe train` runs from the clean reproduction commit
-  under the recorded runtime produced a **byte-identical** `metrics.json` (SHA-256
-  `AB1EE73F04A7D296F20224FADE7CBC2A6AC060C5CB2AD2E322E49AB91CDA7047`).
+- Quality gates at the reproduction commit: `uv run poe check` → **856 passed / 122 skipped /
+  0 failed**; full-cohort structural tests **5/5**; mutation suite **159/159 CAUGHT, 0 MISSED**
+  (incl. the artifact-identity, feature-column contract, selected/index agreement, derived
+  code-commit, input-config and uv.lock hash, runtime-fingerprint, and the two published-notes
+  path/publication-boundary contracts). Cross-process artifact load/inference test passes. Two
+  consecutive `poe train` runs from the clean reproduction commit under the recorded runtime
+  produced a **byte-identical** `metrics.json` (SHA-256
+  `00b8785b25c03758a93416b0edf461adf1584fc06b20be1f75ba702019a67e5c`) — and byte-identical
+  `config.json`, `notes.md`, `artifact-manifest.json` and `model.pkl` as well.
 
 ## Limitations
 

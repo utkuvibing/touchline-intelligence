@@ -1,6 +1,6 @@
 {
   "artifact_schema_version": 1,
-  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "coefficients_json": "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
   "d5_include": false,
   "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
@@ -8,15 +8,15 @@
   "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
   "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
   "model_pickle_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
-  "model_pickle_sha256": "4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1",
+  "model_pickle_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
   "recreation": {
-    "checkout": "git checkout 8cb7a61297a730033a9dcadecc97e665cf17afcf",
+    "checkout": "git checkout 81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
     "database": "set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database",
     "run": "uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json",
     "sync": "uv sync --locked"
   },
   "recreation_command": "uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json",
-  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "runtime_fingerprint": {
     "machine": "AMD64",
     "numpy_version": "2.5.1",

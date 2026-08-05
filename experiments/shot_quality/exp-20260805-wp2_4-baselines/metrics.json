@@ -424,7 +424,7 @@
       "supported_bins": 2
     }
   },
-  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "coefficients": [
     {
       "feature": "distance_to_goal",
@@ -710,7 +710,7 @@
   "experiment_id": "exp-20260805-wp2_4-baselines",
   "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
   "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
-  "model_pickle_sha256": "4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1",
+  "model_pickle_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
   "n_matches": 115,
   "n_rows": 2872,
   "presence_report": {
@@ -754,7 +754,7 @@
     "protocol_incumbent": "constant",
     "shipped_beats_incumbent": false
   },
-  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "runtime_fingerprint": {
     "machine": "AMD64",
     "numpy_version": "2.5.1",

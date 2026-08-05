@@ -8,7 +8,7 @@
     1.0,
     10.0
   ],
-  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
   "d5_include": false,
   "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
@@ -28,7 +28,7 @@
   "n_folds": 5,
   "out_dir": "experiments/shot_quality/exp-20260805-wp2_4-baselines",
   "random_seed": 0,
-  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
   "results_csv": "experiments/results.csv",
   "runtime_fingerprint": {
     "machine": "AMD64",
