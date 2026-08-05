@@ -1,7 +1,7 @@
 {
   "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
   "attribution": "Data provided by StatsBomb.",
-  "cohort_sql_sha256": "379c25d26d17805f23b280691f329b586928a2267917c45279388fc44bac8d58",
+  "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
   "folds": {
     "0": {
       "date_first": "2018-06-14",

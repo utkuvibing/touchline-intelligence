@@ -1,0 +1,6 @@
+{
+  "coefficients_json": "experiments\\shot_quality\\exp-20260805-wp2_4-baselines\\metrics.json",
+  "model_pickle_path": "artifacts\\models\\exp-20260805-wp2_4-baselines\\model.pkl",
+  "model_pickle_sha256": "7f8c6774f3fdf099c9eb8d98db084ef80c4191e834a7db8b30a75187bd9ee2c6",
+  "recreation_command": "uv run python -m touchline.modeling.train --config experiments\\shot_quality\\exp-20260805-wp2_4-baselines\\config.json"
+}

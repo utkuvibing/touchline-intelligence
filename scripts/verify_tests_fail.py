@@ -214,6 +214,26 @@ WP22_SPARSE_LEVEL_TEST = (
 WP23_UNIT_TESTS = "uv run pytest backend/tests/test_wp2_3_splits.py -q"
 WP23_INTEGRATION_TESTS = "uv run pytest backend/tests/test_wp2_3_split_integration.py -q"
 WP16_FIXTURE_MANIFEST_TESTS = "uv run pytest backend/tests/test_wp1_6_fixture_manifest.py -q"
+# WP2.4 baselines and regularized logistic regression. The model/preprocessing/metrics mutations
+# are plain unit tests that run everywhere; the loader-hash mutation rides on the dataset unit
+# module (also runs everywhere), and the loader-filter mutation needs a database for the
+# calibration/holdout rows, so it reports MISSED without TOUCHLINE_DB_URL (honest: unrun).
+WP24_METRICS_TESTS = "uv run pytest backend/tests/test_wp2_4_metrics.py -q"
+WP24_PREPROCESSING_TESTS = "uv run pytest backend/tests/test_wp2_4_preprocessing.py -q"
+WP24_TRAIN_MODELING_TESTS = "uv run pytest backend/tests/test_wp2_4_train_modeling.py -q"
+WP24_DATASET_CRLF_TEST = (
+    "uv run pytest backend/tests/test_wp2_4_dataset.py::"
+    "test_crlf_checkout_fails_loudly_never_normalized -q"
+)
+WP24_DATASET_HASH_TESTS = (
+    "uv run pytest backend/tests/test_wp2_4_dataset.py::"
+    "test_hash_mismatch_fails_for_assignments_and_cohort_sql -q"
+)
+WP24_LOADER_FILTER_TESTS = (
+    "uv run pytest backend/tests/test_wp2_4_dataset.py::"
+    "test_loader_rejects_a_non_development_row_that_reaches_the_client "
+    "backend/tests/test_wp2_4_dataset_integration.py -q"
+)
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1545,6 +1565,92 @@ BREAKS: list[Break] = [
         anchor='        require_local_write_target(settings.db_url, command="ingest")\n',
         replacement="        pass  # DELIBERATE BREAK\n",
         command=WRITE_TARGET_TESTS,
+        cwd=ROOT,
+    ),
+    # WP2.4 baselines and regularized logistic regression. Eight contracts, each the kind of thing
+    # that looks right and is wrong: a constant trained on its own validation rows, a reliability
+    # bin count that drifts from five, an unseen level that starts raising, a loader that lets
+    # calibration/holdout labels reach the client, a scaler fitted on validation rows, either
+    # pinned-artifact hash silently dropped, and a loader that silently tolerates a CRLF checkout.
+    Break(
+        contract="WP2.4 constant baseline must use the training-fold goal rate only",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor="        baseline = ConstantBaseline.fit([r.y for r in train])\n",
+        replacement=(
+            "        baseline = ConstantBaseline.fit([r.y for r in rows])  # DELIBERATE BREAK\n"
+        ),
+        command=WP24_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 reliability bin count is locked at five (ADR 0004)",
+        path=ROOT / "backend/src/touchline/modeling/metrics.py",
+        anchor="    if n_bins != N_RELIABILITY_BINS:\n",
+        replacement="    if False:  # DELIBERATE BREAK\n",
+        command=WP24_METRICS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 unseen categorical levels must encode as the reference, never raise",
+        path=ROOT / "backend/src/touchline/modeling/preprocessing.py",
+        anchor="        flags[existing.index(RARE_LEVEL)] = 1\n    return flags\n",
+        replacement=(
+            "        flags[existing.index(RARE_LEVEL)] = 1\n"
+            '    raise ValueError("unseen level -- DELIBERATE BREAK")\n'
+        ),
+        command=WP24_PREPROCESSING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 loader must filter to development match ids server-side",
+        path=ROOT / "backend/src/touchline/modeling/dataset.py",
+        anchor='        "WHERE match_id = ANY(%s)"\n',
+        replacement='        "WHERE TRUE  -- DELIBERATE BREAK"\n',
+        command=WP24_LOADER_FILTER_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 fold scaler must be fitted on training rows only",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor="        scaler = fit_scaler(train)\n",
+        replacement="        scaler = fit_scaler(rows)  # DELIBERATE BREAK\n",
+        command=WP24_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 loader must verify the pinned assignment-CSV SHA-256",
+        path=ROOT / "backend/src/touchline/modeling/dataset.py",
+        anchor='    verify_artifact_sha256(data, expected_sha256, "wp2_3_match_assignments.csv")\n',
+        replacement="    pass  # DELIBERATE BREAK: assignments-CSV hash check removed\n",
+        command=WP24_DATASET_HASH_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 loader must verify the pinned cohort-SQL SHA-256",
+        path=ROOT / "backend/src/touchline/modeling/dataset.py",
+        anchor='    verify_artifact_sha256(data, expected_sha256, "01_model_shot_cohort.sql")\n',
+        replacement="    pass  # DELIBERATE BREAK: cohort-SQL hash check removed\n",
+        command=WP24_DATASET_HASH_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 loader must fail loudly on a non-canonical (CRLF) artifact checkout",
+        path=ROOT / "backend/src/touchline/modeling/dataset.py",
+        anchor=(
+            '    if b"\\r" in data:\n'
+            "        raise NonCanonicalArtifactError(\n"
+            '            f"{artifact} is not canonical LF (CRLF bytes present). Re-materialize it '
+            'from a "\n'
+            '            "canonical checkout (see `git add --renormalize` in the WP2.4 contract) '
+            'and do not "\n'
+            '            "silently normalize inside the loader."\n'
+            "        )\n"
+        ),
+        replacement=(
+            '    if b"\\r" in data:\n'
+            "        return None  # DELIBERATE BREAK: CRLF silently tolerated\n"
+        ),
+        command=WP24_DATASET_CRLF_TEST,
         cwd=ROOT,
     ),
 ]
