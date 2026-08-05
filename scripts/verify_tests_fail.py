@@ -234,6 +234,10 @@ WP24_LOADER_FILTER_TESTS = (
     "test_loader_rejects_a_non_development_row_that_reaches_the_client "
     "backend/tests/test_wp2_4_dataset_integration.py -q"
 )
+WP24_EXPERIMENT_CONSISTENCY_TESTS = (
+    "uv run pytest backend/tests/test_wp2_4_experiment_consistency.py::"
+    "test_write_experiment_records_the_shipped_candidate_only -q"
+)
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1604,8 +1608,12 @@ BREAKS: list[Break] = [
     Break(
         contract="WP2.4 loader must filter to development match ids server-side",
         path=ROOT / "backend/src/touchline/modeling/dataset.py",
-        anchor='        "WHERE match_id = ANY(%s)"\n',
-        replacement='        "WHERE TRUE  -- DELIBERATE BREAK"\n',
+        anchor='    sql = f"SELECT {LOAD_COLUMNS} FROM ({body}) AS cohort '
+        'WHERE match_id = ANY(%s) ORDER BY shot_id"\n',
+        replacement=(
+            '    sql = f"SELECT {LOAD_COLUMNS} FROM ({body}) AS cohort WHERE TRUE '
+            'ORDER BY shot_id"  # DELIBERATE BREAK\n'
+        ),
         command=WP24_LOADER_FILTER_TESTS,
         cwd=ROOT,
     ),
@@ -1651,6 +1659,30 @@ BREAKS: list[Break] = [
             "        return None  # DELIBERATE BREAK: CRLF silently tolerated\n"
         ),
         command=WP24_DATASET_CRLF_TEST,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 shipped candidate must honour D5 (D5=false must not ship full_logistic)",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='    shipped = "full_logistic" if d5["include"] else "full_minus_presence"\n',
+        replacement='    shipped = "full_logistic"  # DELIBERATE BREAK\n',
+        command=WP24_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 shipped feature subset must follow D5 (no presence columns after D5=false)",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='    shipped_indices = full_columns if d5["include"] else minus_columns\n',
+        replacement="    shipped_indices = full_columns  # DELIBERATE BREAK\n",
+        command=WP24_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 results metadata must read from the shipped candidate, not full_logistic",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='    shipped_key = cast(str, metrics["shipped_candidate"])\n',
+        replacement='    shipped_key = "full_logistic"  # DELIBERATE BREAK\n',
+        command=WP24_EXPERIMENT_CONSISTENCY_TESTS,
         cwd=ROOT,
     ),
 ]

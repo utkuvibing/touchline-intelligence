@@ -199,8 +199,8 @@ def _write_config(tmp_path: Path, assignments_sha256: str, *, tamper_hash: bool 
         "experiment_id": "exp-dry-run-test",
         "out_dir": str(tmp_path / "exp"),
         "artifacts_dir": str(tmp_path / "artifacts"),
-        "git_commit": "test-dry-run",
-        "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+        "code_commit": "test-dry-run",
+        "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
         "db_url_env": "TOUCHLINE_DB_URL",
         "assignments_sha256": ("0" * 64) if tamper_hash else assignments_sha256,
         "cohort_sql_sha256": _manifest_hash("cohort_sql_sha256"),
@@ -247,11 +247,49 @@ def test_dry_run_writes_a_canonical_experiment_record(
     assert metrics["n_rows"] == EXPECTED_SHOTS
     assert metrics["n_matches"] == EXPECTED_MATCHES
     assert isinstance(metrics["d5"]["include"], bool)
-    assert metrics["incumbent"] in {"constant", "geometry_logistic", "full_logistic"}
+    assert metrics["d5_include"] is metrics["d5"]["include"]
+    assert metrics["protocol_incumbent"] in {
+        "constant",
+        "geometry_logistic",
+        "full_logistic",
+        "full_minus_presence",
+    }
+    assert metrics["shipped_candidate"] in {"full_logistic", "full_minus_presence"}
+    assert isinstance(metrics["shipped_feature_columns"], list)
+    shipped = metrics["shipped_candidate"]
+    assert metrics["shipped_best_c"] == metrics["candidates"][shipped]["best_c"]
+    # The shipped feature set must be machine-consistent with the decision.
+    if metrics["d5_include"]:
+        assert metrics["shipped_feature_set"] == "geometry+categoricals+presence-indicators"
+        assert any("_presence" in c for c in metrics["shipped_feature_columns"])
+    else:
+        assert metrics["shipped_feature_set"] == "geometry+categoricals"
+        assert not any("_presence" in c for c in metrics["shipped_feature_columns"])
     assert set(metrics["presence_report"]) == {"first_time", "under_pressure"}
 
+    # One authoritative results row describing the shipped candidate (correction 3).
     results = (tmp_path / "results.csv").read_text(encoding="utf-8")
-    assert results.splitlines()[0].startswith("experiment_id,date_utc")
+    rows = [line for line in results.splitlines()[1:] if line.strip()]
+    matching = [r for r in rows if r.split(",")[0] == "exp-dry-run-test"]
+    assert len(matching) == 1
+    meta = {
+        k: v
+        for k, v in zip(results.splitlines()[0].split(","), matching[0].split(","), strict=True)
+    }
+    assert meta["shipped_candidate"] == metrics["shipped_candidate"]
+    assert meta["d5_include"] == str(metrics["d5_include"])
+    assert meta["protocol_incumbent"] == metrics["protocol_incumbent"]
+    assert meta["code_commit"] == "test-dry-run"
+
+    # Bundled artifact must be self-contained and describe the shipped candidate.
+    manifest = json.loads((exp_dir / "artifact-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["shipped_candidate"] == metrics["shipped_candidate"]
+    assert manifest["shipped_feature_columns"] == metrics["shipped_feature_columns"]
+    recorded_hash = manifest["model_pickle_sha256"]
+    import hashlib as _hashlib
+
+    actual = _hashlib.sha256((tmp_path / "artifacts" / "model.pkl").read_bytes()).hexdigest()
+    assert recorded_hash == actual
 
 
 def test_dry_run_fails_loudly_on_pinned_hash_mismatch(

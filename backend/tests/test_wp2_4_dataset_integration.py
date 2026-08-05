@@ -233,6 +233,20 @@ def test_loader_fails_loudly_on_a_wrong_development_anchor(conn: psycopg.Connect
         verify_development_anchor(rows)
 
 
+def test_loader_row_order_is_deterministic_and_shot_id_sorted(conn: psycopg.Connection) -> None:
+    """The loader's row order is reproducible and must not depend on DB default ordering."""
+    _seed(conn)
+    assignments = parse_match_assignments(SYN_ASSIGNMENTS)
+    cohort_sql = verify_cohort_sql(
+        COHORT_SQL_PATH.read_bytes(),
+        _manifest_field("cohort_sql_sha256"),
+    )
+    first = load_development_cohort(conn, cohort_sql, assignments)
+    second = load_development_cohort(conn, cohort_sql, assignments)
+    assert [row.shot_id for row in first] == [row.shot_id for row in second]
+    assert [row.shot_id for row in first] == sorted(row.shot_id for row in first)
+
+
 def _manifest_field(key: str) -> str:
     import json
 

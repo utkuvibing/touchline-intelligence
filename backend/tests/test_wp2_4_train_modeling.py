@@ -14,14 +14,22 @@ path, and each is the seat for one registered mutation:
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping, Sequence
+from typing import cast
+
+import numpy as np
 
 from touchline.modeling.baselines import ConstantBaseline
+from touchline.modeling.logistic import L2_C_GRID
 from touchline.modeling.metrics import log_loss
 from touchline.modeling.preprocessing import ShotRow, encode_rows, fit_scaler
 from touchline.modeling.train import (
+    RunConfig,
     _build_folds,
     _evaluate_constant,
     build_vocabulary,
+    infer,
+    run_protocol,
 )
 
 TRAIN_Y: dict[int, list[int]] = {
@@ -60,6 +68,120 @@ def _shot(y: int, fold: int, distance: float, angle: float = 0.3) -> ShotRow:
         first_time=None,
         under_pressure=None,
     )
+
+
+def _make_config() -> RunConfig:
+    return RunConfig(
+        experiment_id="unit-test",
+        out_dir="experiments/shot_quality/unit-test",
+        artifacts_dir="artifacts/models/unit-test",
+        code_commit="unit-test-code",
+        data_source_commit="b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+        db_url_env="TOUCHLINE_DB_URL",
+        assignments_sha256="0" * 64,
+        cohort_sql_sha256="0" * 64,
+        c_grid=L2_C_GRID,
+        random_seed=0,
+        n_folds=5,
+        expected_shots=100,
+        expected_matches=5,
+        expected_fold_sizes={0: 20, 1: 20, 2: 20, 3: 20, 4: 20},
+        bin_count=5,
+        results_csv="experiments/results.csv",
+    )
+
+
+def _d5_rows(*, informative: bool, seed: int) -> list[ShotRow]:
+    """Balanced 5x20 rows; two presence indicators either informative or pure noise.
+
+    ``informative=True`` aligns ``first_time`` (90%) and ``under_pressure`` (70%) with the goal
+    so the full model should clearly beat the minus model (D5 include). ``informative=False`` makes
+    both indicators independent noise so D5 should exclude.
+    """
+    rng = np.random.default_rng(seed)
+    rows: list[ShotRow] = []
+    for fold in range(5):
+        for i in range(20):
+            y = 1 if i < 10 else 0
+            distance = 20.0 + float(rng.normal(0, 1))
+            angle = 0.3 + 0.02 * float(rng.normal(0, 1))
+            ft: bool | None
+            up: bool | None
+            if informative:
+                ft = bool((rng.random() < 0.9) == (y == 1))
+                up = bool((rng.random() < 0.7) == (y == 1))
+            else:
+                ft = bool(rng.random() < 0.2)
+                up = bool(rng.random() < 0.3)
+            rows.append(
+                ShotRow(
+                    shot_id=f"d{seed}-{fold}-{i}",
+                    match_id=200 + fold,
+                    fold=fold,
+                    competition_id=43,
+                    season_id=3,
+                    y=y,
+                    distance_to_goal=distance,
+                    visible_goal_angle=angle,
+                    body_part_name="Right Foot",
+                    technique_name="Normal",
+                    play_pattern_name="Regular Play",
+                    first_time=ft,
+                    under_pressure=up,
+                )
+            )
+    return rows
+
+
+def _assert_shipped_and_bundle(
+    metrics: dict[str, object],
+    bundle: object,
+    *,
+    include: bool,
+    rows: list[ShotRow],
+) -> None:
+    from touchline.modeling.train import ArtifactBundle
+
+    assert isinstance(bundle, ArtifactBundle)
+    assert metrics["d5_include"] is include
+    expected_ship = "full_logistic" if include else "full_minus_presence"
+    assert metrics["shipped_candidate"] == expected_ship
+    candidates: Mapping[str, object] = cast(Mapping[str, object], metrics["candidates"])
+    expected_candidate = cast(Mapping[str, object], candidates[expected_ship])
+    assert metrics["shipped_best_c"] == cast(float, expected_candidate["best_c"])
+    shipped_columns = cast(Sequence[str], metrics["shipped_feature_columns"])
+    has_presence = any("_presence" in col for col in shipped_columns)
+    assert has_presence is include
+    assert list(bundle.selected_columns) == list(shipped_columns)
+    assert bundle.shipped_candidate == expected_ship
+    expected_indices = tuple(bundle.all_columns.index(col) for col in shipped_columns)
+    assert bundle.selected_indices == expected_indices
+    # Shipped coefficients never carry the rejected candidate's presence columns.
+    coefficient_entries = cast(Sequence[Mapping[str, object]], metrics["coefficients"])
+    coefficient_features = [str(entry["feature"]) for entry in coefficient_entries]
+    assert any("_presence" in f for f in coefficient_features) is include
+    # Bundle inference from raw rows equals the persisted preprocessing + fitted estimator.
+    query = rows[:10]
+    via_bundle = infer(bundle, query)
+    full_encoded, _ = encode_rows(query, bundle.vocabulary, bundle.scaler)
+    subset = full_encoded[:, list(bundle.selected_indices)]
+    expected = bundle.estimator.predict_proba(subset)[:, 1]
+    assert np.array_equal(via_bundle, expected)
+    assert bundle.estimator.n_features_in_ == len(bundle.selected_columns)
+
+
+def test_d5_include_ships_full_logistic_with_presence() -> None:
+    rows = _d5_rows(informative=True, seed=11)
+    metrics, bundle = run_protocol(rows, _make_config())
+    assert metrics["d5_include"] is True
+    _assert_shipped_and_bundle(metrics, bundle, include=True, rows=rows)
+
+
+def test_d5_exclude_ships_full_minus_presence_without_presence() -> None:
+    rows = _d5_rows(informative=False, seed=22)
+    metrics, bundle = run_protocol(rows, _make_config())
+    assert metrics["d5_include"] is False
+    _assert_shipped_and_bundle(metrics, bundle, include=False, rows=rows)
 
 
 def test_constant_baseline_trains_on_the_training_fold_only() -> None:

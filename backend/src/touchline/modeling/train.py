@@ -9,9 +9,23 @@ cohort query, and runs the locked protocol:
 - the D10 C-selection, the PLAN §4.1 pairwise replacement rule, and the D5 INCLUDE/EXCLUDE rule;
 - a label-free presence report by development tournament and fold.
 
+**The shipped artifact is the D5-selected candidate.** After D5 runs, exactly one candidate ships:
+``full_logistic`` when D5 includes, ``full_minus_presence`` otherwise. The shipped candidate is
+final-refitted with its own selected C over its exact feature-column subset using the
+all-development scaler and locked vocabulary, and serialized as a **self-contained inference
+bundle** (estimator +
+scaler + vocabulary + column map + provenance) that scores raw ``ShotRow`` objects with no
+re-fitting at inference time. The presence-inclusive full model is re-fitted **only diagnostically**
+to supply the D5 final-refit coefficient signs; its coefficients are labelled diagnostic and never
+called shipped-model coefficients.
+
+`protocol_incumbent` (the PLAN §4.1 result) and `shipped_candidate` (what ships) are separate
+concepts and separate fields.
+
 It writes an experiment record (``config.json``, ``metrics.json``, ``notes.md``,
-``artifact-manifest.json``) and appends one ``results.csv`` row. It never writes to the database:
-the connection is opened READ ONLY and the load is a ``SET TRANSACTION READ ONLY`` read.
+``artifact-manifest.json``) and one authoritative ``results.csv`` row for the experiment. It never
+writes to the database: the connection is opened READ ONLY and the load is a
+``SET TRANSACTION READ ONLY`` read.
 
 All decisions are pre-registered in `docs/modeling/wp2_4-baselines-and-logistic-contract.md`; this
 module only applies them. Nothing here reads holdout or calibration labels.
@@ -34,6 +48,7 @@ from typing import TypedDict, cast
 import numpy as np
 import numpy.typing as npt
 import psycopg
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
 from touchline.modeling.baselines import ConstantBaseline
 from touchline.modeling.dataset import (
@@ -62,6 +77,7 @@ from touchline.modeling.preprocessing import (
     PRESENCE_SOURCE_FIELDS,
     RARE_MIN_DEV_ROWS,
     ShotRow,
+    StandardScaler,
     Vocabulary,
     encode_rows,
     fit_scaler,
@@ -71,6 +87,7 @@ from touchline.modeling.preprocessing import (
 ROOT = Path(__file__).resolve().parents[4]
 CSV_PATH = ROOT / "data" / "model" / "wp2_3_match_assignments.csv"
 COHORT_SQL_PATH = ROOT / "backend" / "sql" / "wp2_1" / "01_model_shot_cohort.sql"
+DEFAULT_RESULTS_CSV = "experiments/results.csv"
 
 #: Pre-registered D5/D11 floor: a reliability bin counts toward the calibration comparison only
 #: when it holds at least this many pooled out-of-fold predictions.
@@ -84,8 +101,8 @@ REQUIRED_CONFIG_KEYS = frozenset(
         "experiment_id",
         "out_dir",
         "artifacts_dir",
-        "git_commit",
-        "source_commit",
+        "code_commit",
+        "data_source_commit",
         "db_url_env",
         "assignments_sha256",
         "cohort_sql_sha256",
@@ -103,10 +120,10 @@ REQUIRED_CONFIG_KEYS = frozenset(
 @dataclass(frozen=True)
 class RunConfig:
     experiment_id: str
-    out_dir: Path
-    artifacts_dir: Path
-    git_commit: str
-    source_commit: str
+    out_dir: str
+    artifacts_dir: str
+    code_commit: str
+    data_source_commit: str
     db_url_env: str
     assignments_sha256: str
     cohort_sql_sha256: str
@@ -117,7 +134,7 @@ class RunConfig:
     expected_matches: int
     expected_fold_sizes: Mapping[int, int]
     bin_count: int
-    results_csv: Path
+    results_csv: str
 
 
 @dataclass(frozen=True)
@@ -140,10 +157,89 @@ class _RuleMetrics(TypedDict):
 
 
 class _CandidateReadOut(TypedDict):
-    """The full-logistic fields the results.csv row reads, structurally typed for the cast."""
+    """The shipped-logistic fields the results.csv row reads, structurally typed for the cast."""
 
     mean_log_loss: float
     pooled_oof: PooledOOFMetrics
+
+
+@dataclass(frozen=True)
+class ArtifactBundle:
+    """Self-contained pickleable inference artifact (WP2.4 blocking correction 2).
+
+    Carries everything needed to score raw ``ShotRow`` values without touching the development
+    database: the fitted logistic estimator, the all-development scaler, the locked development
+    vocabulary, the complete encoded column order, the selected shipped feature columns and their
+    indices, the shipped candidate name and C, the reference/rare mappings, and the hashes that
+    identify the training inputs.
+    """
+
+    experiment_id: str
+    shipped_candidate: str
+    best_c: float
+    code_commit: str
+    data_source_commit: str
+    cohort_sql_sha256: str
+    assignments_sha256: str
+    estimator: LogisticRegression
+    scaler: StandardScaler
+    vocabulary: Vocabulary
+    all_columns: tuple[str, ...]
+    selected_columns: tuple[str, ...]
+    selected_indices: tuple[int, ...]
+    reference_levels: Mapping[str, str]
+    rare_mapping: Mapping[str, tuple[str, ...]]
+
+    def predict_proba(self, rows: Sequence[ShotRow]) -> FloatArray:
+        """Goal probabilities for raw rows, using the persisted preprocessing (never a refit)."""
+        full, _ = encode_rows(rows, self.vocabulary, self.scaler)
+        subset = full[:, list(self.selected_indices)]
+        return np.asarray(self.estimator.predict_proba(subset), dtype=np.float64)[:, 1]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "experiment_id": self.experiment_id,
+            "shipped_candidate": self.shipped_candidate,
+            "best_c": self.best_c,
+            "code_commit": self.code_commit,
+            "data_source_commit": self.data_source_commit,
+            "cohort_sql_sha256": self.cohort_sql_sha256,
+            "assignments_sha256": self.assignments_sha256,
+            "n_features": len(self.selected_columns),
+            "all_columns": list(self.all_columns),
+            "selected_columns": list(self.selected_columns),
+            "selected_indices": list(self.selected_indices),
+            "reference_levels": dict(self.reference_levels),
+            "rare_mapping": {k: list(v) for k, v in self.rare_mapping.items()},
+        }
+
+
+def infer(bundle: ArtifactBundle, rows: Sequence[ShotRow]) -> FloatArray:
+    """The explicit inference entry point: raw ``ShotRow`` values to goal probabilities.
+
+    Applies the persisted scaler and vocabulary, restricts to the persisted selected feature
+    columns, and returns ``P(goal)``. No preprocessing is re-fitted at inference time.
+    """
+    return bundle.predict_proba(rows)
+
+
+def _abs_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
+def _record_path(value: str | Path) -> str:
+    """Repository-relative POSIX path for committed records; absolute POSIX for non-repo paths.
+
+    Committed experiment configuration and manifests must not carry drive letters, backslashes or
+    machine-local absolute paths (blocking correction 5); temporary absolute paths (tests) stay
+    absolute but always POSIX.
+    """
+    resolved = _abs_path(str(value)).resolve()
+    try:
+        return resolved.relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
 
 def _load_config(path: Path) -> RunConfig:
@@ -165,10 +261,10 @@ def _load_config(path: Path) -> RunConfig:
     }
     return RunConfig(
         experiment_id=str(payload["experiment_id"]),
-        out_dir=Path(str(payload["out_dir"])),
-        artifacts_dir=Path(str(payload["artifacts_dir"])),
-        git_commit=str(payload["git_commit"]),
-        source_commit=str(payload["source_commit"]),
+        out_dir=str(payload["out_dir"]),
+        artifacts_dir=str(payload["artifacts_dir"]),
+        code_commit=str(payload["code_commit"]),
+        data_source_commit=str(payload["data_source_commit"]),
         db_url_env=str(payload["db_url_env"]),
         assignments_sha256=str(payload["assignments_sha256"]),
         cohort_sql_sha256=str(payload["cohort_sql_sha256"]),
@@ -179,7 +275,7 @@ def _load_config(path: Path) -> RunConfig:
         expected_matches=int(payload["expected_matches"]),
         expected_fold_sizes=fold_sizes,
         bin_count=int(payload["bin_count"]),
-        results_csv=Path(str(payload.get("results_csv", ROOT / "experiments" / "results.csv"))),
+        results_csv=str(payload.get("results_csv", DEFAULT_RESULTS_CSV)),
     )
 
 
@@ -364,18 +460,25 @@ def _replacement_rule(incumbent: Mapping[str, object], candidate: Mapping[str, o
 
 def _run_replacements(
     candidates: Mapping[str, Mapping[str, object]],
+    shipped_key: str,
 ) -> tuple[dict[str, object], str]:
+    """Plan §4.1 applied to the D5-selected candidate: constant -> geometry -> shipped candidate.
+
+    ``protocol_incumbent`` is the §4.1 result and is deliberately a separate concept from
+    ``shipped_candidate``: the rule can name the constant (its constructed near-zero calibration
+    deviation makes condition 3 unachievable) while the shipped model is a real predictor.
+    """
     geometry_beats_constant = _replacement_rule(
         candidates["constant"], candidates["geometry_logistic"]
     )
     incumbent = "constant" if not geometry_beats_constant else "geometry_logistic"
-    full_beats_incumbent = _replacement_rule(candidates[incumbent], candidates["full_logistic"])
-    if full_beats_incumbent:
-        incumbent = "full_logistic"
+    shipped_beats_incumbent = _replacement_rule(candidates[incumbent], candidates[shipped_key])
+    if shipped_beats_incumbent:
+        incumbent = shipped_key
     return {
         "geometry_beats_constant": geometry_beats_constant,
-        "full_beats_incumbent": full_beats_incumbent,
-        "incumbent": incumbent,
+        "shipped_beats_incumbent": shipped_beats_incumbent,
+        "protocol_incumbent": incumbent,
     }, incumbent
 
 
@@ -404,14 +507,60 @@ def _build_folds(
     return selected_folds
 
 
+def _refit_columns(
+    rows: Sequence[ShotRow],
+    vocabulary: Vocabulary,
+    scaler: StandardScaler,
+    all_columns: Sequence[str],
+    indices: Sequence[int],
+    best_c: float,
+    random_seed: int,
+) -> tuple[LogisticModel, list[dict[str, object]], dict[str, object]]:
+    """Refit over a specified column subset for one full development run.
+
+    Used for both the D5 diagnostic presence-inclusive refit and the final shipped-candidate refit;
+    the subset, C and scaler are the caller's choice and are recorded in the returned metadata.
+    """
+    rows_list = list(rows)
+    full, _ = encode_rows(rows_list, vocabulary, scaler)
+    subset = full[:, list(indices)]
+    y = np.asarray([row.y for row in rows_list], dtype=np.int_)
+    model = fit_logistic(subset, y, best_c, random_state=random_seed)
+    coef = model.estimator.coef_[0]
+    table: list[dict[str, object]] = []
+    for position, index in enumerate(indices):
+        name = all_columns[index]
+        value = float(coef[position])
+        table.append(
+            {
+                "feature": name,
+                "standardized_coefficient": value,
+                "odds_ratio": float(np.exp(value)),
+                "presence_indicator": name.endswith("_presence"),
+            }
+        )
+    return (
+        model,
+        table,
+        {
+            "best_c": best_c,
+            "intercept": float(model.estimator.intercept_[0]),
+            "n_training_rows": len(rows_list),
+            "feature_columns": [all_columns[index] for index in indices],
+        },
+    )
+
+
 def run_protocol(
     rows: Sequence[ShotRow],
     config: RunConfig,
-) -> tuple[dict[str, object], LogisticModel]:
-    """Run the locked protocol over development rows; returns (metrics, final refit model)."""
+) -> tuple[dict[str, object], ArtifactBundle]:
+    """Run the locked protocol; returns (metrics, shipped inference bundle)."""
     rows_list = list(rows)
     n_folds = config.n_folds
     vocabulary = build_vocabulary(rows_list)
+    all_columns = vocabulary.column_names()
+    scaler_all = fit_scaler(rows_list)
 
     selected_folds = _build_folds(rows_list, vocabulary, n_folds)
 
@@ -427,7 +576,7 @@ def run_protocol(
             for fold in selected_folds
         ]
 
-    full_columns = list(range(len(selected_folds[0].column_names)))
+    full_columns = list(range(len(all_columns)))
     geometry_columns = [0, 1]
     presence_columns = [2, 3]  # first_time_presence, under_pressure_presence
     minus_columns = [i for i in full_columns if i not in presence_columns]
@@ -450,27 +599,84 @@ def run_protocol(
     candidates["full_minus_presence"] = _run_fold_logistic(
         minus_folds, _selected_c(minus_folds, config), config
     )
+    full_best_c = cast(float, candidates["full_logistic"]["best_c"])
 
-    final_model, coefficient_table, final_refit = _final_refit(
-        rows_list, vocabulary, config, candidates["full_logistic"]
+    # D5's condition 4 needs the presence coefficients of a full development refit. That refit is
+    # produced here only to read those signs; it is diagnostic and its coefficients are never the
+    # shipped model's (blocking correction 1).
+    _diag_model, diag_coefficients, diag_refit = _refit_columns(
+        rows_list,
+        vocabulary,
+        scaler_all,
+        all_columns,
+        full_columns,
+        full_best_c,
+        config.random_seed,
     )
-    final_refit["model_pickle_sha256"] = _pickle_sha(final_model)
-
     d5 = _run_d5(
         candidates["full_logistic"],
         candidates["full_minus_presence"],
         {
             str(entry["feature"]): _sign(cast(float, entry["standardized_coefficient"]))
-            for entry in coefficient_table
+            for entry in diag_coefficients
             if str(entry["feature"]).endswith("_presence")
         },
     )
-    replacement, incumbent = _run_replacements(candidates)
+
+    # Select exactly one shipped candidate (pre-registered rule; never tuned).
+    shipped = "full_logistic" if d5["include"] else "full_minus_presence"
+    shipped_indices = full_columns if d5["include"] else minus_columns
+    shipped_best_c = cast(float, candidates[shipped]["best_c"])
+
+    # Final refit of the D5-selected candidate: its own C, its exact column subset, the
+    # all-development scaler, the locked development vocabulary (blocking corrections 1, 2).
+    _ship_model, shipped_coefficients, shipped_refit = _refit_columns(
+        rows_list,
+        vocabulary,
+        scaler_all,
+        all_columns,
+        shipped_indices,
+        shipped_best_c,
+        config.random_seed,
+    )
+    bundle = ArtifactBundle(
+        experiment_id=config.experiment_id,
+        shipped_candidate=shipped,
+        best_c=shipped_best_c,
+        code_commit=config.code_commit,
+        data_source_commit=config.data_source_commit,
+        cohort_sql_sha256=config.cohort_sql_sha256,
+        assignments_sha256=config.assignments_sha256,
+        estimator=_ship_model.estimator,
+        scaler=scaler_all,
+        vocabulary=vocabulary,
+        all_columns=tuple(all_columns),
+        selected_columns=tuple(all_columns[index] for index in shipped_indices),
+        selected_indices=tuple(int(index) for index in shipped_indices),
+        reference_levels=dict(vocabulary.reference),
+        rare_mapping={field: tuple(levels) for field, levels in vocabulary.rare_members.items()},
+    )
+
+    replacement, protocol_incumbent = _run_replacements(candidates, shipped)
+
+    diagnostics: dict[str, object] = {
+        "note": (
+            "the presence-inclusive full development refit is diagnostic only (D5 sign record); "
+            "its coefficients are NOT the shipped model's"
+        ),
+        "rejected_candidate": "full_logistic" if shipped != "full_logistic" else None,
+        "presence_inclusive_full_refit": {
+            "best_c": full_best_c,
+            "intercept": diag_refit["intercept"],
+            "feature_columns": diag_refit["feature_columns"],
+            "coefficients": diag_coefficients,
+        },
+    }
 
     metrics: dict[str, object] = {
         "experiment_id": config.experiment_id,
-        "git_commit": config.git_commit,
-        "source_commit": config.source_commit,
+        "code_commit": config.code_commit,
+        "data_source_commit": config.data_source_commit,
         "cohort_sql_sha256": config.cohort_sql_sha256,
         "assignments_sha256": config.assignments_sha256,
         "n_rows": len(rows_list),
@@ -482,70 +688,59 @@ def run_protocol(
         "vocabulary": vocabulary.as_dict(),
         "candidates": candidates,
         "d5": d5,
+        "d5_include": d5["include"],
+        "protocol_incumbent": protocol_incumbent,
+        "shipped_candidate": shipped,
+        "shipped_feature_set": (
+            "geometry+categoricals+presence-indicators"
+            if d5["include"]
+            else "geometry+categoricals"
+        ),
+        "shipped_best_c": shipped_best_c,
+        "shipped_feature_columns": [all_columns[index] for index in shipped_indices],
         "replacement_rule": replacement,
-        "incumbent": incumbent,
         "presence_report": _presence_report(rows_list, n_folds),
-        "coefficients": coefficient_table,
-        "final_dev_refit": final_refit,
+        "coefficients": shipped_coefficients,
+        "shipped_dev_refit": shipped_refit,
+        "diagnostics": diagnostics,
+        "model_pickle_sha256": _pickle_sha(bundle),
     }
-    return metrics, final_model
-
-
-def _final_refit(
-    rows: Sequence[ShotRow],
-    vocabulary: Vocabulary,
-    config: RunConfig,
-    full_metrics: Mapping[str, object],
-) -> tuple[LogisticModel, list[dict[str, object]], dict[str, object]]:
-    scaler = fit_scaler(rows)
-    X, column_names = encode_rows(rows, vocabulary, scaler)
-    y = np.asarray([row.y for row in rows], dtype=np.int_)
-    best_c = cast(float, full_metrics["best_c"])
-    model = fit_logistic(X, y, best_c, random_state=config.random_seed)
-    coef = model.estimator.coef_[0]
-    table: list[dict[str, object]] = []
-    for index, name in enumerate(column_names):
-        value = float(coef[index])
-        table.append(
-            {
-                "feature": name,
-                "standardized_coefficient": value,
-                "odds_ratio": float(np.exp(value)),
-                "presence_indicator": name.endswith("_presence"),
-            }
-        )
-    return (
-        model,
-        table,
-        {
-            "best_c": best_c,
-            "intercept": float(model.estimator.intercept_[0]),
-            "n_training_rows": len(rows),
-            "model_pickle_sha256": "",
-        },
-    )
+    return metrics, bundle
 
 
 def _pickle_sha(model: object) -> str:
     return hashlib.sha256(pickle.dumps(model, protocol=5)).hexdigest()
 
 
-def write_experiment(metrics: Mapping[str, object], model: object, config: RunConfig) -> list[Path]:
-    config.out_dir.mkdir(parents=True, exist_ok=True)
-    config.artifacts_dir.mkdir(parents=True, exist_ok=True)
+def write_experiment(
+    metrics: Mapping[str, object], bundle: ArtifactBundle, config: RunConfig
+) -> list[Path]:
+    """Write the experiment record for the **shipped candidate** and one authoritative row."""
+    out = _abs_path(config.out_dir)
+    art = _abs_path(config.artifacts_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    art.mkdir(parents=True, exist_ok=True)
 
+    shipped_key = cast(str, metrics["shipped_candidate"])
     candidates = cast(Mapping[str, object], metrics["candidates"])
-    full_candidate = cast(_CandidateReadOut, candidates["full_logistic"])
-    incumbent = cast(str, metrics["incumbent"])
+    shipped_metrics = cast(_CandidateReadOut, candidates[shipped_key])
 
-    (config.out_dir / "metrics.json").write_bytes(canonical_metrics_json(metrics))
+    pickle_bytes = pickle.dumps(bundle, protocol=5)
+    bundle_hash = hashlib.sha256(pickle_bytes).hexdigest()
+    recorded_hash = cast(str, metrics["model_pickle_sha256"])
+    if bundle_hash != recorded_hash:
+        raise AssertionError(
+            f"bundle pickle SHA {bundle_hash} != recorded {recorded_hash}; records must agree"
+        )
+
+    (out / "metrics.json").write_bytes(canonical_metrics_json(metrics))
 
     config_dict = {
         "experiment_id": config.experiment_id,
-        "out_dir": str(config.out_dir),
-        "artifacts_dir": str(config.artifacts_dir),
-        "git_commit": config.git_commit,
-        "source_commit": config.source_commit,
+        "out_dir": _record_path(config.out_dir),
+        "artifacts_dir": _record_path(config.artifacts_dir),
+        "code_commit": config.code_commit,
+        "data_source_commit": config.data_source_commit,
         "db_url_env": config.db_url_env,
         "assignments_sha256": config.assignments_sha256,
         "cohort_sql_sha256": config.cohort_sql_sha256,
@@ -556,82 +751,115 @@ def write_experiment(metrics: Mapping[str, object], model: object, config: RunCo
         "expected_matches": config.expected_matches,
         "expected_fold_sizes": dict(config.expected_fold_sizes),
         "bin_count": config.bin_count,
-        "results_csv": str(config.results_csv),
+        "results_csv": _record_path(config.results_csv),
+        "shipped_candidate": shipped_key,
+        "shipped_feature_set": metrics["shipped_feature_set"],
+        "shipped_best_c": metrics["shipped_best_c"],
+        "shipped_feature_columns": list(cast(list[object], metrics["shipped_feature_columns"])),
+        "d5_include": metrics["d5_include"],
     }
-    (config.out_dir / "config.json").write_bytes(canonical_metrics_json(config_dict))
+    (out / "config.json").write_bytes(canonical_metrics_json(config_dict))
 
-    (config.out_dir / "notes.md").write_text(_notes_template(config), encoding="utf-8")
+    (out / "notes.md").write_text(_notes_template(config), encoding="utf-8")
 
-    pickle_bytes = pickle.dumps(model, protocol=5)
-    pickle_path = config.artifacts_dir / "model.pkl"
+    pickle_path = art / "model.pkl"
     pickle_path.write_bytes(pickle_bytes)
     artifact_manifest = {
-        "model_pickle_path": str(pickle_path),
-        "model_pickle_sha256": hashlib.sha256(pickle_bytes).hexdigest(),
+        "experiment_id": config.experiment_id,
+        "code_commit": config.code_commit,
+        "data_source_commit": config.data_source_commit,
+        "shipped_candidate": shipped_key,
+        "shipped_feature_set": metrics["shipped_feature_set"],
+        "shipped_best_c": metrics["shipped_best_c"],
+        "shipped_feature_columns": list(cast(list[object], metrics["shipped_feature_columns"])),
+        "d5_include": metrics["d5_include"],
+        "model_pickle_path": _record_path(pickle_path),
+        "model_pickle_sha256": bundle_hash,
         "recreation_command": (
-            f"uv run python -m touchline.modeling.train --config {config.out_dir / 'config.json'}"
+            "uv run python -m touchline.modeling.train --config "
+            f"{_record_path(out / 'config.json')}"
         ),
-        "coefficients_json": str(config.out_dir / "metrics.json"),
+        "coefficients_json": _record_path(out / "metrics.json"),
     }
-    (config.out_dir / "artifact-manifest.json").write_bytes(
-        canonical_metrics_json(artifact_manifest)
-    )
+    (out / "artifact-manifest.json").write_bytes(canonical_metrics_json(artifact_manifest))
 
     results_row = {
         "experiment_id": config.experiment_id,
         "date_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "git_commit": config.git_commit,
+        "code_commit": config.code_commit,
+        "data_source_commit": config.data_source_commit,
         "dataset_id": "wp2_3_split_lock",
         "query_hash": config.cohort_sql_sha256,
-        "feature_set": "geometry+categoricals+presence-indicators",
+        "shipped_feature_set": metrics["shipped_feature_set"],
         "split_strategy": "wp2_3_tournament_split",
         "model": "regularized-logistic",
         "seed": config.random_seed,
         "primary_metric": "mean_log_loss",
-        "primary_value": full_candidate["mean_log_loss"],
-        "brier": full_candidate["pooled_oof"]["brier"],
-        "log_loss": full_candidate["pooled_oof"]["log_loss"],
+        "primary_value": shipped_metrics["mean_log_loss"],
+        "brier": shipped_metrics["pooled_oof"]["brier"],
+        "log_loss": shipped_metrics["pooled_oof"]["log_loss"],
+        "protocol_incumbent": metrics["protocol_incumbent"],
+        "shipped_candidate": shipped_key,
+        "d5_include": metrics["d5_include"],
+        "shipped_best_c": metrics["shipped_best_c"],
+        "model_pickle_sha256": bundle_hash,
         "calibration_summary": "five-bin equal-width; D11 support applied",
         "status": "complete",
-        "decision": incumbent,
-        "notes_path": str(config.out_dir / "notes.md"),
+        "notes_path": _record_path(out / "notes.md"),
     }
-    _append_results_csv(config.results_csv, results_row)
+    _replace_results_csv(config.results_csv, results_row)
     return [
-        config.out_dir / "metrics.json",
-        config.out_dir / "config.json",
-        config.out_dir / "notes.md",
-        config.out_dir / "artifact-manifest.json",
+        out / "metrics.json",
+        out / "config.json",
+        out / "notes.md",
+        out / "artifact-manifest.json",
         pickle_path,
     ]
 
 
 RESULTS_CSV_HEADER = (
-    "experiment_id,date_utc,git_commit,dataset_id,query_hash,feature_set,split_strategy,"
-    "model,seed,primary_metric,primary_value,brier,log_loss,calibration_summary,status,"
-    "decision,notes_path"
+    "experiment_id,date_utc,code_commit,data_source_commit,dataset_id,query_hash,"
+    "shipped_feature_set,split_strategy,model,seed,primary_metric,primary_value,brier,log_loss,"
+    "protocol_incumbent,shipped_candidate,d5_include,shipped_best_c,model_pickle_sha256,"
+    "calibration_summary,status,notes_path"
 )
 
 
-def _append_results_csv(path: Path, row: Mapping[str, object]) -> None:
+def _read_results_rows(path: Path) -> list[list[str]]:
+    if not path.exists() or path.read_text(encoding="utf-8").strip() == "":
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [line.split(",") for line in lines[1:] if line.strip()]
+
+
+def _replace_results_csv(path: str, row: Mapping[str, object]) -> None:
+    """Write one authoritative row per experiment, preserving prior experiments (append-only).
+
+    The review's blocking correction 3 requires the duplicate local rows for this branch-local
+    experiment to collapse to exactly one authoritative row, while future published runs remain
+    append-only.
+    """
     header = RESULTS_CSV_HEADER
     keys = header.split(",")
-    values = ",".join(str(row[key]) for key in keys)
-    if not path.exists() or path.read_text(encoding="utf-8").strip() == "":
-        with path.open("a", encoding="utf-8", newline="\n") as handle:
-            handle.write(header + "\n")
-    with path.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(values + "\n")
+    new_row = [str(row[key]) for key in keys]
+    resolved = _abs_path(path)
+    prior = [r for r in _read_results_rows(resolved) if not r or r[0] != str(row["experiment_id"])]
+    with resolved.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(header + "\n")
+        for existing in prior:
+            handle.write(",".join(existing) + "\n")
+        handle.write(",".join(new_row) + "\n")
 
 
 def _notes_template(config: RunConfig) -> str:
     return (
         "# WP2.4 experiment run\n\n"
         f"Experiment: {config.experiment_id}\n\n"
+        f"Code commit: {config.code_commit}\n\n"
         "Hypothesis: a regularized logistic regression over the locked feature set beats both "
         "baselines under PLAN §4.1; presence indicators are admissible only if the D5 protocol "
-        "passes.\n\n"
-        "See metrics.json for the measured protocol result; see "
+        "passes. The shipped artifact is the D5-selected candidate, never the rejected one.\n\n"
+        "See metrics.json for the measured protocol result and the shipped candidate; see "
         "docs/modeling/wp2_4-baselines-and-logistic-contract.md for the pre-registered decisions.\n"
     )
 
@@ -678,11 +906,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         expected_fold_sizes=config.expected_fold_sizes,
     )
 
-    metrics, final_model = run_protocol(rows, config)
-    write_experiment(metrics, final_model, config)
-    d5_result = cast(Mapping[str, object], metrics["d5"])
-    print(f"Wrote experiment record: {config.out_dir}")
-    print(f"Incumbent: {metrics['incumbent']} | D5 include: {d5_result['include']}")
+    metrics, bundle = run_protocol(rows, config)
+    write_experiment(metrics, bundle, config)
+    print(f"Wrote experiment record: {_record_path(config.out_dir)}")
+    print(
+        f"Shipped: {metrics['shipped_candidate']} | D5 include: {metrics['d5_include']} "
+        f"| protocol incumbent: {metrics['protocol_incumbent']}"
+    )
     return 0
 
 

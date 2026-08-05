@@ -194,8 +194,10 @@ def load_development_cohort(
     body = cohort_sql.rstrip()
     if body.endswith(";"):
         body = body[:-1]
-    sql = f"SELECT {LOAD_COLUMNS} FROM ({body}) AS cohort WHERE match_id = ANY(%s)"
-    development_ids = list(assignments.development_match_ids)
+    sql = f"SELECT {LOAD_COLUMNS} FROM ({body}) AS cohort WHERE match_id = ANY(%s) ORDER BY shot_id"
+    # Sort the bound ids and order the result set explicitly: the loader's row order is part of
+    # reproducibility and must never depend on PostgreSQL's unspecified default row order.
+    development_ids = sorted(assignments.development_match_ids)
     with conn.transaction(), conn.cursor() as cur:
         cur.execute("SET TRANSACTION READ ONLY")
         cur.execute(sql, (development_ids,))
