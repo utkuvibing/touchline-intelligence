@@ -14,9 +14,11 @@ and rare-level mappings, and the hashes that identify the training inputs. It sc
 
 **Feature-column contract (blocking correction P1).** Before slicing, prediction re-encodes the
 rows and compares the encoder's current column names against the persisted ``all_columns``,
-especially column order, and checks uniqueness, selected-name/index agreement and the estimator's
-feature count. Any ambiguous schema mismatch raises ``ArtifactCompatibilityError`` instead of
-silently feeding the estimator the wrong columns.
+especially column order, and checks uniqueness, index bounds, selected-name/index agreement and the
+estimator's feature count. Any ambiguous schema mismatch raises ``ArtifactCompatibilityError``
+instead of silently feeding the estimator the wrong columns — including a **negative**
+``selected_indices`` entry, which Python would otherwise wrap around into a valid-looking but wrong
+column, and an out-of-range entry, which would otherwise escape as a bare ``IndexError``.
 
 The artifact schema is versioned via ``artifact_schema_version``; a bundle created under an
 unsupported version fails loudly on load and on predict.
@@ -105,8 +107,9 @@ class ArtifactBundle:
     def _validate_feature_contract(self, current_columns: Sequence[str]) -> None:
         """Fail loudly if the encoder's columns no longer match the persisted feature contract.
 
-        Ordering, membership (missing/unexpected), uniqueness, selected-name/index agreement and
-        the estimator's feature count are all checked. The artifact is never silently reordered.
+        Ordering, membership (missing/unexpected), uniqueness, index bounds, selected-name/index
+        agreement and the estimator's feature count are all checked. The artifact is never silently
+        reordered, and no index mismatch is allowed to surface as a bare ``IndexError``.
         """
         all_cols = list(self.all_columns)
         if len(all_cols) != len(set(all_cols)):
@@ -127,6 +130,19 @@ class ArtifactBundle:
         if len(self.selected_indices) != len(set(self.selected_indices)):
             raise ArtifactCompatibilityError(
                 "persisted selected_indices contain duplicates; the feature selection is ambiguous"
+            )
+        # Bounds must be checked before the indices are used. A negative index would silently
+        # wrap around and select a different column (no exception at all), and an out-of-range
+        # index would surface as a bare ``IndexError`` that reads like an internal bug rather
+        # than the artifact-compatibility failure it is.
+        out_of_range = [
+            index for index in self.selected_indices if index < 0 or index >= len(all_cols)
+        ]
+        if out_of_range:
+            raise ArtifactCompatibilityError(
+                f"persisted selected_indices {out_of_range} are outside the persisted "
+                f"all_columns range [0, {len(all_cols)}); refusing to infer on an out-of-bounds "
+                "feature selection"
             )
         expected_selected = [all_cols[index] for index in self.selected_indices]
         if list(self.selected_columns) != expected_selected:

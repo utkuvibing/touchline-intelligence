@@ -12,15 +12,17 @@ Three layers:
    is read as a file and held to the same path contract **and** to the publication boundary: a
    public note may not point readers at deliberately unpublished repository-internal material.
 3. Committed-record tests: all machine records must agree on experiment id, code commit, data
-   source commit, shipped candidate, D5 outcome, selected C, shipped feature columns, shipped
-   feature-set label, model pickle SHA-256; the evidence report's stated shipped candidate /
-   C / feature-set / model-hash prefix must match. These never skip — the packet is committed,
-   so a missing or stale record is a failure.
+   source commit, shipped candidate, D5 outcome, selected C (metrics/config/manifest/results.csv/
+   report), shipped feature columns, shipped feature-set label (metrics/config/manifest/
+   results.csv/report), model pickle SHA-256; and ``results.csv``'s primary metric/value, Brier and
+   log loss must come from the **shipped** candidate and demonstrably not from the rejected one.
+   These never skip — the packet is committed, so a missing or stale record is a failure.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
@@ -282,7 +284,8 @@ def test_committed_records_are_cross_file_consistent() -> None:
         == config["shipped_feature_columns"]
         == manifest["shipped_feature_columns"]
     )
-    assert metrics["shipped_best_c"] == manifest["shipped_best_c"]
+    # The selected C must agree everywhere it is recorded, not merely in two of the three records.
+    assert metrics["shipped_best_c"] == config["shipped_best_c"] == manifest["shipped_best_c"]
     assert metrics["model_pickle_sha256"] == manifest["model_pickle_sha256"]
 
     results = _results_map(RESULTS_CSV, str(metrics["experiment_id"]))
@@ -293,14 +296,71 @@ def test_committed_records_are_cross_file_consistent() -> None:
     assert results["reproduction_commit"] == metrics["reproduction_commit"]
     assert results["input_config_sha256"] == metrics["input_config_sha256"]
     assert results["uv_lock_sha256"] == metrics["uv_lock_sha256"]
+    shipped_c = cast(float, metrics["shipped_best_c"])
+    assert float(results["shipped_best_c"]) == pytest.approx(shipped_c)
+    assert results["shipped_feature_set"] == metrics["shipped_feature_set"]
 
     report = REPORT_PATH.read_text(encoding="utf-8")
     assert str(metrics["shipped_candidate"]) in report
     assert str(metrics["model_pickle_sha256"]) in report
     assert str(metrics["reproduction_commit"]) in report
+    _assert_report_states_shipped_c_and_feature_set(report, metrics)
     _assert_portable(config)
     _assert_portable(metrics)
     _assert_portable(manifest)
+
+
+def _assert_report_states_shipped_c_and_feature_set(
+    report: str, metrics: Mapping[str, object]
+) -> None:
+    """The prose evidence report must state the same selected C and feature set as the records.
+
+    The report renders the machine label in prose (``geometry + categoricals``) and the C inside
+    the shipped table row (``(C=0.1) — SHIPPED``), so both are compared against a whitespace-
+    normalized copy rather than requiring the report to carry the raw machine strings.
+    """
+    normalized = re.sub(r"\s*\+\s*", "+", report)
+    feature_set = str(metrics["shipped_feature_set"])
+    assert feature_set in normalized, (
+        f"the evidence report does not state the shipped feature set {feature_set!r}"
+    )
+    shipped_c = cast(float, metrics["shipped_best_c"])
+    shipped_rows = [line for line in report.splitlines() if "SHIPPED" in line]
+    assert shipped_rows, "the evidence report has no line marking the shipped candidate"
+    assert any(f"C={shipped_c:g}" in line for line in shipped_rows), (
+        f"the evidence report's shipped row does not state C={shipped_c:g}: {shipped_rows}"
+    )
+
+
+def test_committed_results_row_reports_the_shipped_candidates_metrics() -> None:
+    """``results.csv``'s primary metric/value must come from the shipped candidate.
+
+    The first review round found this row reading from the *rejected* ``full_logistic``. Proving it
+    on the committed evidence (not only on a freshly generated record) is what stops a future
+    regeneration from quietly reintroducing the swap.
+    """
+    _require_committed_schema()
+    metrics = json.loads((COMMITTED_EXP / "metrics.json").read_text(encoding="utf-8"))
+    results = _results_map(RESULTS_CSV, str(metrics["experiment_id"]))
+    candidates = cast(Mapping[str, Mapping[str, object]], metrics["candidates"])
+    shipped_key = str(metrics["shipped_candidate"])
+    shipped = candidates[shipped_key]
+    rejected_key = "full_logistic" if shipped_key != "full_logistic" else "geometry_logistic"
+    rejected = candidates[rejected_key]
+
+    assert results["primary_metric"] == "mean_log_loss"
+    shipped_mean_ll = cast(float, shipped["mean_log_loss"])
+    assert float(results["primary_value"]) == pytest.approx(shipped_mean_ll)
+    shipped_pooled = cast(Mapping[str, float], shipped["pooled_oof"])
+    assert float(results["brier"]) == pytest.approx(shipped_pooled["brier"])
+    assert float(results["log_loss"]) == pytest.approx(shipped_pooled["log_loss"])
+
+    # ...and demonstrably not the rejected candidate's, which is the failure mode being excluded.
+    rejected_mean_ll = cast(float, rejected["mean_log_loss"])
+    rejected_pooled = cast(Mapping[str, float], rejected["pooled_oof"])
+    assert float(results["primary_value"]) != pytest.approx(rejected_mean_ll)
+    assert float(results["brier"]) != pytest.approx(rejected_pooled["brier"])
+    assert float(results["log_loss"]) != pytest.approx(rejected_pooled["log_loss"])
 
 
 def test_committed_results_path_fields_are_portable() -> None:

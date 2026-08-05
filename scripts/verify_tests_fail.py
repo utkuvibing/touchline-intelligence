@@ -1708,6 +1708,14 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP2.4 inference must reject out-of-bounds/negative selected indices",
+        path=ROOT / "backend/src/touchline/modeling/artifact.py",
+        anchor="        if out_of_range:\n",
+        replacement="        if False:  # DELIBERATE BREAK: bounds check skipped\n",
+        command=WP24_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.4 inference must not ignore selected-column/index disagreement",
         path=ROOT / "backend/src/touchline/modeling/artifact.py",
         anchor="        if list(self.selected_columns) != expected_selected:\n",

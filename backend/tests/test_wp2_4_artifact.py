@@ -7,9 +7,10 @@ Covers:
 - ``load_bundle`` round-trips a real bundle and ``infer`` scores raw rows with persisted
   preprocessing, never a re-fit;
 - every feature-contract mismatch raises the specific ``ArtifactCompatibilityError`` — reordered
-  columns, missing/unexpected columns, duplicated names, selected-name/index disagreement,
-  estimator feature-count mismatch, and an unsupported schema version — never a silent probability
-  or a bare generic ValueError;
+  columns, missing/unexpected columns, duplicated names, **negative** and **out-of-range**
+  selected indices, selected-name/index disagreement, estimator feature-count mismatch, and an
+  unsupported schema version — never a silent probability, a bare ``IndexError`` or a generic
+  ``ValueError``;
 - ``load_bundle`` refuses non-bundle pickles.
 """
 
@@ -158,6 +159,42 @@ def test_selected_column_index_disagreement_raises() -> None:
     tampered = replace(bundle, selected_columns=wrong_selected)
     with pytest.raises(ArtifactCompatibilityError):
         tampered.predict_proba(rows[:6])
+
+
+def test_negative_selected_index_raises_instead_of_wrapping_around() -> None:
+    """A negative index must be refused, not silently wrapped to a different column.
+
+    This is the one mismatch that produces **no** exception on its own: ``all_columns[-1]`` is
+    legal Python, so the name/index agreement check is satisfied by the wrapped-around column and
+    the estimator is quietly fed the wrong feature. The tampered bundle below is therefore built so
+    that *every other* check passes — the persisted names genuinely match the wrapped indices, and
+    there are no duplicates — which is exactly what makes it a test of the bounds check rather than
+    of the agreement check.
+    """
+    bundle, rows, _ = _make_bundle()
+    all_columns = bundle.all_columns
+    wrapped_name = all_columns[-1]
+    assert wrapped_name != all_columns[1], "fixture must keep the wrapped name distinct"
+    tampered = replace(
+        bundle,
+        selected_indices=(-1, 1),
+        selected_columns=(wrapped_name, all_columns[1]),
+    )
+    with pytest.raises(ArtifactCompatibilityError) as excinfo:
+        tampered.predict_proba(rows[:6])
+    assert "selected_indices" in str(excinfo.value)
+
+
+def test_out_of_range_selected_index_raises_artifact_error_not_index_error() -> None:
+    """An out-of-range index must surface as the named artifact error, never a bare IndexError."""
+    bundle, rows, _ = _make_bundle()
+    beyond = len(bundle.all_columns)
+    tampered = replace(bundle, selected_indices=(beyond, 1))
+    with pytest.raises(ArtifactCompatibilityError) as excinfo:
+        tampered.predict_proba(rows[:6])
+    assert "selected_indices" in str(excinfo.value)
+    # Specifically not the raw lookup failure that the bounds check replaces.
+    assert not isinstance(excinfo.value, IndexError)
 
 
 def test_estimator_feature_count_mismatch_raises() -> None:
