@@ -235,6 +235,7 @@ def test_committed_records_are_cross_file_consistent() -> None:
     assert str(metrics["model_pickle_sha256"]) in report
     assert str(metrics["reproduction_commit"]) in report
     _assert_portable(config)
+    _assert_portable(metrics)
     _assert_portable(manifest)
 
 

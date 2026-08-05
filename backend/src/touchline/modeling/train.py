@@ -774,7 +774,7 @@ def run_protocol(
         "code_commit": config.code_commit,
         "reproduction_commit": config.reproduction_commit,
         "data_source_commit": config.data_source_commit,
-        "input_config_path": config.input_config_path,
+        "input_config_path": _record_path(config.input_config_path),
         "input_config_sha256": config.input_config_sha256,
         "uv_lock_sha256": config.uv_lock_sha256,
         "runtime_fingerprint": config.runtime_fingerprint,
