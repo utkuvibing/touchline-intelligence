@@ -4,23 +4,44 @@ Measured 2026-08-05 against the local full-cohort PostgreSQL at
 `postgresql://touchline:localdev@localhost:5433/touchline` over the pinned StatsBomb Open Data
 revision `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Every database read was `READ ONLY`.
 
-**Provenance (reconciled after the independent review).** The immutable code commit that produced
-this run is `542bbb71b41cef1bde3279cb1126f606e93041e4` (the D5-selection correction commit), recorded
-as `code_commit`; the StatsBomb repository revision is recorded separately as `data_source_commit`
-`b0bc9f22…`. No reproducibility claim is made against the WP2.3 base commit. The protocol and every
-experiment record now select exactly one **shipped candidate** by D5 — here
-**`full_minus_presence`** (D5 excludes the presence indicators, 3/5 positive folds) — and serialize
-it as a self-contained inference bundle. Machine records (`metrics.json`, `config.json`,
-`artifact-manifest.json`, `results.csv`, this report) agree on the shipped candidate, its feature
-set and columns, selected C, D5 outcome and the model bundle SHA-256 `1ee484bafa02f52b88f…` — checked
-by `test_wp2_4_experiment_consistency.py`.
+**Provenance (second review round, fully reconciled).** The immutable code commit that produced
+this run is `8cb7a61297a730033a9dcadecc97e665cf17afcf` — recorded identically as `code_commit` and
+`reproduction_commit`; this is the clean pre-evidence commit containing the corrected artifact
+implementation, tests, `uv.lock` and the committed portable run-input config
+`experiments/run-configs/wp2_4-baselines.json` (SHA-256 `30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e`).
+The evidence-only commit that follows is a different, later SHA and is **not** the reproduction
+commit. `data_source_commit` (StatsBomb revision) is `b0bc9f22…`; `uv.lock` SHA-256
+`58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902`. No reproducibility claim is
+made against any earlier commit.
+
+**Runtime fingerprint (recorded, sanitized).** The byte-identical reproducibility claim is scoped
+to the recorded runtime: Python CPython `platform.python_version()`, OS `platform.system()`
+`platform.release()`, machine `platform.machine()`, NumPy/scikit-learn/SciPy/threadpoolctl
+versions, and sanitized `threadpoolctl.threadpool_info()` (library `filepath` entries excluded; no
+usernames, home/executable/temp paths or DSNs). The full fingerprint is recorded in
+`metrics.json`, `config.json` and `artifact-manifest.json`.
+
+**Recreation (recorded in `artifact-manifest.json`):**
+
+```
+git checkout 8cb7a61297a730033a9dcadecc97e665cf17afcf
+uv sync --locked
+# set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database
+uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json
+```
+
+The artifact is a self-contained, schema-versioned (`artifact_schema_version = 1`) inference
+bundle defined in the stable importable module `touchline.modeling.artifact`; a CLI-generated
+`model.pkl` loads and scores raw `ShotRow`s in a fresh process (cross-process regression test),
+and inference validates the persisted feature-column contract, failing loudly on any schema
+mismatch.
 
 The evidence packet is `experiments/shot_quality/exp-20260805-wp2_4-baselines/` (`metrics.json`,
-`config.json`, `artifact-manifest.json`) and this report. No holdout or calibration label was read
-by any WP2.4 code: the loader executes the WP2.1 cohort query inside `WHERE match_id =
-ANY(%s)` filtered to the 115 development match ids, bound in sorted order with an explicit
-`ORDER BY shot_id`, and the full-cohort tests prove zero calibration/holdout match ids in the
-fitted input (§ Holdout lock).
+`config.json` — an output snapshot, not the input config, `artifact-manifest.json`) and this
+report. No holdout or calibration label was read by any WP2.4 code: the loader executes the WP2.1
+cohort query inside `WHERE match_id = ANY(%s)` filtered to the 115 development match ids, bound in
+sorted order with an explicit `ORDER BY shot_id`, and the full-cohort tests prove zero
+calibration/holdout match ids in the fitted input (§ Holdout lock).
 
 ## Population and protocol
 
@@ -178,10 +199,12 @@ These are **presence indicators, never booleans**: absence of an annotation is e
 (3/5 positive ΔLL folds), which is why they are diagnostics, not features.
 
 Serially cached full-cohort run evidence: `metrics.json` (rounded to 12 dp, canonical bytes),
-`config.json` (self-contained and rerunnable, code_commit `542bbb71…`), `artifact-manifest.json`
-(model bundle SHA-256 `1ee484bafa02f52b88fd43d06285172bebcfefe9c893b07ae5ac239aff493f8b`,
-recreation command recorded). All paths in committed records are repository-relative POSIX; the
-ignored `model.pkl` hash matches every machine-readable reference.
+`config.json` (output snapshot, self-contained and rerunnable; code/reproduction commit
+`8cb7a612…`), `artifact-manifest.json` (model bundle SHA-256
+`4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1`, schema version 1, recreation
+instructions recorded). All paths in committed records are repository-relative POSIX; the ignored
+`model.pkl` hash matches every machine-readable reference, and the actual local artifact was
+loaded and scored in a fresh Python process.
 
 ## D4 — planning-stage semantics review (resolved, no gate)
 
@@ -218,13 +241,16 @@ Euro 2024; the loader surfaces only development. No holdout number appears anywh
 
 - Structure: `TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline'
   uv run pytest backend/tests/test_wp2_4_training_full_cohort.py -m full_cohort` → 5/5.
-- Protocol run: `TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline'
-  uv run poe train --config experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json`.
-- Quality gates at the evidence commit: `uv run poe check` → **834 passed / 122 skipped / 0 failed**;
-  full-cohort structural tests **5/5**; mutation suite **150/150 CAUGHT, 0 MISSED** (the three new
-  mutations protect the shipped-candidate selection, the shipped feature subset and the shipped
-  results metadata). Two consecutive `poe train` runs under the locked runtime produced a
-  **byte-identical** `metrics.json` (SHA-256 `A269B831D483E4327B4C90AE28AD54F8905DCA3BD92397C010F6485647F4BF3E`).
+- Protocol run (the committed input config; provenance derived from the clean repository HEAD):
+  `TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline'
+  uv run poe train --config experiments/run-configs/wp2_4-baselines.json`.
+- Quality gates at the evidence commit: `uv run poe check` → **852 passed / 122 skipped / 0 failed**;
+  full-cohort structural tests **5/5**; mutation suite **157/157 CAUGHT, 0 MISSED** (incl. the
+  artifact-identity, feature-column contract, selected/index agreement, derived code-commit,
+  input-config and uv.lock hash, and runtime-fingerprint contracts). Cross-process artifact
+  load/inference test passes. Two consecutive `poe train` runs from the clean reproduction commit
+  under the recorded runtime produced a **byte-identical** `metrics.json` (SHA-256
+  `AB1EE73F04A7D296F20224FADE7CBC2A6AC060C5CB2AD2E322E49AB91CDA7047`).
 
 ## Limitations
 

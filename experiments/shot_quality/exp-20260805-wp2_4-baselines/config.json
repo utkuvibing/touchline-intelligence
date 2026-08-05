@@ -8,7 +8,7 @@
     1.0,
     10.0
   ],
-  "code_commit": "542bbb71b41cef1bde3279cb1126f606e93041e4",
+  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
   "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
   "d5_include": false,
   "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
@@ -23,10 +23,51 @@
   "expected_matches": 115,
   "expected_shots": 2872,
   "experiment_id": "exp-20260805-wp2_4-baselines",
+  "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
+  "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
   "n_folds": 5,
   "out_dir": "experiments/shot_quality/exp-20260805-wp2_4-baselines",
   "random_seed": 0,
+  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
   "results_csv": "experiments/results.csv",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 12,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpoolctl_version": "3.6.0"
+  },
   "shipped_best_c": 0.1,
   "shipped_candidate": "full_minus_presence",
   "shipped_feature_columns": [
@@ -47,5 +88,6 @@
     "play_pattern_name::From Throw In",
     "play_pattern_name::rare"
   ],
-  "shipped_feature_set": "geometry+categoricals"
+  "shipped_feature_set": "geometry+categoricals",
+  "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902"
 }

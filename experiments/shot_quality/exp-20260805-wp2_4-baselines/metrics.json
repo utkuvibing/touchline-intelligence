@@ -424,7 +424,7 @@
       "supported_bins": 2
     }
   },
-  "code_commit": "542bbb71b41cef1bde3279cb1126f606e93041e4",
+  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
   "coefficients": [
     {
       "feature": "distance_to_goal",
@@ -708,7 +708,9 @@
     "rejected_candidate": "full_logistic"
   },
   "experiment_id": "exp-20260805-wp2_4-baselines",
-  "model_pickle_sha256": "1ee484bafa02f52b88fd43d06285172bebcfefe9c893b07ae5ac239aff493f8b",
+  "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
+  "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+  "model_pickle_sha256": "4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1",
   "n_matches": 115,
   "n_rows": 2872,
   "presence_report": {
@@ -751,6 +753,45 @@
     "geometry_beats_constant": false,
     "protocol_incumbent": "constant",
     "shipped_beats_incumbent": false
+  },
+  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 12,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpoolctl_version": "3.6.0"
   },
   "shipped_best_c": 0.1,
   "shipped_candidate": "full_minus_presence",
@@ -796,6 +837,7 @@
     "play_pattern_name::rare"
   ],
   "shipped_feature_set": "geometry+categoricals",
+  "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902",
   "vocabulary": {
     "levels": {
       "body_part_name": [

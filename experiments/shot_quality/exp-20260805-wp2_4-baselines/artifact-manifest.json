@@ -1,12 +1,60 @@
 {
-  "code_commit": "542bbb71b41cef1bde3279cb1126f606e93041e4",
+  "artifact_schema_version": 1,
+  "code_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
   "coefficients_json": "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
   "d5_include": false,
   "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
   "experiment_id": "exp-20260805-wp2_4-baselines",
+  "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
+  "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
   "model_pickle_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
-  "model_pickle_sha256": "1ee484bafa02f52b88fd43d06285172bebcfefe9c893b07ae5ac239aff493f8b",
-  "recreation_command": "uv run python -m touchline.modeling.train --config experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json",
+  "model_pickle_sha256": "4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1",
+  "recreation": {
+    "checkout": "git checkout 8cb7a61297a730033a9dcadecc97e665cf17afcf",
+    "database": "set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database",
+    "run": "uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json",
+    "sync": "uv sync --locked"
+  },
+  "recreation_command": "uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json",
+  "reproduction_commit": "8cb7a61297a730033a9dcadecc97e665cf17afcf",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 12,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpoolctl_version": "3.6.0"
+  },
   "shipped_best_c": 0.1,
   "shipped_candidate": "full_minus_presence",
   "shipped_feature_columns": [
@@ -27,5 +75,6 @@
     "play_pattern_name::From Throw In",
     "play_pattern_name::rare"
   ],
-  "shipped_feature_set": "geometry+categoricals"
+  "shipped_feature_set": "geometry+categoricals",
+  "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902"
 }

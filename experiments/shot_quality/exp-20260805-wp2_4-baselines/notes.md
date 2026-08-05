@@ -2,7 +2,9 @@
 
 Experiment: exp-20260805-wp2_4-baselines
 
-Code commit: 542bbb71b41cef1bde3279cb1126f606e93041e4
+Code commit: 8cb7a61297a730033a9dcadecc97e665cf17afcf
+Reproduction commit: 8cb7a61297a730033a9dcadecc97e665cf17afcf
+Input config: experiments\run-configs\wp2_4-baselines.json
 
 Hypothesis: a regularized logistic regression over the locked feature set beats both baselines under PLAN §4.1; presence indicators are admissible only if the D5 protocol passes. The shipped artifact is the D5-selected candidate, never the rejected one.
 
