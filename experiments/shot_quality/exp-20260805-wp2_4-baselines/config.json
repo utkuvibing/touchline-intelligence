@@ -1,5 +1,5 @@
 {
-  "artifacts_dir": "artifacts\\models\\exp-20260805-wp2_4-baselines",
+  "artifacts_dir": "artifacts/models/exp-20260805-wp2_4-baselines",
   "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
   "bin_count": 5,
   "c_grid": [
@@ -8,7 +8,10 @@
     1.0,
     10.0
   ],
+  "code_commit": "542bbb71b41cef1bde3279cb1126f606e93041e4",
   "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+  "d5_include": false,
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
   "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL",
   "expected_fold_sizes": {
     "0": 570,
@@ -20,10 +23,29 @@
   "expected_matches": 115,
   "expected_shots": 2872,
   "experiment_id": "exp-20260805-wp2_4-baselines",
-  "git_commit": "ae46025fd15f1cfbdede147d1d037190d6185131",
   "n_folds": 5,
-  "out_dir": "experiments\\shot_quality\\exp-20260805-wp2_4-baselines",
+  "out_dir": "experiments/shot_quality/exp-20260805-wp2_4-baselines",
   "random_seed": 0,
-  "results_csv": "C:\\root\\projects\\football ml\\experiments\\results.csv",
-  "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec"
+  "results_csv": "experiments/results.csv",
+  "shipped_best_c": 0.1,
+  "shipped_candidate": "full_minus_presence",
+  "shipped_feature_columns": [
+    "distance_to_goal",
+    "visible_goal_angle",
+    "body_part_name::Head",
+    "body_part_name::Left Foot",
+    "body_part_name::rare",
+    "technique_name::Half Volley",
+    "technique_name::Volley",
+    "technique_name::rare",
+    "play_pattern_name::From Corner",
+    "play_pattern_name::From Counter",
+    "play_pattern_name::From Free Kick",
+    "play_pattern_name::From Goal Kick",
+    "play_pattern_name::From Keeper",
+    "play_pattern_name::From Kick Off",
+    "play_pattern_name::From Throw In",
+    "play_pattern_name::rare"
+  ],
+  "shipped_feature_set": "geometry+categoricals"
 }

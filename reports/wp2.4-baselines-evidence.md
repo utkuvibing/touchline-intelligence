@@ -4,11 +4,23 @@ Measured 2026-08-05 against the local full-cohort PostgreSQL at
 `postgresql://touchline:localdev@localhost:5433/touchline` over the pinned StatsBomb Open Data
 revision `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Every database read was `READ ONLY`.
 
+**Provenance (reconciled after the independent review).** The immutable code commit that produced
+this run is `542bbb71b41cef1bde3279cb1126f606e93041e4` (the D5-selection correction commit), recorded
+as `code_commit`; the StatsBomb repository revision is recorded separately as `data_source_commit`
+`b0bc9f22…`. No reproducibility claim is made against the WP2.3 base commit. The protocol and every
+experiment record now select exactly one **shipped candidate** by D5 — here
+**`full_minus_presence`** (D5 excludes the presence indicators, 3/5 positive folds) — and serialize
+it as a self-contained inference bundle. Machine records (`metrics.json`, `config.json`,
+`artifact-manifest.json`, `results.csv`, this report) agree on the shipped candidate, its feature
+set and columns, selected C, D5 outcome and the model bundle SHA-256 `1ee484bafa02f52b88f…` — checked
+by `test_wp2_4_experiment_consistency.py`.
+
 The evidence packet is `experiments/shot_quality/exp-20260805-wp2_4-baselines/` (`metrics.json`,
 `config.json`, `artifact-manifest.json`) and this report. No holdout or calibration label was read
 by any WP2.4 code: the loader executes the WP2.1 cohort query inside `WHERE match_id =
-ANY(%s)` filtered to the 115 development match ids, and the full-cohort tests prove zero
-calibration/holdout match ids in the fitted input (§ Holdout lock).
+ANY(%s)` filtered to the 115 development match ids, bound in sorted order with an explicit
+`ORDER BY shot_id`, and the full-cohort tests prove zero calibration/holdout match ids in the
+fitted input (§ Holdout lock).
 
 ## Population and protocol
 
@@ -30,8 +42,8 @@ calibration/holdout match ids in the fitted input (§ Holdout lock).
 |---|---:|---:|---:|---:|---:|---:|
 | Constant (training-fold rate) | 0.301886 | 0.081509 | 0.4755 | 0.0847 | 0.0895 | 0.017234 |
 | Geometry-only logistic (C=0.1) | 0.269951 | 0.074725 | 0.7354 | 0.2612 | 0.0895 | 0.016579 |
-| **Full logistic (C=0.1)** | **0.262047** | **0.072459** | **0.7543** | **0.3052** | 0.0895 | 0.016550 |
-| Full logistic minus presence (C=0.1) | 0.263358 | 0.073044 | 0.7530 | 0.2942 | 0.0895 | 0.016167 |
+| Full logistic (C=0.1) — rejected by D5 | 0.262047 | 0.072459 | 0.7543 | 0.3052 | 0.0895 | 0.016550 |
+| **Full logistic minus presence (C=0.1) — SHIPPED** | **0.263358** | **0.073044** | **0.7530** | **0.2942** | 0.0895 | 0.016167 |
 
 Pooled OOF: constant log loss 0.301541 / Brier 0.081509 / ROC 0.4755 / PR 0.0847; geometry
 0.269548 / 0.074725 / 0.7354 / 0.2612; full 0.261651 / 0.072459 / 0.7543 / 0.3052; full-minus
@@ -92,64 +104,84 @@ pre-registered rule; it was not tuned.
 
 ## PLAN §4.1 pairwise replacement — measured outcome and investigation
 
-Candidates were compared pairwise (constant → geometry-only → full) under the four-condition PLAN
-§4.1 rule. **The rule names `constant` as the WP2.4 incumbent** (both replacements fail).
+The §4.1 comparison is applied to the **D5-selected candidate** (what ships): compare
+constant → geometry-only, then compare the D5-selected candidate (`full_minus_presence` here)
+against the current incumbent. The rule names **`constant` as `protocol_incumbent`** (both
+replacements fail). `protocol_incumbent` and `shipped_candidate` are separate concepts: the §4.1
+label is a rule artifact; the shipped predictive model is `full_minus_presence`.
 
 Investigation, recorded as the contract requires ("if it does not, investigated and reported, not
 tuned away"):
 
-- Conditions 1 and 2 pass for both logistic candidates over the constant (e.g. full mean log loss
-  0.262047 < 0.301886 − 0.017234; full mean Brier 0.072459 < 0.081509).
+- Conditions 1 and 2 pass for the logistic candidates over the constant (e.g. shipped
+  `full_minus_presence` mean log loss 0.263358 < 0.301886 − 0.017234; pooled Brier 0.073044 <
+  0.081509).
 - **Condition 3 fails structurally.** The constant predicts the base rate (0.0895) for every row,
   so its predictions land in a single supported bin where observed = predicted by construction:
   `max_abs_deviation = 0.000048`. No real model can undercut a constructed near-zero calibration
   deviation, so condition 3 is unsatisfiable against a constant incumbent. This is a degeneracy of
   applying the §4.1 calibration condition to a constant baseline, not a claim that the constant is
-  the better predictor: on the primary probability-quality metrics the full logistic dominates
-  (log loss 0.262 vs 0.302, Brier 0.072 vs 0.082, ROC 0.754 vs 0.476).
+  the better predictor: on the primary probability-quality metrics the logistic candidates dominate
+  (shipped log loss 0.263 vs 0.302, Brier 0.073 vs 0.082, ROC 0.753 vs 0.476).
 - The pre-registered expectation that the full logistic would be named incumbent under full §4.1
   therefore did **not** hold; the rule was applied exactly and the mismatch reported here.
 
-For M3 shaping, the **predictive model to use is the full-minus-presence logistic** (the D5-admitted
-feature set); the §4.1 "constant" label is a rule artifact recorded for honesty, not a production
-recommendation.
+For M3 shaping, the **shipped predictive model is the full-minus-presence logistic** (the D5-admitted
+feature set). The §4.1 "constant" `protocol_incumbent` label is a rule artifact recorded for
+honesty, not a production recommendation.
 
-## Final development-refit model (interpretation)
+## Final development-refit model — the SHIPPED artifact (interpretation)
 
-Full logistic refit on all 2,872 development rows, C = 0.1, intercept −2.405. Standardized
-coefficients (odds ratio = e^coefficient; per one standard deviation of the continuous features,
-per presence of the categorical level):
+The shipped artifact is the D5-selected candidate final-refit on all 2,872 development rows with its
+own selected C (`0.1`), its exact feature-column subset (no presence columns), the all-development
+scaler and the locked development vocabulary. Intercept −2.457. Standardized coefficients (odds
+ratio = e^coefficient; per one standard deviation of the continuous features, per presence of the
+categorical level):
 
 | Feature | coefficient | odds ratio |
 |---|---:|---:|
-| distance_to_goal | −0.588 | 0.556 |
-| visible_goal_angle | +0.482 | 1.619 |
-| body_part_name::Head (vs Right Foot) | −0.452 | 0.637 |
-| body_part_name::Left Foot (vs Right Foot) | +0.170 | 1.185 |
-| body_part_name::rare (=Other) | −0.204 | 0.816 |
-| technique_name::Half Volley (vs Normal) | −0.139 | 0.870 |
-| technique_name::Volley (vs Normal) | −0.304 | 0.738 |
-| technique_name::rare | +0.123 | 1.131 |
-| play_pattern_name::From Corner (vs Regular Play) | −0.521 | 0.594 |
-| play_pattern_name::From Counter (vs Regular Play) | +0.276 | 1.317 |
-| play_pattern_name::From Free Kick | −0.047 | 0.954 |
-| play_pattern_name::From Goal Kick | −0.357 | 0.700 |
-| play_pattern_name::From Keeper | +0.336 | 1.399 |
-| play_pattern_name::From Kick Off | −0.026 | 0.975 |
-| play_pattern_name::From Throw In | −0.003 | 0.998 |
-| play_pattern_name::rare | +0.046 | 1.047 |
+| distance_to_goal | −0.596 | 0.551 |
+| visible_goal_angle | +0.478 | 1.614 |
+| body_part_name::Head (vs Right Foot) | −0.592 | 0.553 |
+| body_part_name::Left Foot (vs Right Foot) | +0.174 | 1.190 |
+| body_part_name::rare (=Other) | −0.199 | 0.820 |
+| technique_name::Half Volley (vs Normal) | −0.117 | 0.890 |
+| technique_name::Volley (vs Normal) | −0.265 | 0.767 |
+| technique_name::rare | +0.147 | 1.158 |
+| play_pattern_name::From Corner (vs Regular Play) | −0.542 | 0.582 |
+| play_pattern_name::From Counter (vs Regular Play) | +0.272 | 1.313 |
+| play_pattern_name::From Free Kick | −0.046 | 0.955 |
+| play_pattern_name::From Goal Kick | −0.348 | 0.706 |
+| play_pattern_name::From Keeper | +0.336 | 1.400 |
+| play_pattern_name::From Kick Off | −0.029 | 0.971 |
+| play_pattern_name::From Throw In | +0.010 | 1.010 |
+| play_pattern_name::rare | +0.050 | 1.051 |
 
 Regularized-coefficient caveat: L2 (C = 0.1) shrinks coefficients toward zero, so magnitudes are
 conservative, not causal; the reference levels (Right Foot / Normal / Regular Play) are dropped
-columns and are the comparison baseline. `first_time_presence` (+0.070, odds 1.073) and
-`under_pressure_presence` (−0.474, odds 0.622) are reported for interpretation only — they are
-**not part of the shipped feature set** (D5 excluded them) — and they are **presence indicators,
-never booleans**: absence of an annotation is encoded 0 but is not "annotated as not the case"
-(WP2.2 Slice B).
+columns and are the comparison baseline. **No presence indicator appears in the shipped model.**
+
+### Diagnostic coefficients — the REJECTED presence-inclusive model (NOT shipped)
+
+The presence-inclusive full development refit (C = 0.1) exists only to supply the D5 final-refit
+coefficient signs. It is **diagnostic only** and is never the shipped model; its coefficients are
+reported in `metrics.json` under `diagnostics` and are repeated here so the exclusion is
+interpretable, never as shipped-model coefficients:
+
+| Feature | coefficient (diagnostic) |
+|---|---:|
+| first_time_presence | +0.070 (consistent + across all five fold fits and the final refit) |
+| under_pressure_presence | −0.474 (consistent − across all five fold fits and the final refit) |
+
+These are **presence indicators, never booleans**: absence of an annotation is encoded 0 but is not
+"annotated as not the case" (WP2.2 Slice B). They are excluded by the pre-registered D5 rule
+(3/5 positive ΔLL folds), which is why they are diagnostics, not features.
 
 Serially cached full-cohort run evidence: `metrics.json` (rounded to 12 dp, canonical bytes),
-`config.json` (self-contained and rerunnable), `artifact-manifest.json` (pickle SHA-256
-`bd53ccc5011e261e…`, recreation command recorded).
+`config.json` (self-contained and rerunnable, code_commit `542bbb71…`), `artifact-manifest.json`
+(model bundle SHA-256 `1ee484bafa02f52b88fd43d06285172bebcfefe9c893b07ae5ac239aff493f8b`,
+recreation command recorded). All paths in committed records are repository-relative POSIX; the
+ignored `model.pkl` hash matches every machine-readable reference.
 
 ## D4 — planning-stage semantics review (resolved, no gate)
 
@@ -188,17 +220,23 @@ Euro 2024; the loader surfaces only development. No holdout number appears anywh
   uv run pytest backend/tests/test_wp2_4_training_full_cohort.py -m full_cohort` → 5/5.
 - Protocol run: `TOUCHLINE_FULL_COHORT_DB_URL='postgresql://touchline:localdev@localhost:5433/touchline'
   uv run poe train --config experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json`.
+- Quality gates at the evidence commit: `uv run poe check` → **834 passed / 122 skipped / 0 failed**;
+  full-cohort structural tests **5/5**; mutation suite **150/150 CAUGHT, 0 MISSED** (the three new
+  mutations protect the shipped-candidate selection, the shipped feature subset and the shipped
+  results metadata). Two consecutive `poe train` runs under the locked runtime produced a
+  **byte-identical** `metrics.json` (SHA-256 `A269B831D483E4327B4C90AE28AD54F8905DCA3BD92397C010F6485647F4BF3E`).
 
 ## Limitations
 
 - Measured on one pinned source revision and one four-tournament cohort; no generalisation claimed.
 - The holdout is a tournament holdout: holding out Euro 2024 changes time and competition
   composition together (ADR 0004) — stated, not removed.
-- The §4.1 rule names the constant as incumbent due to the constructed near-zero calibration
-  deviation of a constant baseline (condition-3 degeneracy, investigated above); the predictive
-  model remains the full-minus-presence logistic on the primary metrics.
+- The §4.1 rule names the constant as `protocol_incumbent` due to the constructed near-zero
+  calibration deviation of a constant baseline (condition-3 degeneracy, investigated above); the
+  shipped predictive model remains the full-minus-presence logistic on the primary metrics, and the
+  two concepts are recorded separately.
 - Annotation intensity (WP2.2) makes `first_time` / `under_pressure` presence indicators; D5
-  excluded them here (3/5 positive folds).
+  excluded them here (3/5 positive folds), and their coefficients are diagnostic only.
 - Reliability upper bins are sparse (mass in `[0, 0.2)`); D11's 100-prediction floor leaves few
   supported bins for the calibration comparison.
 - C grid is the pre-registered `{0.01, 0.1, 1.0, 10.0}`; only 0.1 was selected — stiffer
