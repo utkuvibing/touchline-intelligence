@@ -1,0 +1,6 @@
+# Canonical line endings for pinned/byte-pinned artifacts and SQL so their SHA-256 digests are
+# reproducible on any platform and any checkout (`core.autocrlf` cannot silently convert these).
+# WP2.3+ pins hashes against these LF blobs; MUST NOT be removed without a re-lock.
+*.csv text eol=lf
+*.sql text eol=lf
+*.json text eol=lf

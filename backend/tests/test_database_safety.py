@@ -24,13 +24,14 @@ TESTS_DIR = Path(__file__).parent
 #: risk. Anything else that connects must go through the guard, which is asserted structurally
 #: below — a new fixture should not be able to reintroduce the hazard by not knowing about it.
 DIRECT_CONNECT_ALLOWED = {
-    # Read-only WP2.2/WP2.3 evidence: their own variable, READ ONLY transactions, no DDL. These
-    # are gated on TOUCHLINE_FULL_COHORT_DB_URL rather than TOUCHLINE_DB_URL, and they create no
-    # schema, apply no migration and seed no fixture -- there is nothing here for the mutation
+    # Read-only WP2.2/WP2.3/WP2.4 evidence: their own variable, READ ONLY transactions, no DDL.
+    # These are gated on TOUCHLINE_FULL_COHORT_DB_URL rather than TOUCHLINE_DB_URL, and they create
+    # no schema, apply no migration and seed no fixture -- there is nothing here for the mutation
     # guard to protect, and routing them through it would misstate what they do.
     "test_wp2_2_geometry_integration.py",
     "test_wp2_2_coverage_integration.py",
     "test_wp2_3_split_full_cohort.py",
+    "test_wp2_4_training_full_cohort.py",
     # Connectivity smoke test: issues SELECT 1 and nothing else.
     "test_database_integration.py",
     # Policy tests that patch psycopg.connect to prove it is never reached.

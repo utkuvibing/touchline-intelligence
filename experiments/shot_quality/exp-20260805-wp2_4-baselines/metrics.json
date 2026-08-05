@@ -1,0 +1,884 @@
+{
+  "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+  "bin_count": 5,
+  "c_grid": [
+    0.01,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "candidates": {
+    "constant": {
+      "max_abs_deviation_supported": 4.8061863e-05,
+      "mean_log_loss": 0.301886492972,
+      "per_fold": [
+        {
+          "brier": 0.085804710133,
+          "fold": 0,
+          "log_loss": 0.313623512272,
+          "pr_auc": 0.094736842105,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.085362827746,
+          "fold": 1,
+          "log_loss": 0.312363108401,
+          "pr_auc": 0.094202898551,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.073528856989,
+          "fold": 2,
+          "log_loss": 0.279069246842,
+          "pr_auc": 0.079734219269,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.075036457301,
+          "fold": 3,
+          "log_loss": 0.283258866545,
+          "pr_auc": 0.081597222222,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.08842775391,
+          "fold": 4,
+          "log_loss": 0.321117730801,
+          "pr_auc": 0.097902097902,
+          "roc_auc": 0.5
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.081509405376,
+        "log_loss": 0.301541077151,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.084693909383,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.475507956938
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2872,
+          "lower": 0.0,
+          "mean_prediction": 0.089532741529,
+          "observed_rate": 0.089484679666,
+          "positive_count": 257,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 0,
+          "lower": 0.2,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 0,
+          "lower": 0.4,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 0,
+          "lower": 0.6,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 0,
+          "lower": 0.8,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.017233530042,
+      "supported_bins": 1
+    },
+    "full_logistic": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.065200572581,
+      "mean_log_loss": 0.262047293774,
+      "per_fold": [
+        {
+          "brier": 0.07707209725,
+          "fold": 0,
+          "log_loss": 0.272346906484,
+          "pr_auc": 0.320829117424,
+          "roc_auc": 0.763996554694
+        },
+        {
+          "brier": 0.075189059236,
+          "fold": 1,
+          "log_loss": 0.272805408219,
+          "pr_auc": 0.335507708606,
+          "roc_auc": 0.748769230769
+        },
+        {
+          "brier": 0.062447725084,
+          "fold": 2,
+          "log_loss": 0.233043352825,
+          "pr_auc": 0.375347695279,
+          "roc_auc": 0.768840252708
+        },
+        {
+          "brier": 0.068656211395,
+          "fold": 3,
+          "log_loss": 0.254298377416,
+          "pr_auc": 0.271166320823,
+          "roc_auc": 0.721735108394
+        },
+        {
+          "brier": 0.079592184292,
+          "fold": 4,
+          "log_loss": 0.277742423925,
+          "pr_auc": 0.306851447288,
+          "roc_auc": 0.774865033223
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.072458807037,
+        "log_loss": 0.261651445791,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.305195033196,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.754319214945
+      },
+      "raw_coefficient_sign_by_fold": {
+        "first_time_presence": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "under_pressure_presence": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2631,
+          "lower": 0.0,
+          "mean_prediction": 0.06782244221,
+          "observed_rate": 0.063854047891,
+          "positive_count": 168,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 198,
+          "lower": 0.2,
+          "mean_prediction": 0.268132760753,
+          "observed_rate": 0.333333333333,
+          "positive_count": 66,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 23,
+          "lower": 0.4,
+          "mean_prediction": 0.471406154195,
+          "observed_rate": 0.478260869565,
+          "positive_count": 11,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 14,
+          "lower": 0.6,
+          "mean_prediction": 0.697352216469,
+          "observed_rate": 0.5,
+          "positive_count": 7,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 6,
+          "lower": 0.8,
+          "mean_prediction": 0.852746033005,
+          "observed_rate": 0.833333333333,
+          "positive_count": 5,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016549504247,
+      "supported_bins": 2
+    },
+    "full_minus_presence": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.053594739686,
+      "mean_log_loss": 0.263358428847,
+      "per_fold": [
+        {
+          "brier": 0.077361484242,
+          "fold": 0,
+          "log_loss": 0.271496268412,
+          "pr_auc": 0.312232125121,
+          "roc_auc": 0.773022538042
+        },
+        {
+          "brier": 0.075914831685,
+          "fold": 1,
+          "log_loss": 0.275469562971,
+          "pr_auc": 0.321689593199,
+          "roc_auc": 0.7465
+        },
+        {
+          "brier": 0.063275568532,
+          "fold": 2,
+          "log_loss": 0.236236455321,
+          "pr_auc": 0.359827337149,
+          "roc_auc": 0.757934717208
+        },
+        {
+          "brier": 0.069197781427,
+          "fold": 3,
+          "log_loss": 0.253856891073,
+          "pr_auc": 0.258227966161,
+          "roc_auc": 0.725817479789
+        },
+        {
+          "brier": 0.080126203227,
+          "fold": 4,
+          "log_loss": 0.279732966459,
+          "pr_auc": 0.292261382225,
+          "roc_auc": 0.769241417497
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.07304423249,
+        "log_loss": 0.262971881592,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.294236119925,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.752955487274
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2646,
+          "lower": 0.0,
+          "mean_prediction": 0.069125941747,
+          "observed_rate": 0.066893424036,
+          "positive_count": 177,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 183,
+          "lower": 0.2,
+          "mean_prediction": 0.268809631899,
+          "observed_rate": 0.322404371585,
+          "positive_count": 59,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 24,
+          "lower": 0.4,
+          "mean_prediction": 0.465562718542,
+          "observed_rate": 0.416666666667,
+          "positive_count": 10,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 14,
+          "lower": 0.6,
+          "mean_prediction": 0.70415454421,
+          "observed_rate": 0.428571428571,
+          "positive_count": 6,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 5,
+          "lower": 0.8,
+          "mean_prediction": 0.872825398508,
+          "observed_rate": 1.0,
+          "positive_count": 5,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016167313645,
+      "supported_bins": 2
+    },
+    "geometry_logistic": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.00290589969,
+      "mean_log_loss": 0.269950589336,
+      "per_fold": [
+        {
+          "brier": 0.077741300557,
+          "fold": 0,
+          "log_loss": 0.273663100186,
+          "pr_auc": 0.302615458558,
+          "roc_auc": 0.770223227103
+        },
+        {
+          "brier": 0.078630555449,
+          "fold": 1,
+          "log_loss": 0.284930977971,
+          "pr_auc": 0.266320337091,
+          "roc_auc": 0.720653846154
+        },
+        {
+          "brier": 0.064980122382,
+          "fold": 2,
+          "log_loss": 0.242881383222,
+          "pr_auc": 0.31953949721,
+          "roc_auc": 0.740485860409
+        },
+        {
+          "brier": 0.070830554245,
+          "fold": 3,
+          "log_loss": 0.26056833717,
+          "pr_auc": 0.240405634353,
+          "roc_auc": 0.70415879017
+        },
+        {
+          "brier": 0.082126358179,
+          "fold": 4,
+          "log_loss": 0.287709148129,
+          "pr_auc": 0.259353961209,
+          "roc_auc": 0.75155730897
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.0747246928,
+        "log_loss": 0.269547860232,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.261194510133,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.735418976125
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2626,
+          "lower": 0.0,
+          "mean_prediction": 0.070118920534,
+          "observed_rate": 0.070830159939,
+          "positive_count": 186,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 215,
+          "lower": 0.2,
+          "mean_prediction": 0.258719853179,
+          "observed_rate": 0.255813953488,
+          "positive_count": 55,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 20,
+          "lower": 0.4,
+          "mean_prediction": 0.478540986238,
+          "observed_rate": 0.35,
+          "positive_count": 7,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 9,
+          "lower": 0.6,
+          "mean_prediction": 0.692993031203,
+          "observed_rate": 0.777777777778,
+          "positive_count": 7,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 2,
+          "lower": 0.8,
+          "mean_prediction": 0.815763496283,
+          "observed_rate": 1.0,
+          "positive_count": 2,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016579081797,
+      "supported_bins": 2
+    }
+  },
+  "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+  "coefficients": [
+    {
+      "feature": "distance_to_goal",
+      "odds_ratio": 0.550851816085,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.596289442325
+    },
+    {
+      "feature": "visible_goal_angle",
+      "odds_ratio": 1.61346952639,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.478386845682
+    },
+    {
+      "feature": "body_part_name::Head",
+      "odds_ratio": 0.553121711365,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.592177208793
+    },
+    {
+      "feature": "body_part_name::Left Foot",
+      "odds_ratio": 1.190380809308,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.174273263754
+    },
+    {
+      "feature": "body_part_name::rare",
+      "odds_ratio": 0.819481584379,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.199083352827
+    },
+    {
+      "feature": "technique_name::Half Volley",
+      "odds_ratio": 0.889565229475,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.117022441822
+    },
+    {
+      "feature": "technique_name::Volley",
+      "odds_ratio": 0.767329233016,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.264839321977
+    },
+    {
+      "feature": "technique_name::rare",
+      "odds_ratio": 1.15795598228,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.146656366581
+    },
+    {
+      "feature": "play_pattern_name::From Corner",
+      "odds_ratio": 0.581453120579,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.542224928366
+    },
+    {
+      "feature": "play_pattern_name::From Counter",
+      "odds_ratio": 1.313163417388,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.272439048649
+    },
+    {
+      "feature": "play_pattern_name::From Free Kick",
+      "odds_ratio": 0.954714699086,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.046342727547
+    },
+    {
+      "feature": "play_pattern_name::From Goal Kick",
+      "odds_ratio": 0.705807117341,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.348413283716
+    },
+    {
+      "feature": "play_pattern_name::From Keeper",
+      "odds_ratio": 1.399632160346,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.336209459488
+    },
+    {
+      "feature": "play_pattern_name::From Kick Off",
+      "odds_ratio": 0.97104651222,
+      "presence_indicator": false,
+      "standardized_coefficient": -0.029380910479
+    },
+    {
+      "feature": "play_pattern_name::From Throw In",
+      "odds_ratio": 1.009546022242,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.009500746876
+    },
+    {
+      "feature": "play_pattern_name::rare",
+      "odds_ratio": 1.050814521476,
+      "presence_indicator": false,
+      "standardized_coefficient": 0.049565598182
+    }
+  ],
+  "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+  "d11_min_support": 100,
+  "d5": {
+    "delta_brier_by_fold": [
+      0.000289386992,
+      0.000725772449,
+      0.000827843448,
+      0.000541570032,
+      0.000534018935
+    ],
+    "delta_log_loss_by_fold": [
+      -0.000850638072,
+      0.002664154752,
+      0.003193102497,
+      -0.000441486343,
+      0.001990542534
+    ],
+    "final_refit_sign": {
+      "first_time_presence": 1,
+      "under_pressure_presence": -1
+    },
+    "include": false,
+    "mean_delta_brier": 0.000583718371,
+    "mean_delta_log_loss": 0.001311135074,
+    "no_sign_flips": true,
+    "positive_brier_folds": 5,
+    "positive_log_loss_folds": 3,
+    "raw_coefficient_sign_by_fold": {
+      "first_time_presence": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "under_pressure_presence": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ]
+    }
+  },
+  "d5_include": false,
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "diagnostics": {
+    "note": "the presence-inclusive full development refit is diagnostic only (D5 sign record); its coefficients are NOT the shipped model's",
+    "presence_inclusive_full_refit": {
+      "best_c": 0.1,
+      "coefficients": [
+        {
+          "feature": "distance_to_goal",
+          "odds_ratio": 0.555628397911,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.587655557258
+        },
+        {
+          "feature": "visible_goal_angle",
+          "odds_ratio": 1.619112507089,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.481878163998
+        },
+        {
+          "feature": "first_time_presence",
+          "odds_ratio": 1.072856499933,
+          "presence_indicator": true,
+          "standardized_coefficient": 0.070324717457
+        },
+        {
+          "feature": "under_pressure_presence",
+          "odds_ratio": 0.622232624394,
+          "presence_indicator": true,
+          "standardized_coefficient": -0.47444126196
+        },
+        {
+          "feature": "body_part_name::Head",
+          "odds_ratio": 0.636538455319,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.451710445969
+        },
+        {
+          "feature": "body_part_name::Left Foot",
+          "odds_ratio": 1.185267768478,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.169968714021
+        },
+        {
+          "feature": "body_part_name::rare",
+          "odds_ratio": 0.815763631712,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.203630632999
+        },
+        {
+          "feature": "technique_name::Half Volley",
+          "odds_ratio": 0.870223212823,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.139005533778
+        },
+        {
+          "feature": "technique_name::Volley",
+          "odds_ratio": 0.737981217279,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.303836905547
+        },
+        {
+          "feature": "technique_name::rare",
+          "odds_ratio": 1.130791503926,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.122917833479
+        },
+        {
+          "feature": "play_pattern_name::From Corner",
+          "odds_ratio": 0.594046224119,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.520798144265
+        },
+        {
+          "feature": "play_pattern_name::From Counter",
+          "odds_ratio": 1.317431780945,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.275684220924
+        },
+        {
+          "feature": "play_pattern_name::From Free Kick",
+          "odds_ratio": 0.953691777731,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.047414743876
+        },
+        {
+          "feature": "play_pattern_name::From Goal Kick",
+          "odds_ratio": 0.699956194705,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.356737524889
+        },
+        {
+          "feature": "play_pattern_name::From Keeper",
+          "odds_ratio": 1.398811620837,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.335623033891
+        },
+        {
+          "feature": "play_pattern_name::From Kick Off",
+          "odds_ratio": 0.974739800169,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.025584715223
+        },
+        {
+          "feature": "play_pattern_name::From Throw In",
+          "odds_ratio": 0.997466116616,
+          "presence_indicator": false,
+          "standardized_coefficient": -0.002537099099
+        },
+        {
+          "feature": "play_pattern_name::rare",
+          "odds_ratio": 1.046780564922,
+          "presence_indicator": false,
+          "standardized_coefficient": 0.04571932532
+        }
+      ],
+      "feature_columns": [
+        "distance_to_goal",
+        "visible_goal_angle",
+        "first_time_presence",
+        "under_pressure_presence",
+        "body_part_name::Head",
+        "body_part_name::Left Foot",
+        "body_part_name::rare",
+        "technique_name::Half Volley",
+        "technique_name::Volley",
+        "technique_name::rare",
+        "play_pattern_name::From Corner",
+        "play_pattern_name::From Counter",
+        "play_pattern_name::From Free Kick",
+        "play_pattern_name::From Goal Kick",
+        "play_pattern_name::From Keeper",
+        "play_pattern_name::From Kick Off",
+        "play_pattern_name::From Throw In",
+        "play_pattern_name::rare"
+      ],
+      "intercept": -2.404983729484
+    },
+    "rejected_candidate": "full_logistic"
+  },
+  "experiment_id": "exp-20260805-wp2_4-baselines",
+  "input_config_path": "experiments/run-configs/wp2_4-baselines.json",
+  "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+  "model_pickle_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+  "n_matches": 115,
+  "n_rows": 2872,
+  "presence_report": {
+    "first_time": {
+      "by_fold": {
+        "0": 0.245614035088,
+        "1": 0.297101449275,
+        "2": 0.244186046512,
+        "3": 0.260416666667,
+        "4": 0.262237762238
+      },
+      "by_tournament": {
+        "(43,3)": 0.217948717949,
+        "(55,43)": 0.319286871961
+      },
+      "development_rows": 2872,
+      "overall_rate": 0.261490250696,
+      "presence_count": 751
+    },
+    "under_pressure": {
+      "by_fold": {
+        "0": 0.228070175439,
+        "1": 0.215579710145,
+        "2": 0.215946843854,
+        "3": 0.229166666667,
+        "4": 0.215034965035
+      },
+      "by_tournament": {
+        "(43,3)": 0.200854700855,
+        "(55,43)": 0.2471636953
+      },
+      "development_rows": 2872,
+      "overall_rate": 0.220752089136,
+      "presence_count": 634
+    }
+  },
+  "protocol_incumbent": "constant",
+  "random_seed": 0,
+  "replacement_rule": {
+    "geometry_beats_constant": false,
+    "protocol_incumbent": "constant",
+    "shipped_beats_incumbent": false
+  },
+  "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 12,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 12,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpoolctl_version": "3.6.0"
+  },
+  "shipped_best_c": 0.1,
+  "shipped_candidate": "full_minus_presence",
+  "shipped_dev_refit": {
+    "best_c": 0.1,
+    "feature_columns": [
+      "distance_to_goal",
+      "visible_goal_angle",
+      "body_part_name::Head",
+      "body_part_name::Left Foot",
+      "body_part_name::rare",
+      "technique_name::Half Volley",
+      "technique_name::Volley",
+      "technique_name::rare",
+      "play_pattern_name::From Corner",
+      "play_pattern_name::From Counter",
+      "play_pattern_name::From Free Kick",
+      "play_pattern_name::From Goal Kick",
+      "play_pattern_name::From Keeper",
+      "play_pattern_name::From Kick Off",
+      "play_pattern_name::From Throw In",
+      "play_pattern_name::rare"
+    ],
+    "intercept": -2.456661747175,
+    "n_training_rows": 2872
+  },
+  "shipped_feature_columns": [
+    "distance_to_goal",
+    "visible_goal_angle",
+    "body_part_name::Head",
+    "body_part_name::Left Foot",
+    "body_part_name::rare",
+    "technique_name::Half Volley",
+    "technique_name::Volley",
+    "technique_name::rare",
+    "play_pattern_name::From Corner",
+    "play_pattern_name::From Counter",
+    "play_pattern_name::From Free Kick",
+    "play_pattern_name::From Goal Kick",
+    "play_pattern_name::From Keeper",
+    "play_pattern_name::From Kick Off",
+    "play_pattern_name::From Throw In",
+    "play_pattern_name::rare"
+  ],
+  "shipped_feature_set": "geometry+categoricals",
+  "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902",
+  "vocabulary": {
+    "levels": {
+      "body_part_name": [
+        "Head",
+        "Left Foot",
+        "rare"
+      ],
+      "play_pattern_name": [
+        "From Corner",
+        "From Counter",
+        "From Free Kick",
+        "From Goal Kick",
+        "From Keeper",
+        "From Kick Off",
+        "From Throw In",
+        "rare"
+      ],
+      "technique_name": [
+        "Half Volley",
+        "Volley",
+        "rare"
+      ]
+    },
+    "rare_members": {
+      "body_part_name": [
+        "Other"
+      ],
+      "play_pattern_name": [
+        "Other"
+      ],
+      "technique_name": [
+        "Backheel",
+        "Diving Header",
+        "Lob",
+        "Overhead Kick"
+      ]
+    },
+    "reference": {
+      "body_part_name": "Right Foot",
+      "play_pattern_name": "Regular Play",
+      "technique_name": "Normal"
+    }
+  }
+}
