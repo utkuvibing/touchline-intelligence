@@ -67,7 +67,13 @@ def _config(tmp_path: Path) -> RunConfig:
         out_dir=str(tmp_path / "exp"),
         artifacts_dir=str(tmp_path / "artifacts"),
         code_commit="commit-a-sha",
+        reproduction_commit="commit-a-sha",
         data_source_commit="b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+        input_config_path=str(tmp_path / "input-config.json"),
+        input_config_sha256="0" * 64,
+        uv_lock_sha256="0" * 64,
+        runtime_fingerprint={},
+        require_clean_provenance=False,
         db_url_env="TOUCHLINE_DB_URL",
         assignments_sha256="0" * 64,
         cohort_sql_sha256="0" * 64,
@@ -152,6 +158,12 @@ def test_write_experiment_records_the_shipped_candidate_only(tmp_path: Path) -> 
     assert manifest["shipped_candidate"] == "full_minus_presence"
     assert manifest["model_pickle_sha256"] == metrics["model_pickle_sha256"]
     assert metrics_dict["model_pickle_sha256"] == metrics["model_pickle_sha256"]
+    # Machine records must carry the runtime fingerprint (blocking correction 4).
+    for record in (metrics_dict, manifest, config_dict):
+        assert "runtime_fingerprint" in record
+        assert "uv_lock_sha256" in record
+        assert "input_config_sha256" in record
+        assert "reproduction_commit" in record
     _assert_no_backslashes(config_dict)
     _assert_no_backslashes(manifest)
 
@@ -161,7 +173,7 @@ def _committed_has_schema() -> bool:
     if not path.exists():
         return False
     data = json.loads(path.read_text(encoding="utf-8"))
-    return isinstance(data, dict) and "shipped_candidate" in data
+    return isinstance(data, dict) and "reproduction_commit" in data
 
 
 def _committed_or_skip() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
@@ -178,8 +190,20 @@ def _committed_or_skip() -> tuple[dict[str, object], dict[str, object], dict[str
 
 def test_committed_records_are_cross_file_consistent() -> None:
     config, metrics, manifest = _committed_or_skip()
-    for field in ("experiment_id", "code_commit", "data_source_commit"):
-        assert metrics[field] == config[field] == manifest[field]
+    for field in (
+        "experiment_id",
+        "code_commit",
+        "reproduction_commit",
+        "data_source_commit",
+        "input_config_sha256",
+        "uv_lock_sha256",
+    ):
+        assert metrics[field] == config[field] == manifest[field], field
+    assert (
+        metrics["runtime_fingerprint"]
+        == config["runtime_fingerprint"]
+        == manifest["runtime_fingerprint"]
+    )
     assert (
         metrics["shipped_candidate"] == config["shipped_candidate"] == manifest["shipped_candidate"]
     )
@@ -202,10 +226,14 @@ def test_committed_records_are_cross_file_consistent() -> None:
     assert results["d5_include"] == str(metrics["d5_include"])
     assert results["model_pickle_sha256"] == metrics["model_pickle_sha256"]
     assert results["code_commit"] == metrics["code_commit"]
+    assert results["reproduction_commit"] == metrics["reproduction_commit"]
+    assert results["input_config_sha256"] == metrics["input_config_sha256"]
+    assert results["uv_lock_sha256"] == metrics["uv_lock_sha256"]
 
     report = REPORT_PATH.read_text(encoding="utf-8")
     assert str(metrics["shipped_candidate"]) in report
     assert str(metrics["model_pickle_sha256"]) in report
+    assert str(metrics["reproduction_commit"]) in report
     _assert_portable(config)
     _assert_portable(manifest)
 

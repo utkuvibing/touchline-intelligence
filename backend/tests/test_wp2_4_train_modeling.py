@@ -19,6 +19,7 @@ from typing import cast
 
 import numpy as np
 
+from touchline.modeling.artifact import ArtifactBundle, infer
 from touchline.modeling.baselines import ConstantBaseline
 from touchline.modeling.logistic import L2_C_GRID
 from touchline.modeling.metrics import log_loss
@@ -28,7 +29,6 @@ from touchline.modeling.train import (
     _build_folds,
     _evaluate_constant,
     build_vocabulary,
-    infer,
     run_protocol,
 )
 
@@ -76,7 +76,13 @@ def _make_config() -> RunConfig:
         out_dir="experiments/shot_quality/unit-test",
         artifacts_dir="artifacts/models/unit-test",
         code_commit="unit-test-code",
+        reproduction_commit="unit-test-code",
         data_source_commit="b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+        input_config_path="experiments/run-configs/unit-test.json",
+        input_config_sha256="0" * 64,
+        uv_lock_sha256="0" * 64,
+        runtime_fingerprint={},
+        require_clean_provenance=False,
         db_url_env="TOUCHLINE_DB_URL",
         assignments_sha256="0" * 64,
         cohort_sql_sha256="0" * 64,
@@ -140,8 +146,6 @@ def _assert_shipped_and_bundle(
     include: bool,
     rows: list[ShotRow],
 ) -> None:
-    from touchline.modeling.train import ArtifactBundle
-
     assert isinstance(bundle, ArtifactBundle)
     assert metrics["d5_include"] is include
     expected_ship = "full_logistic" if include else "full_minus_presence"

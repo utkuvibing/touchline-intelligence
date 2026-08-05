@@ -22,8 +22,14 @@ from pathlib import Path
 import psycopg
 import pytest
 from support.db_safety import connect_local
+from support.wp24_synthetic import (
+    EXPECTED_FOLDS,
+    EXPECTED_MATCHES,
+    EXPECTED_SHOTS,
+    SYN_ASSIGNMENTS,
+    seed_cohort,
+)
 
-from touchline.ingest.migrate import apply_migrations
 from touchline.modeling.dataset import ArtifactHashMismatchError
 from touchline.modeling.train import main as train_main
 
@@ -37,27 +43,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(DB_URL is None, reason="TOUCHLINE_DB_URL is not set"),
 ]
-
-
-#: 10 development matches, 2 per fold (fold = index % 5), each with one goal and one saved shot,
-#: so every fold's validation set has both classes. Matches 200..204 are WC 2018, 205..209 are
-#: Euro 2020. Matches 230 (calibration) and 240 (holdout) are seeded but absent from the synthetic
-#: assignment CSV, proving the loader never touches them.
-def _build_assignments() -> str:
-    lines = ["match_id,competition_id,season_id,match_date,split,fold"]
-    for i in range(10):
-        if i < 5:
-            line = f"{200 + i},43,3,2018-06-{14 + i:02d},development,{i % 5}"
-        else:
-            line = f"{200 + i},55,43,2020-06-{11 + i - 5:02d},development,{i % 5}"
-        lines.append(line)
-    return "\n".join(lines) + "\n"
-
-
-SYN_ASSIGNMENTS = _build_assignments()
-EXPECTED_SHOTS = 20
-EXPECTED_MATCHES = 10
-EXPECTED_FOLDS = {0: 4, 1: 4, 2: 4, 3: 4, 4: 4}
 
 
 @pytest.fixture
@@ -76,116 +61,6 @@ def conn() -> Iterator[psycopg.Connection]:
             with connection.cursor() as cur:
                 cur.execute(f'DROP SCHEMA IF EXISTS "{TEST_SCHEMA}" CASCADE')
             connection.commit()
-
-
-def _seed(conn: psycopg.Connection) -> None:
-    apply_migrations(conn)
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO competitions VALUES "
-            "(43, 'World Cup', 'International'), (55, 'European Championship', 'International')"
-        )
-        cur.execute(
-            "INSERT INTO seasons VALUES (3, '2018'), (43, '2020'), (106, '2022'), (282, '2024')"
-        )
-        cur.execute(
-            "INSERT INTO competition_seasons VALUES (43, 3), (55, 43), (43, 106), (55, 282)"
-        )
-        cur.execute("INSERT INTO teams VALUES (1, 'Home'), (2, 'Away')")
-        cur.execute("INSERT INTO players VALUES (10, 'Shooter')")
-
-        for i in range(10):
-            match_id = 200 + i
-            comp, season, date = (
-                (43, 3, f"2018-06-{14 + i:02d}") if i < 5 else (55, 43, f"2020-06-{11 + i - 5:02d}")
-            )
-            cur.execute(
-                "INSERT INTO matches (match_id, competition_id, season_id, match_date, "
-                "home_team_id, away_team_id, home_score, away_score) "
-                "VALUES (%s, %s, %s, %s::date, 1, 2, 0, 0)",
-                (match_id, comp, season, date),
-            )
-            cur.execute(
-                "INSERT INTO match_teams VALUES (%s, 1, 'home'), (%s, 2, 'away')",
-                (match_id, match_id),
-            )
-        for match_id, comp, season, date in (
-            (230, 43, 106, "2022-11-20"),
-            (240, 55, 282, "2024-06-14"),
-        ):
-            cur.execute(
-                "INSERT INTO matches (match_id, competition_id, season_id, match_date, "
-                "home_team_id, away_team_id, home_score, away_score) "
-                "VALUES (%s, %s, %s, %s::date, 1, 2, 0, 0)",
-                (match_id, comp, season, date),
-            )
-            cur.execute(
-                "INSERT INTO match_teams VALUES (%s, 1, 'home'), (%s, 2, 'away')",
-                (match_id, match_id),
-            )
-
-        for i in range(10):
-            match_id = 200 + i
-            for shot_index, goal in ((0, True), (1, False)):
-                number = 2 * i + shot_index + 1
-                location_x = 88.0 + (number % 13)
-                location_y = 30.0 + (number % 9)
-                cur.execute(
-                    """
-                    INSERT INTO events (
-                        event_id, match_id, event_index, period, team_id, player_id,
-                        event_type_name, location_x, location_y, play_pattern_id,
-                        play_pattern_name, under_pressure
-                    ) VALUES (%s::uuid, %s, %s, 1, 1, 10, 'Shot', %s, %s, 1, 'Regular Play', %s)
-                    """,
-                    (
-                        f"00000000-0000-0000-0000-{number:012d}",
-                        match_id,
-                        shot_index + 1,
-                        location_x,
-                        location_y,
-                        True if i == 0 else None,
-                    ),
-                )
-                cur.execute(
-                    """
-                    INSERT INTO shots (
-                        event_id, outcome_id, outcome_name, body_part_id, body_part_name,
-                        technique_id, technique_name, shot_type_id, shot_type_name, first_time
-                    ) VALUES (%s::uuid, %s, %s, 40, 'Right Foot', 93, 'Normal', 87, 'Open Play', %s)
-                    """,
-                    (
-                        f"00000000-0000-0000-0000-{number:012d}",
-                        97 if goal else 96,
-                        "Goal" if goal else "Saved",
-                        True if i in (1, 2) and not shot_index else None,
-                    ),
-                )
-        # Calibration and holdout shots exist in the database but are not in the assignment CSV.
-        for number, match_id, goal in ((81, 230, False), (82, 240, True)):
-            cur.execute(
-                """
-                INSERT INTO events (
-                    event_id, match_id, event_index, period, team_id, player_id,
-                    event_type_name, location_x, location_y, play_pattern_id, play_pattern_name
-                ) VALUES (%s::uuid, %s, 1, 1, 1, 10, 'Shot', %s, %s, 1, 'Regular Play')
-                """,
-                (f"00000000-0000-0000-0000-{number:012d}", match_id, 100.0, 40.0),
-            )
-            cur.execute(
-                """
-                INSERT INTO shots (
-                    event_id, outcome_id, outcome_name, body_part_id, body_part_name,
-                    technique_id, technique_name, shot_type_id, shot_type_name
-                ) VALUES (%s::uuid, %s, %s, 40, 'Right Foot', 93, 'Normal', 87, 'Open Play')
-                """,
-                (
-                    f"00000000-0000-0000-0000-{number:012d}",
-                    97 if goal else 96,
-                    "Goal" if goal else "Saved",
-                ),
-            )
-    conn.commit()
 
 
 def _manifest_hash(key: str) -> str:
@@ -221,7 +96,7 @@ def _write_config(tmp_path: Path, assignments_sha256: str, *, tamper_hash: bool 
 def test_dry_run_writes_a_canonical_experiment_record(
     conn: psycopg.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _seed(conn)
+    seed_cohort(conn)
     assignments_csv = tmp_path / "assignments.csv"
     assignments_csv.write_text(SYN_ASSIGNMENTS, encoding="utf-8", newline="\n")
     assignments_sha = hashlib.sha256(assignments_csv.read_bytes()).hexdigest()
@@ -232,7 +107,14 @@ def test_dry_run_writes_a_canonical_experiment_record(
     monkeypatch.setenv("TOUCHLINE_DB_URL", DB_URL)
 
     exit_code = train_main(
-        ["--config", str(config_path), "--assignments-csv", str(assignments_csv)]
+        [
+            "--config",
+            str(config_path),
+            "--assignments-csv",
+            str(assignments_csv),
+            "--code-commit",
+            "test-dry-run",
+        ]
     )
     assert exit_code == 0
 
@@ -295,7 +177,7 @@ def test_dry_run_writes_a_canonical_experiment_record(
 def test_dry_run_fails_loudly_on_pinned_hash_mismatch(
     conn: psycopg.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _seed(conn)
+    seed_cohort(conn)
     assignments_csv = tmp_path / "assignments.csv"
     assignments_csv.write_text(SYN_ASSIGNMENTS, encoding="utf-8", newline="\n")
     assignments_sha = hashlib.sha256(assignments_csv.read_bytes()).hexdigest()
@@ -306,5 +188,14 @@ def test_dry_run_fails_loudly_on_pinned_hash_mismatch(
     monkeypatch.setenv("TOUCHLINE_DB_URL", DB_URL)
 
     with pytest.raises(ArtifactHashMismatchError):
-        train_main(["--config", str(config_path), "--assignments-csv", str(assignments_csv)])
+        train_main(
+            [
+                "--config",
+                str(config_path),
+                "--assignments-csv",
+                str(assignments_csv),
+                "--code-commit",
+                "test-dry-run",
+            ]
+        )
     assert not (tmp_path / "exp" / "metrics.json").exists()

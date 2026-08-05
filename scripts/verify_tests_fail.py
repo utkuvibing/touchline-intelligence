@@ -238,6 +238,8 @@ WP24_EXPERIMENT_CONSISTENCY_TESTS = (
     "uv run pytest backend/tests/test_wp2_4_experiment_consistency.py::"
     "test_write_experiment_records_the_shipped_candidate_only -q"
 )
+WP24_ARTIFACT_TESTS = "uv run pytest backend/tests/test_wp2_4_artifact.py -q"
+WP24_PROVENANCE_TESTS = "uv run pytest backend/tests/test_wp2_4_provenance.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1682,6 +1684,65 @@ BREAKS: list[Break] = [
         path=ROOT / "backend/src/touchline/modeling/train.py",
         anchor='    shipped_key = cast(str, metrics["shipped_candidate"])\n',
         replacement='    shipped_key = "full_logistic"  # DELIBERATE BREAK\n',
+        command=WP24_EXPERIMENT_CONSISTENCY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 artifact identity must stay in touchline.modeling.artifact, never __main__",
+        path=ROOT / "backend/src/touchline/modeling/artifact.py",
+        anchor='ArtifactBundle.__module__ = "touchline.modeling.artifact"\n',
+        replacement='ArtifactBundle.__module__ = "__main__"  # DELIBERATE BREAK\n',
+        command=WP24_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 inference must enforce the persisted feature-column contract",
+        path=ROOT / "backend/src/touchline/modeling/artifact.py",
+        anchor="        self._validate_feature_contract(current_columns)\n",
+        replacement="        pass  # DELIBERATE BREAK: feature-column contract check skipped\n",
+        command=WP24_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 inference must not ignore selected-column/index disagreement",
+        path=ROOT / "backend/src/touchline/modeling/artifact.py",
+        anchor="        if list(self.selected_columns) != expected_selected:\n",
+        replacement="        if False:  # DELIBERATE BREAK: disagreement ignored\n",
+        command=WP24_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 code commit must come from the repository revision, not the config JSON",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='        code_commit = _git(ROOT, "rev-parse", "HEAD")\n',
+        replacement="        code_commit = config.code_commit  # DELIBERATE BREAK\n",
+        command=WP24_PROVENANCE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 input-config SHA-256 must be recorded from the exact input bytes",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor="    input_sha = _sha256_bytes(input_bytes)\n",
+        replacement='    input_sha = "0" * 64  # DELIBERATE BREAK\n',
+        command=WP24_PROVENANCE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 uv.lock SHA-256 must be recorded",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='    uv_sha = _sha256_bytes((ROOT / "uv.lock").read_bytes())\n',
+        replacement='    uv_sha = "0" * 64  # DELIBERATE BREAK\n',
+        command=WP24_PROVENANCE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 machine records must carry the runtime fingerprint",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor=(
+            '        "runtime_fingerprint": config.runtime_fingerprint,\n'
+            '        "artifact_schema_version": artifact_schema_version,\n'
+        ),
+        replacement='        "artifact_schema_version": artifact_schema_version,\n',
         command=WP24_EXPERIMENT_CONSISTENCY_TESTS,
         cwd=ROOT,
     ),

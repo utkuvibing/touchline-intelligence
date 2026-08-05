@@ -38,9 +38,10 @@ import hashlib
 import json
 import os
 import pickle
+import subprocess
 import sys
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict, cast
@@ -48,8 +49,8 @@ from typing import TypedDict, cast
 import numpy as np
 import numpy.typing as npt
 import psycopg
-from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
+from touchline.modeling.artifact import ArtifactBundle, artifact_schema_version
 from touchline.modeling.baselines import ConstantBaseline
 from touchline.modeling.dataset import (
     load_development_cohort,
@@ -101,7 +102,6 @@ REQUIRED_CONFIG_KEYS = frozenset(
         "experiment_id",
         "out_dir",
         "artifacts_dir",
-        "code_commit",
         "data_source_commit",
         "db_url_env",
         "assignments_sha256",
@@ -123,7 +123,13 @@ class RunConfig:
     out_dir: str
     artifacts_dir: str
     code_commit: str
+    reproduction_commit: str
     data_source_commit: str
+    input_config_path: str
+    input_config_sha256: str
+    uv_lock_sha256: str
+    runtime_fingerprint: Mapping[str, object]
+    require_clean_provenance: bool
     db_url_env: str
     assignments_sha256: str
     cohort_sql_sha256: str
@@ -161,66 +167,6 @@ class _CandidateReadOut(TypedDict):
 
     mean_log_loss: float
     pooled_oof: PooledOOFMetrics
-
-
-@dataclass(frozen=True)
-class ArtifactBundle:
-    """Self-contained pickleable inference artifact (WP2.4 blocking correction 2).
-
-    Carries everything needed to score raw ``ShotRow`` values without touching the development
-    database: the fitted logistic estimator, the all-development scaler, the locked development
-    vocabulary, the complete encoded column order, the selected shipped feature columns and their
-    indices, the shipped candidate name and C, the reference/rare mappings, and the hashes that
-    identify the training inputs.
-    """
-
-    experiment_id: str
-    shipped_candidate: str
-    best_c: float
-    code_commit: str
-    data_source_commit: str
-    cohort_sql_sha256: str
-    assignments_sha256: str
-    estimator: LogisticRegression
-    scaler: StandardScaler
-    vocabulary: Vocabulary
-    all_columns: tuple[str, ...]
-    selected_columns: tuple[str, ...]
-    selected_indices: tuple[int, ...]
-    reference_levels: Mapping[str, str]
-    rare_mapping: Mapping[str, tuple[str, ...]]
-
-    def predict_proba(self, rows: Sequence[ShotRow]) -> FloatArray:
-        """Goal probabilities for raw rows, using the persisted preprocessing (never a refit)."""
-        full, _ = encode_rows(rows, self.vocabulary, self.scaler)
-        subset = full[:, list(self.selected_indices)]
-        return np.asarray(self.estimator.predict_proba(subset), dtype=np.float64)[:, 1]
-
-    def as_dict(self) -> dict[str, object]:
-        return {
-            "experiment_id": self.experiment_id,
-            "shipped_candidate": self.shipped_candidate,
-            "best_c": self.best_c,
-            "code_commit": self.code_commit,
-            "data_source_commit": self.data_source_commit,
-            "cohort_sql_sha256": self.cohort_sql_sha256,
-            "assignments_sha256": self.assignments_sha256,
-            "n_features": len(self.selected_columns),
-            "all_columns": list(self.all_columns),
-            "selected_columns": list(self.selected_columns),
-            "selected_indices": list(self.selected_indices),
-            "reference_levels": dict(self.reference_levels),
-            "rare_mapping": {k: list(v) for k, v in self.rare_mapping.items()},
-        }
-
-
-def infer(bundle: ArtifactBundle, rows: Sequence[ShotRow]) -> FloatArray:
-    """The explicit inference entry point: raw ``ShotRow`` values to goal probabilities.
-
-    Applies the persisted scaler and vocabulary, restricts to the persisted selected feature
-    columns, and returns ``P(goal)``. No preprocessing is re-fitted at inference time.
-    """
-    return bundle.predict_proba(rows)
 
 
 def _abs_path(value: str) -> Path:
@@ -263,8 +209,16 @@ def _load_config(path: Path) -> RunConfig:
         experiment_id=str(payload["experiment_id"]),
         out_dir=str(payload["out_dir"]),
         artifacts_dir=str(payload["artifacts_dir"]),
-        code_commit=str(payload["code_commit"]),
+        # Provenance is derived at run time (see resolve_provenance); JSON-supplied values are not
+        # trusted as the authoritative implementation revision (blocking correction 3).
+        code_commit="unset",
+        reproduction_commit="unset",
         data_source_commit=str(payload["data_source_commit"]),
+        input_config_path=str(path),
+        input_config_sha256="",
+        uv_lock_sha256="",
+        runtime_fingerprint={},
+        require_clean_provenance=bool(payload.get("require_clean_provenance", False)),
         db_url_env=str(payload["db_url_env"]),
         assignments_sha256=str(payload["assignments_sha256"]),
         cohort_sql_sha256=str(payload["cohort_sql_sha256"]),
@@ -277,6 +231,144 @@ def _load_config(path: Path) -> RunConfig:
         bin_count=int(payload["bin_count"]),
         results_csv=str(payload.get("results_csv", DEFAULT_RESULTS_CSV)),
     )
+
+
+class ProvenanceError(RuntimeError):
+    """Evidence-generation provenance is missing, dirty or unverifiable."""
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """The runnable-reproduction identity recorded into every machine record (blocking 3)."""
+
+    code_commit: str
+    reproduction_commit: str
+    input_config_path: str
+    input_config_sha256: str
+    uv_lock_sha256: str
+    runtime_fingerprint: Mapping[str, object]
+    data_source_commit: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "code_commit": self.code_commit,
+            "reproduction_commit": self.reproduction_commit,
+            "input_config_path": self.input_config_path,
+            "input_config_sha256": self.input_config_sha256,
+            "uv_lock_sha256": self.uv_lock_sha256,
+            "runtime_fingerprint": self.runtime_fingerprint,
+            "data_source_commit": self.data_source_commit,
+        }
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _git(root: Path, *args: str) -> str:
+    """Run git read-only inside ``root``; raises ProvenanceError on failure.
+
+    Kept as a module function so tests can inject a deterministic revision seam.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
+    )
+    if result.returncode != 0:
+        raise ProvenanceError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _runtime_fingerprint() -> dict[str, object]:
+    """A deterministic, sanitized description of the runtime that produced the evidence.
+
+    No usernames, home-directory paths, executable paths, library file paths, temporary
+    directories, environment secrets or DSNs are recorded; library ``filepath`` entries from the
+    threadpool are deliberately excluded. Everything serializes deterministically (sorted keys).
+    """
+    import platform
+
+    import numpy as np
+    import scipy  # type: ignore[import-untyped]
+    import sklearn  # type: ignore[import-untyped]
+    import threadpoolctl  # type: ignore[import-untyped]
+
+    sanitized: list[dict[str, object]] = []
+    for entry in threadpoolctl.threadpool_info():
+        safe = {key: value for key, value in dict(entry).items() if key != "filepath"}
+        sanitized.append(safe)
+    sanitized.sort(key=lambda item: json.dumps(item, sort_keys=True))
+    return {
+        "python_implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "os": platform.system(),
+        "os_release": platform.release(),
+        "machine": platform.machine(),
+        "numpy_version": np.__version__,
+        "scipy_version": scipy.__version__,
+        "scikit_learn_version": sklearn.__version__,
+        "threadpoolctl_version": threadpoolctl.__version__,
+        "threadpool_info": sanitized,
+    }
+
+
+def _require_clean_tracked_tree(root: Path) -> None:
+    """Refuse to generate evidence while tracked files have uncommitted changes.
+
+    Untracked and ignored files (e.g. ``IDEA.md`` or the git-ignored ``model.pkl``) are not
+    tracked changes and are allowed; a modified tracked file makes the evidence unreproducible
+    from any single commit.
+    """
+    status = _git(root, "status", "--porcelain")
+    dirty = [line for line in status.splitlines() if line.strip() and not line.startswith("??")]
+    if dirty:
+        raise ProvenanceError(
+            "refusing to generate evidence from a dirty tracked working tree: " + ", ".join(dirty)
+        )
+
+
+def resolve_provenance(
+    config: RunConfig,
+    code_commit_override: str | None = None,
+) -> tuple[RunConfig, Provenance]:
+    """Derive the authoritative reproduction identity and return the resolved run config.
+
+    When ``require_clean_provenance`` is set (the committed real-run config), the code commit is
+    taken from ``git rev-parse HEAD`` and the tracked working tree must be clean; a manual override
+    is forbidden then. Otherwise (synthetic/unit runs) the caller may inject a deterministic
+    ``code_commit_override`` seam.
+    """
+    runtime = _runtime_fingerprint()
+    input_bytes = _abs_path(config.input_config_path).read_bytes()
+    input_sha = _sha256_bytes(input_bytes)
+    uv_sha = _sha256_bytes((ROOT / "uv.lock").read_bytes())
+    if config.require_clean_provenance:
+        if code_commit_override is not None:
+            raise ProvenanceError(
+                "--code-commit override is forbidden when require_clean_provenance is set"
+            )
+        code_commit = _git(ROOT, "rev-parse", "HEAD")
+        _require_clean_tracked_tree(ROOT)
+    else:
+        code_commit = code_commit_override if code_commit_override else config.code_commit
+    reproduction_commit = code_commit
+    resolved = replace(
+        config,
+        code_commit=code_commit,
+        reproduction_commit=reproduction_commit,
+        input_config_sha256=input_sha,
+        uv_lock_sha256=uv_sha,
+        runtime_fingerprint=runtime,
+    )
+    provenance = Provenance(
+        code_commit=code_commit,
+        reproduction_commit=reproduction_commit,
+        input_config_path=_record_path(config.input_config_path),
+        input_config_sha256=input_sha,
+        uv_lock_sha256=uv_sha,
+        runtime_fingerprint=runtime,
+        data_source_commit=config.data_source_commit,
+    )
+    return resolved, provenance
 
 
 def _open_db(db_url: str, schema: str | None = None) -> psycopg.Connection:
@@ -640,13 +732,17 @@ def run_protocol(
         config.random_seed,
     )
     bundle = ArtifactBundle(
+        schema_version=artifact_schema_version,
         experiment_id=config.experiment_id,
         shipped_candidate=shipped,
         best_c=shipped_best_c,
         code_commit=config.code_commit,
+        reproduction_commit=config.reproduction_commit,
         data_source_commit=config.data_source_commit,
         cohort_sql_sha256=config.cohort_sql_sha256,
         assignments_sha256=config.assignments_sha256,
+        input_config_sha256=config.input_config_sha256,
+        uv_lock_sha256=config.uv_lock_sha256,
         estimator=_ship_model.estimator,
         scaler=scaler_all,
         vocabulary=vocabulary,
@@ -676,7 +772,12 @@ def run_protocol(
     metrics: dict[str, object] = {
         "experiment_id": config.experiment_id,
         "code_commit": config.code_commit,
+        "reproduction_commit": config.reproduction_commit,
         "data_source_commit": config.data_source_commit,
+        "input_config_path": config.input_config_path,
+        "input_config_sha256": config.input_config_sha256,
+        "uv_lock_sha256": config.uv_lock_sha256,
+        "runtime_fingerprint": config.runtime_fingerprint,
         "cohort_sql_sha256": config.cohort_sql_sha256,
         "assignments_sha256": config.assignments_sha256,
         "n_rows": len(rows_list),
@@ -740,7 +841,12 @@ def write_experiment(
         "out_dir": _record_path(config.out_dir),
         "artifacts_dir": _record_path(config.artifacts_dir),
         "code_commit": config.code_commit,
+        "reproduction_commit": config.reproduction_commit,
         "data_source_commit": config.data_source_commit,
+        "input_config_path": _record_path(config.input_config_path),
+        "input_config_sha256": config.input_config_sha256,
+        "uv_lock_sha256": config.uv_lock_sha256,
+        "runtime_fingerprint": config.runtime_fingerprint,
         "db_url_env": config.db_url_env,
         "assignments_sha256": config.assignments_sha256,
         "cohort_sql_sha256": config.cohort_sql_sha256,
@@ -764,10 +870,17 @@ def write_experiment(
 
     pickle_path = art / "model.pkl"
     pickle_path.write_bytes(pickle_bytes)
+    input_cfg_posix = _record_path(config.input_config_path)
     artifact_manifest = {
         "experiment_id": config.experiment_id,
         "code_commit": config.code_commit,
+        "reproduction_commit": config.reproduction_commit,
         "data_source_commit": config.data_source_commit,
+        "input_config_path": input_cfg_posix,
+        "input_config_sha256": config.input_config_sha256,
+        "uv_lock_sha256": config.uv_lock_sha256,
+        "runtime_fingerprint": config.runtime_fingerprint,
+        "artifact_schema_version": artifact_schema_version,
         "shipped_candidate": shipped_key,
         "shipped_feature_set": metrics["shipped_feature_set"],
         "shipped_best_c": metrics["shipped_best_c"],
@@ -775,9 +888,16 @@ def write_experiment(
         "d5_include": metrics["d5_include"],
         "model_pickle_path": _record_path(pickle_path),
         "model_pickle_sha256": bundle_hash,
+        "recreation": {
+            "checkout": f"git checkout {config.reproduction_commit}",
+            "sync": "uv sync --locked",
+            "database": (
+                "set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database"
+            ),
+            "run": f"uv run python -m touchline.modeling.train --config {input_cfg_posix}",
+        },
         "recreation_command": (
-            "uv run python -m touchline.modeling.train --config "
-            f"{_record_path(out / 'config.json')}"
+            f"uv run python -m touchline.modeling.train --config {input_cfg_posix}"
         ),
         "coefficients_json": _record_path(out / "metrics.json"),
     }
@@ -787,9 +907,12 @@ def write_experiment(
         "experiment_id": config.experiment_id,
         "date_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "code_commit": config.code_commit,
+        "reproduction_commit": config.reproduction_commit,
         "data_source_commit": config.data_source_commit,
         "dataset_id": "wp2_3_split_lock",
         "query_hash": config.cohort_sql_sha256,
+        "input_config_sha256": config.input_config_sha256,
+        "uv_lock_sha256": config.uv_lock_sha256,
         "shipped_feature_set": metrics["shipped_feature_set"],
         "split_strategy": "wp2_3_tournament_split",
         "model": "regularized-logistic",
@@ -818,10 +941,10 @@ def write_experiment(
 
 
 RESULTS_CSV_HEADER = (
-    "experiment_id,date_utc,code_commit,data_source_commit,dataset_id,query_hash,"
-    "shipped_feature_set,split_strategy,model,seed,primary_metric,primary_value,brier,log_loss,"
-    "protocol_incumbent,shipped_candidate,d5_include,shipped_best_c,model_pickle_sha256,"
-    "calibration_summary,status,notes_path"
+    "experiment_id,date_utc,code_commit,reproduction_commit,data_source_commit,dataset_id,"
+    "query_hash,input_config_sha256,uv_lock_sha256,shipped_feature_set,split_strategy,model,seed,"
+    "primary_metric,primary_value,brier,log_loss,protocol_incumbent,shipped_candidate,d5_include,"
+    "shipped_best_c,model_pickle_sha256,calibration_summary,status,notes_path"
 )
 
 
@@ -855,7 +978,9 @@ def _notes_template(config: RunConfig) -> str:
     return (
         "# WP2.4 experiment run\n\n"
         f"Experiment: {config.experiment_id}\n\n"
-        f"Code commit: {config.code_commit}\n\n"
+        f"Code commit: {config.code_commit}\n"
+        f"Reproduction commit: {config.reproduction_commit}\n"
+        f"Input config: {config.input_config_path}\n\n"
         "Hypothesis: a regularized logistic regression over the locked feature set beats both "
         "baselines under PLAN §4.1; presence indicators are admissible only if the D5 protocol "
         "passes. The shipped artifact is the D5-selected candidate, never the rejected one.\n\n"
@@ -877,9 +1002,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=str(COHORT_SQL_PATH),
         help="override the pinned cohort SQL (integration-test seam only; default is the lock)",
     )
+    parser.add_argument(
+        "--code-commit",
+        default=None,
+        help=(
+            "deterministic git-revision seam for synthetic/unit runs; forbidden when "
+            "require_clean_provenance is set (the real run derives HEAD itself)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     config = _load_config(Path(args.config))
+    if config.require_clean_provenance and args.code_commit is not None:
+        print(
+            "--code-commit override is forbidden when require_clean_provenance is set",
+            file=sys.stderr,
+        )
+        return 1
+    config, provenance = resolve_provenance(config, code_commit_override=args.code_commit)
     db_url_source = os.environ.get(config.db_url_env) or os.environ.get("TOUCHLINE_DB_URL")
     if not db_url_source:
         print(
@@ -913,6 +1053,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"Shipped: {metrics['shipped_candidate']} | D5 include: {metrics['d5_include']} "
         f"| protocol incumbent: {metrics['protocol_incumbent']}"
     )
+    print(f"code_commit: {provenance.code_commit}")
     return 0
 
 
