@@ -238,6 +238,10 @@ WP24_EXPERIMENT_CONSISTENCY_TESTS = (
     "uv run pytest backend/tests/test_wp2_4_experiment_consistency.py::"
     "test_write_experiment_records_the_shipped_candidate_only -q"
 )
+WP24_NOTES_PUBLICATION_TESTS = (
+    "uv run pytest backend/tests/test_wp2_4_experiment_consistency.py::"
+    "test_generated_notes_are_portable_and_stay_inside_the_publication -q"
+)
 WP24_ARTIFACT_TESTS = "uv run pytest backend/tests/test_wp2_4_artifact.py -q"
 WP24_PROVENANCE_TESTS = "uv run pytest backend/tests/test_wp2_4_provenance.py -q"
 FRONTEND_TESTS = "npm test"
@@ -1733,6 +1737,28 @@ BREAKS: list[Break] = [
         anchor='    uv_sha = _sha256_bytes((ROOT / "uv.lock").read_bytes())\n',
         replacement='    uv_sha = "0" * 64  # DELIBERATE BREAK\n',
         command=WP24_PROVENANCE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 published notes must record the canonical repository-relative config path",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='        f"Input config: {_record_path(config.input_config_path)}\\n\\n"\n',
+        replacement=(
+            '        f"Input config: {config.input_config_path}\\n\\n"  # DELIBERATE BREAK\n'
+        ),
+        command=WP24_NOTES_PUBLICATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.4 published notes must not point readers at unpublished docs/**",
+        path=ROOT / "backend/src/touchline/modeling/train.py",
+        anchor='        "- `reports/wp2.4-baselines-evidence.md` — the reviewable WP2.4 evidence '
+        'report.\\n\\n"\n',
+        replacement=(
+            '        "- see docs/modeling/wp2_4-baselines-and-logistic-contract.md\\n\\n"'
+            "  # DELIBERATE BREAK\n"
+        ),
+        command=WP24_NOTES_PUBLICATION_TESTS,
         cwd=ROOT,
     ),
     Break(

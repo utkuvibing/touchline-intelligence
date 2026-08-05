@@ -118,8 +118,9 @@ def select_regularization(
         for spec in fold_specs:
             X_train, _X_val, y_train, _y_val = spec
             model = fit_logistic(X_train, y_train, c_value, random_state=random_state)
-            fold_log_losses.append(_evaluate_on_spec(model, spec)[0])
-            fold_briers.append(_evaluate_on_spec(model, spec)[1])
+            fold_log_loss, fold_brier = _evaluate_on_spec(model, spec)
+            fold_log_losses.append(fold_log_loss)
+            fold_briers.append(fold_brier)
         scored.append(
             {
                 "C": float(c_value),

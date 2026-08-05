@@ -60,6 +60,20 @@ def test_constant_baseline_is_the_training_fold_rate() -> None:
     assert ConstantBaseline.fit([0, 0, 1]).rate == 1 / 3
 
 
+def test_a_fitted_constant_baseline_rate_cannot_be_reassigned() -> None:
+    """The class documents itself as immutable; that must be behaviour, not a comment.
+
+    Which rows produced the rate is the entire contract of this baseline, so a rate that could be
+    re-pointed after the fit would make the fold provenance unverifiable.
+    """
+    model = ConstantBaseline.fit([0, 0, 1, 1, 1])
+    with pytest.raises(AttributeError):
+        model.rate = 0.9
+    with pytest.raises(AttributeError):
+        del model.rate
+    assert model.rate == 0.6
+
+
 def test_constant_baseline_equality_and_empty_guard() -> None:
     assert ConstantBaseline.fit([0, 1]) == ConstantBaseline.fit([0, 1])
     with pytest.raises(EmptyTrainingError):

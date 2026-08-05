@@ -26,14 +26,27 @@ class EmptyTrainingError(ValueError):
 class ConstantBaseline:
     """A per-fold constant probability equal to the training-fold goal rate.
 
-    Frozen and hashable so a wrongly-computed rate cannot be mutated after the fact; the rate is
-    set once at fit from the training labels only.
+    Immutable and hashable so a fitted rate cannot be re-pointed after the fact: the rate is set
+    once, at construction, from the training labels only, and any later assignment raises. That
+    matters because the whole point of this class is *which rows* produced the number.
     """
 
     __slots__ = ("rate",)
 
+    #: Annotation only (``__slots__`` owns the storage); the value is written once via
+    #: ``object.__setattr__`` in ``__init__`` because ``__setattr__`` refuses every later write.
+    rate: float
+
     def __init__(self, rate: float) -> None:
-        self.rate = float(rate)
+        object.__setattr__(self, "rate", float(rate))
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError(
+            "ConstantBaseline is immutable; fit a new baseline instead of reassigning the rate"
+        )
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError("ConstantBaseline is immutable; the fitted rate cannot be deleted")
 
     @classmethod
     def fit(cls, y_train: Sequence[float] | IntArray) -> ConstantBaseline:

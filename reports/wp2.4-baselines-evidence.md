@@ -94,7 +94,8 @@ ROC AUC per fold: geometry {0.7702, 0.7207, 0.7405, 0.7042, 0.7516}; full {0.764
 | 4 | [0.8, 1.0] | n 0 | n 2 · pred 0.8158 · obs 1.0000 | n 6 · pred 0.8527 · obs 0.8333 | n 5 · pred 0.8728 · obs 1.0000 |
 
 Empty bins are reported, not dropped. Under the D11 floor (≥ 100 pooled predictions) only bin 0 is
-supported for every candidate; bins 1 (n ≈ 183–215) is supported for the logistic candidates.
+supported for every candidate; bin 1 (n ≈ 183–215) is additionally supported for the logistic
+candidates.
 Because predictions concentrate in `[0, 0.2)`, the §4.1 calibration comparison has thin support in
 the upper bins — a documented limitation.
 
@@ -198,7 +199,7 @@ These are **presence indicators, never booleans**: absence of an annotation is e
 "annotated as not the case" (WP2.2 Slice B). They are excluded by the pre-registered D5 rule
 (3/5 positive ΔLL folds), which is why they are diagnostics, not features.
 
-Serially cached full-cohort run evidence: `metrics.json` (rounded to 12 dp, canonical bytes),
+Full-cohort run evidence: `metrics.json` (rounded to 12 dp, canonical bytes),
 `config.json` (output snapshot, self-contained and rerunnable; code/reproduction commit
 `8cb7a612…`), `artifact-manifest.json` (model bundle SHA-256
 `4e98c23f60dffafa7f398c819f3c8e3018800b36734dc1b63d14adaa1eaa2df1`, schema version 1, recreation
@@ -208,16 +209,28 @@ loaded and scored in a fresh Python process.
 
 ## D4 — planning-stage semantics review (resolved, no gate)
 
-`open_goal` and `one_on_one` are **excluded**. The review, completed at planning stage, records
-the unestablished property precisely: **outcome-independent provider annotation semantics cannot be
-established, because the repository contains insufficient evidence** — WP2.1 flags both fields as
-"provider annotation semantics and optional encoding require review" and no such review exists
-(`docs/modeling/wp2_1-cohort-and-leakage-contract.md`). That is a documented-fact rationale, not an
-inference about provider behaviour. Supporting facts: dev support 32 (1.1%) / 98 (3.4%); both are
-true-only presence annotations. Their situation content overlaps the admitted geometry only
-partially (distance and visible goal angle do not describe goalkeeper or defender state); the
-exclusion rests on the unestablished annotation semantics and low support, not on a redundancy
-claim.
+`open_goal` and `one_on_one` are **excluded**. The D4 planning-stage review **was completed** before
+implementation and its finding is recorded here precisely, because the two statements are easy to
+conflate:
+
+1. **The D4 review is complete.** It was carried out at planning stage and its outcome — exclude
+   both fields — is pre-registered, not a decision taken after seeing results.
+2. **What that review found is that the evidence needed to admit the fields does not exist in this
+   repository.** WP2.1 flagged both fields as "provider annotation semantics and optional encoding
+   require review", and that *provider-semantics* review has never been carried out by this project
+   or supplied by the provider documentation held here. So the property required to admit them —
+   **outcome-independent annotation semantics** — cannot be established from the available evidence.
+
+The missing artefact is the provider-semantics review, not the D4 review. Excluding a field because
+its annotation semantics are unestablished is a documented-fact rationale, not an inference about
+what the provider actually does.
+
+Supporting documented facts: development support is 32 (1.1%) and 98 (3.4%); both are true-only
+presence annotations with no recorded `false`. Labelled inference (not the primary rationale): their
+situation content overlaps the admitted geometry only partially — `distance_to_goal` and
+`visible_goal_angle` are functions of shot location alone and describe neither goalkeeper nor
+defender state. The exclusion therefore rests on the unestablished annotation semantics and the low
+support; partial geometric overlap is an inference recorded alongside it, never the reason.
 
 ## Prevalence and annotation report (development, label-free)
 

@@ -8,11 +8,14 @@ Three layers:
    "results metadata must read from the shipped candidate" mutation.
 2. A portability test on generated records: committed/public config and manifest paths must be
    repository-relative POSIX (no backslashes, no drive letters, no machine-local absolute paths).
-   Temporary absolute paths are permitted only inside tests.
-3. Committed-record tests (skipped until the evidence commit regenerates them): all machine
-   records must agree on experiment id, code commit, data source commit, shipped candidate, D5
-   outcome, selected C, shipped feature columns, shipped feature-set label, model pickle SHA-256;
-   the evidence report's stated shipped candidate / C / feature-set / model-hash prefix must match.
+   Temporary absolute paths are permitted only inside tests. ``notes.md`` is published too, so it
+   is read as a file and held to the same path contract **and** to the publication boundary: a
+   public note may not point readers at deliberately unpublished repository-internal material.
+3. Committed-record tests: all machine records must agree on experiment id, code commit, data
+   source commit, shipped candidate, D5 outcome, selected C, shipped feature columns, shipped
+   feature-set label, model pickle SHA-256; the evidence report's stated shipped candidate /
+   C / feature-set / model-hash prefix must match. These never skip — the packet is committed,
+   so a missing or stale record is a failure.
 """
 
 from __future__ import annotations
@@ -129,6 +132,63 @@ def _assert_portable(record: Mapping[str, object]) -> None:
                 assert not text.startswith("/"), f"{key}: machine-local absolute {text!r}"
 
 
+#: Repository-internal trees that the publication policy deliberately keeps out of the published
+#: repository. A committed public record must never send a reader to one of them.
+UNPUBLISHED_REFERENCES = ("docs/", "docs\\", "AGENTS.md", ".scratch/")
+
+
+def _assert_notes_publication_boundary(text: str) -> None:
+    """The generated public note must be portable and must not point at unpublished material."""
+    assert "\\" not in text, f"backslash in generated notes:\n{text}"
+    for reference in UNPUBLISHED_REFERENCES:
+        assert reference not in text, f"notes point readers at unpublished {reference!r}:\n{text}"
+
+
+def test_generated_notes_are_portable_and_stay_inside_the_publication(tmp_path: Path) -> None:
+    """``notes.md`` is committed and published, so it obeys the committed-record path contract.
+
+    The generated note previously interpolated the raw ``input_config_path``, which put a
+    Windows-style machine-local path into a published file, and pointed readers at a deliberately
+    unpublished contract document. Both are contract violations of the published packet, and
+    neither was covered because no test had ever read the generated notes file.
+    """
+    rows = _noise_rows()
+    config = _config(tmp_path)
+    metrics, bundle = run_protocol(rows, config)
+    write_experiment(metrics, bundle, config)
+
+    notes = (tmp_path / "exp" / "notes.md").read_text(encoding="utf-8")
+    _assert_notes_publication_boundary(notes)
+    # The input-config path is written through the canonical record form, exactly like the JSON.
+    config_dict = json.loads((tmp_path / "exp" / "config.json").read_text(encoding="utf-8"))
+    assert f"Input config: {config_dict['input_config_path']}" in notes
+    assert str(metrics["code_commit"]) in notes
+    assert str(metrics["reproduction_commit"]) in notes
+    # Readers are pointed at committed public evidence only.
+    assert "metrics.json" in notes
+    assert "artifact-manifest.json" in notes
+    assert "reports/wp2.4-baselines-evidence.md" in notes
+
+
+def test_committed_notes_are_repository_relative_posix_and_publication_safe() -> None:
+    """The committed public note carries no machine-local path and no unpublished pointer."""
+    notes = (COMMITTED_EXP / "notes.md").read_text(encoding="utf-8")
+    _assert_notes_publication_boundary(notes)
+    assert "C:" not in notes and "c:" not in notes, "drive letter in committed notes"
+    metrics = json.loads((COMMITTED_EXP / "metrics.json").read_text(encoding="utf-8"))
+    input_config_path = str(metrics["input_config_path"])
+    assert f"Input config: {input_config_path}" in notes
+    assert not input_config_path.startswith("/")
+    assert (ROOT / input_config_path).exists(), "the recorded input config must be committed"
+    for line in notes.splitlines():
+        if line.startswith("Input config:"):
+            recorded = line.split(":", 1)[1].strip()
+            assert recorded == input_config_path
+            assert "\\" not in recorded and not recorded.startswith("/")
+    assert "reports/wp2.4-baselines-evidence.md" in notes
+    assert str(metrics["reproduction_commit"]) in notes
+
+
 def test_write_experiment_records_the_shipped_candidate_only(tmp_path: Path) -> None:
     rows = _noise_rows()
     config = _config(tmp_path)
@@ -168,20 +228,24 @@ def test_write_experiment_records_the_shipped_candidate_only(tmp_path: Path) -> 
     _assert_no_backslashes(manifest)
 
 
-def _committed_has_schema() -> bool:
+def _require_committed_schema() -> None:
+    """The committed evidence packet is tracked, so a missing/stale record is a failure, not a skip.
+
+    This guard used to ``pytest.skip`` while the branch still carried a pre-shipped-candidate
+    record. That transition is over: the packet is committed under the current schema, and a skip
+    here would silently stop enforcing every cross-file consistency claim the PR makes.
+    """
     path = COMMITTED_EXP / "metrics.json"
-    if not path.exists():
-        return False
+    assert path.exists(), f"committed experiment metrics are missing: {path}"
     data = json.loads(path.read_text(encoding="utf-8"))
-    return isinstance(data, dict) and "reproduction_commit" in data
+    assert isinstance(data, dict), "committed metrics.json must be a JSON object"
+    assert "reproduction_commit" in data, (
+        "committed metrics.json predates the shipped-candidate/reproduction-commit schema"
+    )
 
 
-def _committed_or_skip() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
-    if not _committed_has_schema():
-        pytest.skip(
-            "committed experiment predates the shipped-candidate schema; "
-            "regenerated in the evidence commit"
-        )
+def _committed_records() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    _require_committed_schema()
     config = json.loads((COMMITTED_EXP / "config.json").read_text(encoding="utf-8"))
     metrics = json.loads((COMMITTED_EXP / "metrics.json").read_text(encoding="utf-8"))
     manifest = json.loads((COMMITTED_EXP / "artifact-manifest.json").read_text(encoding="utf-8"))
@@ -189,7 +253,7 @@ def _committed_or_skip() -> tuple[dict[str, object], dict[str, object], dict[str
 
 
 def test_committed_records_are_cross_file_consistent() -> None:
-    config, metrics, manifest = _committed_or_skip()
+    config, metrics, manifest = _committed_records()
     for field in (
         "experiment_id",
         "code_commit",
@@ -240,11 +304,7 @@ def test_committed_records_are_cross_file_consistent() -> None:
 
 
 def test_committed_results_path_fields_are_portable() -> None:
-    if not _committed_has_schema():
-        pytest.skip(
-            "committed experiment predates the shipped-candidate schema; "
-            "regenerated in the evidence commit"
-        )
+    _require_committed_schema()
     metrics = json.loads((COMMITTED_EXP / "metrics.json").read_text(encoding="utf-8"))
     results = _results_map(RESULTS_CSV, str(metrics["experiment_id"]))
     for key in ("notes_path",):

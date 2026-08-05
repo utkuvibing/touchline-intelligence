@@ -23,7 +23,13 @@ from touchline.modeling.artifact import ArtifactBundle, infer
 from touchline.modeling.baselines import ConstantBaseline
 from touchline.modeling.logistic import L2_C_GRID
 from touchline.modeling.metrics import log_loss
-from touchline.modeling.preprocessing import ShotRow, encode_rows, fit_scaler
+from touchline.modeling.preprocessing import (
+    CONTINUOUS_FIELDS,
+    PRESENCE_SOURCE_FIELDS,
+    ShotRow,
+    encode_rows,
+    fit_scaler,
+)
 from touchline.modeling.train import (
     RunConfig,
     _build_folds,
@@ -186,6 +192,28 @@ def test_d5_exclude_ships_full_minus_presence_without_presence() -> None:
     metrics, bundle = run_protocol(rows, _make_config())
     assert metrics["d5_include"] is False
     _assert_shipped_and_bundle(metrics, bundle, include=False, rows=rows)
+
+
+def test_candidate_column_subsets_are_resolved_by_name_not_by_position() -> None:
+    """The geometry and minus-presence subsets must be defined by their contracted column names.
+
+    The protocol used to address these subsets with hard-coded positions (``[0, 1]``/``[2, 3]``).
+    That is right only as long as ``Vocabulary.column_names()`` never changes order; if it did, the
+    'geometry-only' candidate would silently become something else while every record still claimed
+    the locked feature set. The shipped columns must equal the full column list minus exactly the
+    presence indicators, by name.
+    """
+    rows = _d5_rows(informative=False, seed=22)
+    metrics, bundle = run_protocol(rows, _make_config())
+    all_columns = list(bundle.all_columns)
+    presence_names = [f"{field}_presence" for field in PRESENCE_SOURCE_FIELDS]
+
+    assert all_columns[: len(CONTINUOUS_FIELDS)] == list(CONTINUOUS_FIELDS)
+    assert set(presence_names) <= set(all_columns)
+    shipped_columns = cast(Sequence[str], metrics["shipped_feature_columns"])
+    assert list(shipped_columns) == [c for c in all_columns if c not in presence_names]
+    assert list(bundle.selected_columns) == list(shipped_columns)
+    assert [all_columns[i] for i in bundle.selected_indices] == list(shipped_columns)
 
 
 def test_constant_baseline_trains_on_the_training_fold_only() -> None:

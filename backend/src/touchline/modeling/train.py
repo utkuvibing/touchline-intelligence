@@ -75,6 +75,7 @@ from touchline.modeling.metrics import (
 )
 from touchline.modeling.preprocessing import (
     CATEGORICAL_FIELDS,
+    CONTINUOUS_FIELDS,
     PRESENCE_SOURCE_FIELDS,
     RARE_MIN_DEV_ROWS,
     ShotRow,
@@ -669,8 +670,13 @@ def run_protocol(
         ]
 
     full_columns = list(range(len(all_columns)))
-    geometry_columns = [0, 1]
-    presence_columns = [2, 3]  # first_time_presence, under_pressure_presence
+    # Resolve the candidate column subsets **by name**, never by hard-coded position: a future
+    # change to the encoder's column order would otherwise silently redefine "geometry-only" and
+    # "minus presence" while every downstream record still claimed the locked feature sets.
+    # ``list.index`` raises loudly if a contracted column ever disappears.
+    geometry_columns = [all_columns.index(name) for name in CONTINUOUS_FIELDS]
+    presence_names = [f"{field}_presence" for field in PRESENCE_SOURCE_FIELDS]
+    presence_columns = [all_columns.index(name) for name in presence_names]
     minus_columns = [i for i in full_columns if i not in presence_columns]
 
     candidates: dict[str, Mapping[str, object]] = {}
@@ -682,7 +688,6 @@ def run_protocol(
     )
 
     full_folds = restrict(full_columns)
-    presence_names = [f"{field}_presence" for field in PRESENCE_SOURCE_FIELDS]
     candidates["full_logistic"] = _run_fold_logistic(
         full_folds, _selected_c(full_folds, config), config, sign_columns=presence_names
     )
@@ -975,17 +980,32 @@ def _replace_results_csv(path: str, row: Mapping[str, object]) -> None:
 
 
 def _notes_template(config: RunConfig) -> str:
+    """The public run note. Paths go through ``_record_path``; pointers stay inside the publication.
+
+    ``notes.md`` is committed and published, so it obeys exactly the contract the committed JSON
+    records obey: the input-config path is written in the canonical repository-relative POSIX form
+    (never the raw machine-local string), and readers are pointed only at committed public
+    evidence — never at a deliberately unpublished repository-internal document.
+    """
     return (
         "# WP2.4 experiment run\n\n"
         f"Experiment: {config.experiment_id}\n\n"
         f"Code commit: {config.code_commit}\n"
         f"Reproduction commit: {config.reproduction_commit}\n"
-        f"Input config: {config.input_config_path}\n\n"
+        f"Input config: {_record_path(config.input_config_path)}\n\n"
         "Hypothesis: a regularized logistic regression over the locked feature set beats both "
         "baselines under PLAN §4.1; presence indicators are admissible only if the D5 protocol "
         "passes. The shipped artifact is the D5-selected candidate, never the rejected one.\n\n"
-        "See metrics.json for the measured protocol result and the shipped candidate; see "
-        "docs/modeling/wp2_4-baselines-and-logistic-contract.md for the pre-registered decisions.\n"
+        "Published evidence for this run:\n\n"
+        "- `metrics.json` — the measured protocol result, the D5 decision and the shipped "
+        "candidate;\n"
+        "- `artifact-manifest.json` — the shipped bundle identity, its hashes and the recreation "
+        "commands;\n"
+        "- `config.json` — the resolved run-configuration snapshot;\n"
+        "- `reports/wp2.4-baselines-evidence.md` — the reviewable WP2.4 evidence report.\n\n"
+        "The pre-registered D1-D11 decisions live in the repository-internal modelling contract, "
+        "which is deliberately not published; every decision they fix is restated in the public "
+        "evidence report above.\n"
     )
 
 
