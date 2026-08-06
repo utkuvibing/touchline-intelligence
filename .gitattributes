@@ -4,3 +4,7 @@
 *.csv text eol=lf
 *.sql text eol=lf
 *.json text eol=lf
+# uv.lock is hashed into every experiment record as `uv_lock_sha256`. Without this
+# rule a Windows checkout hashes the CRLF working-tree copy and records a digest no
+# other platform reproduces, which is exactly what WP2.5 shipped once.
+uv.lock text eol=lf

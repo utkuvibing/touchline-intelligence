@@ -42,10 +42,29 @@ def test_every_hashed_record_is_canonical_lf() -> None:
 
 
 def test_the_line_ending_pin_still_covers_the_hashed_artifact_types() -> None:
-    """The digests published by this work package are only reproducible while these rules hold."""
+    """The digests published by this work package are only reproducible while these rules hold.
+
+    ``uv.lock`` is on this list because of a real cross-platform failure, not for symmetry. It is
+    hashed into every experiment record as ``uv_lock_sha256``, but was never pinned: a Windows
+    checkout hashed the CRLF working-tree copy (86,746 bytes) and recorded a digest that no Linux
+    checkout of the same commit could reproduce from the LF blob (86,034 bytes). CI caught it.
+    """
     text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-    for rule in ("*.csv text eol=lf", "*.sql text eol=lf", "*.json text eol=lf"):
-        assert rule in text
+    for rule in (
+        "*.csv text eol=lf",
+        "*.sql text eol=lf",
+        "*.json text eol=lf",
+        "uv.lock text eol=lf",
+    ):
+        assert rule in text, f"{rule!r} is missing; a published digest becomes platform-dependent"
+
+
+def test_the_uv_lock_on_disk_is_line_ending_canonical() -> None:
+    """The pin is only worth having if the working-tree copy actually obeys it."""
+    raw = (ROOT / "uv.lock").read_bytes()
+    assert b"\r" not in raw, (
+        "uv.lock contains CR; its SHA-256 would differ from the LF blob every other platform sees"
+    )
 
 
 def test_the_run_consumed_the_pinned_inputs_that_are_on_disk() -> None:
