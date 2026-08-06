@@ -12,20 +12,20 @@ comparison is published as-is.
 | | |
 |---|---|
 | Experiment | `exp-20260806-wp2_5-gradient-boosting` |
-| Code / reproduction commit | `4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca` |
+| Code / reproduction commit | `eef18ef65dd9d4223ab05b626241c0641036a67d` |
 | Data source commit | `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` |
 | Cohort SQL SHA-256 | `301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e` |
 | Split assignments SHA-256 | `e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8` |
 | Input config SHA-256 | `ddb15e39789c0a916ad0de8c95974af7e77cf10a4ab7b03e22974ad70df37f02` |
-| `uv.lock` SHA-256 | `f02faa7ea86d5808a8f210c0c8c2cda6781bdbb3a029bc8be0f87d032e95e71d` |
-| Model pickle SHA-256 | `f4a1387d04b144de0f90b741c9f85cc94931aec952f7a8a9305b0be178cdf801` |
+| `uv.lock` SHA-256 | `58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902` |
+| Model pickle SHA-256 | `1afe18f5ffd17b42da744e54e9e648cc8478b0ffa4f7f59dcec364980aff3ed9` |
 | Boosting artifact schema | 2 (`artifact_candidate` / `selection_incumbent` split) |
 | Runtime | CPython 3.12, `OMP_NUM_THREADS=1`, reported threadpool threads `[1]` |
 
 Recreation:
 
 ```
-git checkout 4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca
+git checkout eef18ef65dd9d4223ab05b626241c0641036a67d
 uv sync --locked
 # set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database
 uv run poe train-boosting --config experiments/run-configs/wp2_5-gradient-boosting.json
@@ -184,6 +184,14 @@ produced under that discipline, not a content hash. The model's behaviour is the
 invariant: predictions were bit-identical under every configuration tested, including thread counts
 that changed the bytes.
 
+A second invalidation came from continuous integration rather than from local work. The record
+claimed a `uv.lock` digest of `f02faa7e...`, which is what a Windows checkout hashes from its CRLF
+working-tree copy; a Linux checkout of the same commit hashes the LF blob to `58c4b2b3...`. The
+repository's `.gitattributes` pinned `*.csv`, `*.sql` and `*.json` for exactly this reason but had
+never covered `uv.lock`, even though its digest is written into every experiment record. The rule
+was added, the working copy normalised, and the record regenerated. Every statistic and the
+estimator digest were unchanged; only the provenance-dependent bundle bytes moved.
+
 That took a remediation. An earlier full-cohort run was **invalidated** because its artifact hash
 was not reproducible, while every metric and every prediction was. The cause was measured, not
 guessed: the OpenMP thread count changes the serialized bytes of a fitted histogram booster while
@@ -214,7 +222,9 @@ measured result was identical before and after: mean log loss 0.268004334632 eit
   showing what a booster could do with its natural input format.
 - `model_pickle_sha256` is sensitive to process history: reproducing it requires a fresh process
   that unpickles nothing before running.
-- Full-cohort evidence is local. Continuous integration never ingests the source data.
+- Full-cohort evidence is local. Continuous integration never ingests the source data — but it does
+  check the published digests against a Linux checkout, which is how the `uv.lock` line-ending
+  defect was found.
 - The holdout was not opened. Model selection is not complete until the WP2.6 comparison runs.
 
 Data provided by StatsBomb.
