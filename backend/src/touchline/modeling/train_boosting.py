@@ -137,50 +137,68 @@ UNVERIFIABLE = "unverifiable"
 #: this repository use an em dash, and a literal one here reads as an ambiguous character.
 _DASHES = "-" + chr(0x2013) + chr(0x2014)  # hyphen, en dash, em dash
 _ACCEPTED_PATTERN = re.compile(r"Accepted\s*[" + _DASHES + r"]\s*(\d{4}-\d{2}-\d{2})")
-_STATUS_HEADING = re.compile(r"^##\s+Status\s*$", re.MULTILINE)
-_NEXT_HEADING = re.compile(r"^##\s+", re.MULTILINE)
+_STATUS_HEADING = re.compile(r"^##[ \t]+Status[ \t]*$", re.MULTILINE)
+_NEXT_HEADING = re.compile(r"^##[ \t]+", re.MULTILINE)
 
 
 class PreRegistrationError(RuntimeError):
     """The WP2.5 pre-registration has not been accepted, so no evidence may be produced."""
 
 
-def _status_section(text: str) -> str:
-    """The body of the ADR's ``## Status`` heading, or the whole document if it has none.
+def _status_section(text: str) -> str | None:
+    """The body of the ADR's ``## Status`` heading, or ``None`` when the document has none.
 
     Scoped deliberately: the word "Accepted" appears in ADR prose (other ADRs are referred to by
     status), and a gate that matched anywhere in the file would pass on a sentence rather than on
     the status line.
+
+    A missing heading returns ``None`` rather than falling back to the whole document. The
+    fallback reopened exactly the hole the scoping closes: an ADR with no status section at all
+    would have been signed off by any stray "Accepted - <date>" in its prose.
     """
     heading = _STATUS_HEADING.search(text)
     if heading is None:
-        return text
+        return None
     rest = text[heading.end() :]
     following = _NEXT_HEADING.search(rest)
     return rest[: following.start()] if following else rest
 
 
-def check_pre_registration(adr_path: Path = ADR_PATH) -> str:
+def check_pre_registration(adr_path: Path | None = None) -> str:
     """Refuse to proceed while ADR 0011 is unaccepted. Called **before** any database access.
 
-    Three outcomes, and the middle one is the point of the function:
+    ``adr_path`` defaults to :data:`ADR_PATH` **resolved at call time**, not bound at definition
+    time. A ``Path`` default in the signature would be captured once at import, so reassigning the
+    module attribute — which is how the tests point the gate at a fixture — would silently have no
+    effect on an argumentless call, and the gate would keep reading the real file.
+
+    Four outcomes:
 
     - the ADR is present and its ``## Status`` section reads ``Accepted`` with an ISO date: the
       date is returned and the run proceeds;
     - the ADR is present and is **not** accepted: :class:`PreRegistrationError` is raised, before
       provenance is derived and before the database is opened. Producing evidence under a
       ``Proposed`` pre-registration is the failure PLAN 4.1 exists to prevent;
+    - the ADR is present but has **no** ``## Status`` section: also a refusal. Its sign-off state
+      cannot be read, and guessing from the prose is what the section scoping exists to prevent;
     - the ADR is **absent**: ``docs/`` is git-ignored, so a published checkout cannot see it. This
       returns :data:`UNVERIFIABLE` rather than raising, because refusing would make the recorded
       recreation command unrunnable from a clean clone. The caller is expected to say so out loud;
       it is explicitly **not** a pass.
     """
-    if not adr_path.is_file():
+    path = ADR_PATH if adr_path is None else adr_path
+    if not path.is_file():
         return UNVERIFIABLE
-    match = _ACCEPTED_PATTERN.search(_status_section(adr_path.read_text(encoding="utf-8")))
+    section = _status_section(path.read_text(encoding="utf-8"))
+    if section is None:
+        raise PreRegistrationError(
+            f"{path.name} has no '## Status' section, so its sign-off state cannot be read. "
+            "The status is not inferred from the surrounding prose."
+        )
+    match = _ACCEPTED_PATTERN.search(section)
     if match is None:
         raise PreRegistrationError(
-            f"{adr_path.name} is not Accepted with a date. WP2.5's search space and comparison "
+            f"{path.name} is not Accepted with a date. WP2.5's search space and comparison "
             "target must be signed off before any measurement is produced; running first and "
             "documenting after is exactly what the pre-registration prevents."
         )

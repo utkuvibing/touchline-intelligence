@@ -75,6 +75,31 @@ Accepted - 2026-08-07
 Amends ADR 0005.
 """
 
+#: No ``## Status`` heading at all, and an accepted-looking date in the prose. Falling back to
+#: searching the whole document would sign this off.
+NO_STATUS_ADR = """# ADR 0011: WP2.5 comparison target
+
+## Context
+
+Amends ADR 0005, which was Accepted - 2026-07-31.
+"""
+
+#: A date no real ADR would carry, so a test that reads the *real* file cannot produce it.
+FIXTURE_SIGNOFF_DATE = "2099-01-02"
+FIXTURE_ADR = f"""# ADR 0011: WP2.5 comparison target
+
+## Status
+
+Accepted - {FIXTURE_SIGNOFF_DATE}
+
+## Context
+
+Amends ADR 0005.
+"""
+
+#: A filename no real ADR carries, so its appearance in the refusal proves which file was read.
+FIXTURE_ADR_NAME = "wp2-5-gate-fixture.md"
+
 
 def _config_payload(tmp_path: Path) -> dict[str, Any]:
     return {
@@ -111,7 +136,7 @@ def test_an_unaccepted_adr_stops_main_before_provenance_or_any_database_call(
     ``resolve_provenance`` and ``open_db`` are replaced with functions that fail the test if they
     are ever called, so this asserts the *ordering* rather than merely the return code.
     """
-    adr = tmp_path / "adr-0011.md"
+    adr = tmp_path / FIXTURE_ADR_NAME
     adr.write_text(PROPOSED_ADR, encoding="utf-8")
     monkeypatch.setattr(train_boosting, "ADR_PATH", adr)
 
@@ -127,10 +152,53 @@ def test_an_unaccepted_adr_stops_main_before_provenance_or_any_database_call(
     config_path.write_text(json.dumps(_config_payload(tmp_path)), encoding="utf-8")
 
     assert train_boosting.main(["--config", str(config_path)]) == 1
-    assert "Refusing to run" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "Refusing to run" in err
+    # ...and it refused over *this* file. Without this the test passes for the wrong reason on a
+    # developer machine, where the real (git-ignored) ADR is also unaccepted, and then fails on a
+    # clean checkout where that file is absent and the gate would wave the run through.
+    assert FIXTURE_ADR_NAME in err
     # Nothing was written: no experiment directory, no artifact directory.
     assert not (tmp_path / "exp").exists()
     assert not (tmp_path / "art").exists()
+
+
+def test_the_module_default_is_resolved_at_call_time_not_bound_at_import(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An argumentless call must read the *current* ``ADR_PATH``, not one captured at import.
+
+    Regression. The signature was ``check_pre_registration(adr_path: Path = ADR_PATH)``, so the
+    real path was frozen into ``__defaults__`` when the module was imported. Monkeypatching
+    ``train_boosting.ADR_PATH`` then had no effect on ``main``'s argumentless call: the gate kept
+    reading the real, git-ignored ADR. That made the gate test pass locally for the wrong reason
+    (the real ADR is also unaccepted) while a clean checkout — where the file does not exist —
+    would get ``unverifiable`` and run straight past the gate.
+
+    The distinctive fixture date is what makes this test unable to pass by reading the real file.
+    """
+    assert train_boosting.check_pre_registration.__defaults__ == (None,), (
+        "a Path default would be captured at import and defeat the override"
+    )
+    adr = tmp_path / FIXTURE_ADR_NAME
+    adr.write_text(FIXTURE_ADR, encoding="utf-8")
+    monkeypatch.setattr(train_boosting, "ADR_PATH", adr)
+    assert train_boosting.check_pre_registration() == FIXTURE_SIGNOFF_DATE
+
+
+def test_an_adr_without_a_status_section_is_refused_despite_a_decoy_accepted_date(
+    tmp_path: Path,
+) -> None:
+    """No ``## Status`` heading is a refusal, not a licence to search the whole document.
+
+    Falling back to the full text reopened the hole the section scoping closes: this fixture has
+    no status section at all and an "Accepted - 2026-07-31" in its prose.
+    """
+    adr = tmp_path / FIXTURE_ADR_NAME
+    adr.write_text(NO_STATUS_ADR, encoding="utf-8")
+    assert "Accepted - 2026-07-31" in NO_STATUS_ADR, "fixture must contain the decoy"
+    with pytest.raises(PreRegistrationError, match="no '## Status' section"):
+        check_pre_registration(adr)
 
 
 def test_the_gate_reads_only_the_status_section(tmp_path: Path) -> None:
