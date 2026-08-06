@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import pickle
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 import psycopg
 
@@ -135,6 +136,11 @@ def runtime_fingerprint() -> dict[str, object]:
     No usernames, home-directory paths, executable paths, library file paths, temporary
     directories, environment secrets or DSNs are recorded; library ``filepath`` entries from the
     threadpool are deliberately excluded. Everything serializes deterministically (sorted keys).
+
+    ``omp_num_threads`` and ``threadpool_num_threads`` record the D20 thread pin from both sides:
+    the environment the process was started under, and the thread count the loaded runtimes
+    actually report. Recording only the first would not prove the pin took effect; recording only
+    the second would not show it was pinned rather than coincidental.
     """
     import platform
 
@@ -143,11 +149,14 @@ def runtime_fingerprint() -> dict[str, object]:
     import sklearn  # type: ignore[import-untyped]
     import threadpoolctl  # type: ignore[import-untyped]
 
+    from touchline.modeling import OMP_ENV_VAR
+
     sanitized: list[dict[str, object]] = []
     for entry in threadpoolctl.threadpool_info():
         safe = {key: value for key, value in dict(entry).items() if key != "filepath"}
         sanitized.append(safe)
     sanitized.sort(key=lambda item: json.dumps(item, sort_keys=True))
+    thread_counts = sorted({int(cast(int, entry["num_threads"])) for entry in sanitized})
     return {
         "python_implementation": platform.python_implementation(),
         "python_version": platform.python_version(),
@@ -158,6 +167,8 @@ def runtime_fingerprint() -> dict[str, object]:
         "scipy_version": scipy.__version__,
         "scikit_learn_version": sklearn.__version__,
         "threadpoolctl_version": threadpoolctl.__version__,
+        "omp_num_threads": os.environ.get(OMP_ENV_VAR),
+        "threadpool_num_threads": thread_counts,
         "threadpool_info": sanitized,
     }
 
