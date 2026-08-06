@@ -30,10 +30,9 @@ from touchline.modeling.preprocessing import (
     encode_rows,
     fit_scaler,
 )
+from touchline.modeling.protocol import build_folds, evaluate_constant
 from touchline.modeling.train import (
     RunConfig,
-    _build_folds,
-    _evaluate_constant,
     build_vocabulary,
     run_protocol,
 )
@@ -218,7 +217,7 @@ def test_candidate_column_subsets_are_resolved_by_name_not_by_position() -> None
 
 def test_constant_baseline_trains_on_the_training_fold_only() -> None:
     rows = _synthetic_rows()
-    metrics = _evaluate_constant(rows, 5)
+    metrics = evaluate_constant(rows, 5)
     per_fold = metrics["per_fold"]
     assert isinstance(per_fold, list)
     assert isinstance(per_fold[0], dict)
@@ -246,7 +245,7 @@ def test_fold_scaler_is_fitted_on_training_rows_only() -> None:
         }
     )
     vocabulary = build_vocabulary(rows)
-    folds = _build_folds(rows, vocabulary, 5)
+    folds = build_folds(rows, vocabulary, 5)
     fold0_train = [r for r in rows if r.fold != 0]
     fold0_val = [r for r in rows if r.fold == 0]
     scaler = fit_scaler(fold0_train)

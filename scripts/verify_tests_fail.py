@@ -243,6 +243,12 @@ WP24_NOTES_PUBLICATION_TESTS = (
     "test_generated_notes_are_portable_and_stay_inside_the_publication -q"
 )
 WP24_ARTIFACT_TESTS = "uv run pytest backend/tests/test_wp2_4_artifact.py -q"
+#: WP2.5 gave the column-contract validator a second caller (the boosting bundle). A break in the
+#: shared validator must be caught by *both* families' tests, or the check could be weakened for
+#: whichever family happens not to cover it.
+ARTIFACT_CONTRACT_TESTS = (
+    "uv run pytest backend/tests/test_wp2_4_artifact.py backend/tests/test_wp2_5_artifact.py -q"
+)
 WP24_PROVENANCE_TESTS = "uv run pytest backend/tests/test_wp2_4_provenance.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
@@ -1584,7 +1590,7 @@ BREAKS: list[Break] = [
     # pinned-artifact hash silently dropped, and a loader that silently tolerates a CRLF checkout.
     Break(
         contract="WP2.4 constant baseline must use the training-fold goal rate only",
-        path=ROOT / "backend/src/touchline/modeling/train.py",
+        path=ROOT / "backend/src/touchline/modeling/protocol.py",
         anchor="        baseline = ConstantBaseline.fit([r.y for r in train])\n",
         replacement=(
             "        baseline = ConstantBaseline.fit([r.y for r in rows])  # DELIBERATE BREAK\n"
@@ -1625,7 +1631,7 @@ BREAKS: list[Break] = [
     ),
     Break(
         contract="WP2.4 fold scaler must be fitted on training rows only",
-        path=ROOT / "backend/src/touchline/modeling/train.py",
+        path=ROOT / "backend/src/touchline/modeling/protocol.py",
         anchor="        scaler = fit_scaler(train)\n",
         replacement="        scaler = fit_scaler(rows)  # DELIBERATE BREAK\n",
         command=WP24_TRAIN_MODELING_TESTS,
@@ -1700,49 +1706,52 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP2.4 inference must enforce the persisted feature-column contract",
+        contract="Inference must enforce the persisted feature-column contract (both bundles)",
         path=ROOT / "backend/src/touchline/modeling/artifact.py",
-        anchor="        self._validate_feature_contract(current_columns)\n",
-        replacement="        pass  # DELIBERATE BREAK: feature-column contract check skipped\n",
-        command=WP24_ARTIFACT_TESTS,
+        anchor="    all_cols = list(all_columns)\n",
+        replacement=(
+            "    return  # DELIBERATE BREAK: feature-column contract check skipped\n"
+            "    all_cols = list(all_columns)\n"
+        ),
+        command=ARTIFACT_CONTRACT_TESTS,
         cwd=ROOT,
     ),
     Break(
-        contract="WP2.4 inference must reject out-of-bounds/negative selected indices",
+        contract="Inference must reject out-of-bounds/negative selected indices (both bundles)",
         path=ROOT / "backend/src/touchline/modeling/artifact.py",
-        anchor="        if out_of_range:\n",
-        replacement="        if False:  # DELIBERATE BREAK: bounds check skipped\n",
-        command=WP24_ARTIFACT_TESTS,
+        anchor="    if out_of_range:\n",
+        replacement="    if False:  # DELIBERATE BREAK: bounds check skipped\n",
+        command=ARTIFACT_CONTRACT_TESTS,
         cwd=ROOT,
     ),
     Break(
-        contract="WP2.4 inference must not ignore selected-column/index disagreement",
+        contract="Inference must not ignore selected-column/index disagreement (both bundles)",
         path=ROOT / "backend/src/touchline/modeling/artifact.py",
-        anchor="        if list(self.selected_columns) != expected_selected:\n",
-        replacement="        if False:  # DELIBERATE BREAK: disagreement ignored\n",
-        command=WP24_ARTIFACT_TESTS,
+        anchor="    if list(selected_columns) != expected_selected:\n",
+        replacement="    if False:  # DELIBERATE BREAK: disagreement ignored\n",
+        command=ARTIFACT_CONTRACT_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="WP2.4 code commit must come from the repository revision, not the config JSON",
-        path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor='        code_commit = _git(ROOT, "rev-parse", "HEAD")\n',
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor='        code_commit = git(ROOT, "rev-parse", "HEAD")\n',
         replacement="        code_commit = config.code_commit  # DELIBERATE BREAK\n",
         command=WP24_PROVENANCE_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="WP2.4 input-config SHA-256 must be recorded from the exact input bytes",
-        path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor="    input_sha = _sha256_bytes(input_bytes)\n",
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor="    input_sha = sha256_bytes(input_bytes)\n",
         replacement='    input_sha = "0" * 64  # DELIBERATE BREAK\n',
         command=WP24_PROVENANCE_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="WP2.4 uv.lock SHA-256 must be recorded",
-        path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor='    uv_sha = _sha256_bytes((ROOT / "uv.lock").read_bytes())\n',
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor='    uv_sha = sha256_bytes((ROOT / "uv.lock").read_bytes())\n',
         replacement='    uv_sha = "0" * 64  # DELIBERATE BREAK\n',
         command=WP24_PROVENANCE_TESTS,
         cwd=ROOT,
@@ -1750,7 +1759,7 @@ BREAKS: list[Break] = [
     Break(
         contract="WP2.4 published notes must record the canonical repository-relative config path",
         path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor='        f"Input config: {_record_path(config.input_config_path)}\\n\\n"\n',
+        anchor='        f"Input config: {record_path(config.input_config_path)}\\n\\n"\n',
         replacement=(
             '        f"Input config: {config.input_config_path}\\n\\n"  # DELIBERATE BREAK\n'
         ),

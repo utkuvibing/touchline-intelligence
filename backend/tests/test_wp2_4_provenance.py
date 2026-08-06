@@ -24,15 +24,15 @@ from typing import cast
 
 import pytest
 
-from touchline.modeling.logistic import L2_C_GRID
-from touchline.modeling.preprocessing import ShotRow
-from touchline.modeling.train import (
+from touchline.modeling.experiment import (
     ROOT,
     ProvenanceError,
-    RunConfig,
-    _runtime_fingerprint,
     resolve_provenance,
+    runtime_fingerprint,
 )
+from touchline.modeling.logistic import L2_C_GRID
+from touchline.modeling.preprocessing import ShotRow
+from touchline.modeling.train import RunConfig, apply_provenance
 
 FAKE_GIT_COMMIT = "f00dcafe00000000000000000000000000000000"
 
@@ -78,13 +78,14 @@ def _fake_git(commit: str = FAKE_GIT_COMMIT, status: str = "") -> object:
 def test_code_commit_is_derived_from_the_repository_revision_not_the_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import touchline.modeling.train as train_mod
+    import touchline.modeling.experiment as experiment_mod
 
-    monkeypatch.setattr(train_mod, "_git", _fake_git(commit=FAKE_GIT_COMMIT, status=""))
+    monkeypatch.setattr(experiment_mod, "git", _fake_git(commit=FAKE_GIT_COMMIT, status=""))
     input_cfg = tmp_path / "input-config.json"
     input_cfg.write_text("{}\n", encoding="utf-8")
     config = _config(tmp_path, clean_required=True)
-    resolved, provenance = resolve_provenance(config)
+    provenance = resolve_provenance(config)
+    resolved = apply_provenance(config, provenance)
     assert provenance.code_commit == FAKE_GIT_COMMIT
     assert resolved.code_commit == FAKE_GIT_COMMIT
     assert provenance.reproduction_commit == FAKE_GIT_COMMIT
@@ -93,11 +94,11 @@ def test_code_commit_is_derived_from_the_repository_revision_not_the_config(
 
 
 def test_dirty_tracked_tree_fails_loudly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import touchline.modeling.train as train_mod
+    import touchline.modeling.experiment as experiment_mod
 
     monkeypatch.setattr(
-        train_mod,
-        "_git",
+        experiment_mod,
+        "git",
         _fake_git(commit=FAKE_GIT_COMMIT, status=" M backend/src/touchline/modeling/train.py"),
     )
     input_cfg = tmp_path / "input-config.json"
@@ -110,22 +111,24 @@ def test_dirty_tracked_tree_fails_loudly(tmp_path: Path, monkeypatch: pytest.Mon
 def test_untracked_files_do_not_dirty_the_tree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import touchline.modeling.train as train_mod
+    import touchline.modeling.experiment as experiment_mod
 
-    monkeypatch.setattr(train_mod, "_git", _fake_git(commit=FAKE_GIT_COMMIT, status="?? IDEA.md"))
+    monkeypatch.setattr(
+        experiment_mod, "git", _fake_git(commit=FAKE_GIT_COMMIT, status="?? IDEA.md")
+    )
     input_cfg = tmp_path / "input-config.json"
     input_cfg.write_text("{}\n", encoding="utf-8")
     config = _config(tmp_path, clean_required=True)
-    resolved, _ = resolve_provenance(config)
+    resolved = apply_provenance(config, resolve_provenance(config))
     assert resolved.code_commit == FAKE_GIT_COMMIT
 
 
 def test_code_commit_override_is_forbidden_when_clean_required(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import touchline.modeling.train as train_mod
+    import touchline.modeling.experiment as experiment_mod
 
-    monkeypatch.setattr(train_mod, "_git", _fake_git())
+    monkeypatch.setattr(experiment_mod, "git", _fake_git())
     input_cfg = tmp_path / "input-config.json"
     input_cfg.write_text("{}\n", encoding="utf-8")
     config = _config(tmp_path, clean_required=True)
@@ -136,14 +139,14 @@ def test_code_commit_override_is_forbidden_when_clean_required(
 def test_input_config_sha_matches_exact_bytes_and_uv_lock_sha_matches_uv_lock(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import touchline.modeling.train as train_mod
+    import touchline.modeling.experiment as experiment_mod
 
-    monkeypatch.setattr(train_mod, "_git", _fake_git())
+    monkeypatch.setattr(experiment_mod, "git", _fake_git())
     input_cfg = tmp_path / "input-config.json"
     input_bytes = b'{"a": 1}\n'
     input_cfg.write_bytes(input_bytes)
     config = _config(tmp_path, clean_required=False)
-    _resolved, provenance = resolve_provenance(config, code_commit_override="synthetic")
+    provenance = resolve_provenance(config, code_commit_override="synthetic")
     assert provenance.input_config_sha256 == hashlib.sha256(input_bytes).hexdigest()
     assert provenance.uv_lock_sha256 == hashlib.sha256((ROOT / "uv.lock").read_bytes()).hexdigest()
 
@@ -155,7 +158,8 @@ def test_write_experiment_never_overwrites_the_committed_input_config(tmp_path: 
     input_bytes = b'{"committed": "input", "path": "portable"}\n'
     input_cfg.write_bytes(input_bytes)
     config = _config(tmp_path, clean_required=False)
-    resolved, provenance = resolve_provenance(config, code_commit_override="synthetic")
+    provenance = resolve_provenance(config, code_commit_override="synthetic")
+    resolved = apply_provenance(config, provenance)
     rng = __import__("numpy").random.default_rng(3)
     rows = [
         ShotRow(
@@ -184,8 +188,8 @@ def test_write_experiment_never_overwrites_the_committed_input_config(tmp_path: 
 
 
 def test_runtime_fingerprint_is_deterministic_and_sanitized() -> None:
-    first = _runtime_fingerprint()
-    second = _runtime_fingerprint()
+    first = runtime_fingerprint()
+    second = runtime_fingerprint()
     assert first == second
     for key in (
         "python_implementation",
