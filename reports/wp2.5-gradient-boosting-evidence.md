@@ -12,19 +12,20 @@ comparison is published as-is.
 | | |
 |---|---|
 | Experiment | `exp-20260806-wp2_5-gradient-boosting` |
-| Code / reproduction commit | `27d16f9862cf94f24a75f155907c1616ec3b7a04` |
+| Code / reproduction commit | `4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca` |
 | Data source commit | `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` |
 | Cohort SQL SHA-256 | `301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e` |
 | Split assignments SHA-256 | `e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8` |
 | Input config SHA-256 | `ddb15e39789c0a916ad0de8c95974af7e77cf10a4ab7b03e22974ad70df37f02` |
 | `uv.lock` SHA-256 | `f02faa7ea86d5808a8f210c0c8c2cda6781bdbb3a029bc8be0f87d032e95e71d` |
-| Model pickle SHA-256 | `ef224dfdf7b65d461546abb987eb0ac492c5bb190180e60c220d8551b34dd0e8` |
+| Model pickle SHA-256 | `f4a1387d04b144de0f90b741c9f85cc94931aec952f7a8a9305b0be178cdf801` |
+| Boosting artifact schema | 2 (`artifact_candidate` / `selection_incumbent` split) |
 | Runtime | CPython 3.12, `OMP_NUM_THREADS=1`, reported threadpool threads `[1]` |
 
 Recreation:
 
 ```
-git checkout 27d16f9862cf94f24a75f155907c1616ec3b7a04
+git checkout 4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca
 uv sync --locked
 # set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database
 uv run poe train-boosting --config experiments/run-configs/wp2_5-gradient-boosting.json
@@ -176,6 +177,12 @@ Under a pre-registered rule weighted toward proper scoring rules, the incumbent 
 The record reproduces. Re-running the protocol in a fresh process reproduced `metrics.json`
 byte-for-byte across all 827 lines and reproduced the model pickle byte-for-byte (177,737 bytes,
 SHA-256 matching the manifest).
+
+Reproducing it requires the launcher, a process that has unpickled nothing, and provenance built
+the way the entry point builds it — `model_pickle_sha256` is the identity of a serialisation
+produced under that discipline, not a content hash. The model's behaviour is the stronger
+invariant: predictions were bit-identical under every configuration tested, including thread counts
+that changed the bytes.
 
 That took a remediation. An earlier full-cohort run was **invalidated** because its artifact hash
 was not reproducible, while every metric and every prediction was. The cause was measured, not

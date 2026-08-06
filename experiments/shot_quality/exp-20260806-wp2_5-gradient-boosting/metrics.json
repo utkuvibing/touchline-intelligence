@@ -1,0 +1,831 @@
+{
+  "artifact_candidate": "hist_gbm",
+  "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+  "bin_count": 5,
+  "c_grid": [
+    0.01,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "calibration_support_diagnostic": {
+    "candidate_max_abs_deviation_paired": 0.031438871718,
+    "candidate_supported_bins": 2,
+    "incumbent_max_abs_deviation_paired": 0.053594739686,
+    "incumbent_supported_bins": 2,
+    "min_support": 100,
+    "note": "diagnostic only; the PLAN 4.1 decision reads each candidate's own max_abs_deviation_supported, which is unchanged",
+    "paired_supported_bin_count": 2,
+    "paired_supported_bins": [
+      0,
+      1
+    ]
+  },
+  "candidates": {
+    "constant": {
+      "max_abs_deviation_supported": 4.8061863e-05,
+      "mean_log_loss": 0.301886492972,
+      "per_fold": [
+        {
+          "brier": 0.085804710133,
+          "fold": 0,
+          "log_loss": 0.313623512272,
+          "pr_auc": 0.094736842105,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.085362827746,
+          "fold": 1,
+          "log_loss": 0.312363108401,
+          "pr_auc": 0.094202898551,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.073528856989,
+          "fold": 2,
+          "log_loss": 0.279069246842,
+          "pr_auc": 0.079734219269,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.075036457301,
+          "fold": 3,
+          "log_loss": 0.283258866545,
+          "pr_auc": 0.081597222222,
+          "roc_auc": 0.5
+        },
+        {
+          "brier": 0.08842775391,
+          "fold": 4,
+          "log_loss": 0.321117730801,
+          "pr_auc": 0.097902097902,
+          "roc_auc": 0.5
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.081509405376,
+        "log_loss": 0.301541077151,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.084693909383,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.475507956938
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2872,
+          "lower": 0.0,
+          "mean_prediction": 0.089532741529,
+          "observed_rate": 0.089484679666,
+          "positive_count": 257,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 0,
+          "lower": 0.2,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 0,
+          "lower": 0.4,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 0,
+          "lower": 0.6,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 0,
+          "lower": 0.8,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.017233530042,
+      "supported_bins": 1
+    },
+    "full_logistic": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.065200572581,
+      "mean_log_loss": 0.262047293774,
+      "per_fold": [
+        {
+          "brier": 0.07707209725,
+          "fold": 0,
+          "log_loss": 0.272346906484,
+          "pr_auc": 0.320829117424,
+          "roc_auc": 0.763996554694
+        },
+        {
+          "brier": 0.075189059236,
+          "fold": 1,
+          "log_loss": 0.272805408219,
+          "pr_auc": 0.335507708606,
+          "roc_auc": 0.748769230769
+        },
+        {
+          "brier": 0.062447725084,
+          "fold": 2,
+          "log_loss": 0.233043352825,
+          "pr_auc": 0.375347695279,
+          "roc_auc": 0.768840252708
+        },
+        {
+          "brier": 0.068656211395,
+          "fold": 3,
+          "log_loss": 0.254298377416,
+          "pr_auc": 0.271166320823,
+          "roc_auc": 0.721735108394
+        },
+        {
+          "brier": 0.079592184292,
+          "fold": 4,
+          "log_loss": 0.277742423925,
+          "pr_auc": 0.306851447288,
+          "roc_auc": 0.774865033223
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.072458807037,
+        "log_loss": 0.261651445791,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.305195033196,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.754319214945
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2631,
+          "lower": 0.0,
+          "mean_prediction": 0.06782244221,
+          "observed_rate": 0.063854047891,
+          "positive_count": 168,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 198,
+          "lower": 0.2,
+          "mean_prediction": 0.268132760753,
+          "observed_rate": 0.333333333333,
+          "positive_count": 66,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 23,
+          "lower": 0.4,
+          "mean_prediction": 0.471406154195,
+          "observed_rate": 0.478260869565,
+          "positive_count": 11,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 14,
+          "lower": 0.6,
+          "mean_prediction": 0.697352216469,
+          "observed_rate": 0.5,
+          "positive_count": 7,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 6,
+          "lower": 0.8,
+          "mean_prediction": 0.852746033005,
+          "observed_rate": 0.833333333333,
+          "positive_count": 5,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016549504247,
+      "supported_bins": 2
+    },
+    "full_minus_presence": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.053594739686,
+      "mean_log_loss": 0.263358428847,
+      "per_fold": [
+        {
+          "brier": 0.077361484242,
+          "fold": 0,
+          "log_loss": 0.271496268412,
+          "pr_auc": 0.312232125121,
+          "roc_auc": 0.773022538042
+        },
+        {
+          "brier": 0.075914831685,
+          "fold": 1,
+          "log_loss": 0.275469562971,
+          "pr_auc": 0.321689593199,
+          "roc_auc": 0.7465
+        },
+        {
+          "brier": 0.063275568532,
+          "fold": 2,
+          "log_loss": 0.236236455321,
+          "pr_auc": 0.359827337149,
+          "roc_auc": 0.757934717208
+        },
+        {
+          "brier": 0.069197781427,
+          "fold": 3,
+          "log_loss": 0.253856891073,
+          "pr_auc": 0.258227966161,
+          "roc_auc": 0.725817479789
+        },
+        {
+          "brier": 0.080126203227,
+          "fold": 4,
+          "log_loss": 0.279732966459,
+          "pr_auc": 0.292261382225,
+          "roc_auc": 0.769241417497
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.07304423249,
+        "log_loss": 0.262971881592,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.294236119925,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.752955487274
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2646,
+          "lower": 0.0,
+          "mean_prediction": 0.069125941747,
+          "observed_rate": 0.066893424036,
+          "positive_count": 177,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 183,
+          "lower": 0.2,
+          "mean_prediction": 0.268809631899,
+          "observed_rate": 0.322404371585,
+          "positive_count": 59,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 24,
+          "lower": 0.4,
+          "mean_prediction": 0.465562718542,
+          "observed_rate": 0.416666666667,
+          "positive_count": 10,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 14,
+          "lower": 0.6,
+          "mean_prediction": 0.70415454421,
+          "observed_rate": 0.428571428571,
+          "positive_count": 6,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 5,
+          "lower": 0.8,
+          "mean_prediction": 0.872825398508,
+          "observed_rate": 1.0,
+          "positive_count": 5,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016167313645,
+      "supported_bins": 2
+    },
+    "geometry_logistic": {
+      "best_c": 0.1,
+      "max_abs_deviation_supported": 0.00290589969,
+      "mean_log_loss": 0.269950589336,
+      "per_fold": [
+        {
+          "brier": 0.077741300557,
+          "fold": 0,
+          "log_loss": 0.273663100186,
+          "pr_auc": 0.302615458558,
+          "roc_auc": 0.770223227103
+        },
+        {
+          "brier": 0.078630555449,
+          "fold": 1,
+          "log_loss": 0.284930977971,
+          "pr_auc": 0.266320337091,
+          "roc_auc": 0.720653846154
+        },
+        {
+          "brier": 0.064980122382,
+          "fold": 2,
+          "log_loss": 0.242881383222,
+          "pr_auc": 0.31953949721,
+          "roc_auc": 0.740485860409
+        },
+        {
+          "brier": 0.070830554245,
+          "fold": 3,
+          "log_loss": 0.26056833717,
+          "pr_auc": 0.240405634353,
+          "roc_auc": 0.70415879017
+        },
+        {
+          "brier": 0.082126358179,
+          "fold": 4,
+          "log_loss": 0.287709148129,
+          "pr_auc": 0.259353961209,
+          "roc_auc": 0.75155730897
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.0747246928,
+        "log_loss": 0.269547860232,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.261194510133,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.735418976125
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2626,
+          "lower": 0.0,
+          "mean_prediction": 0.070118920534,
+          "observed_rate": 0.070830159939,
+          "positive_count": 186,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 215,
+          "lower": 0.2,
+          "mean_prediction": 0.258719853179,
+          "observed_rate": 0.255813953488,
+          "positive_count": 55,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 20,
+          "lower": 0.4,
+          "mean_prediction": 0.478540986238,
+          "observed_rate": 0.35,
+          "positive_count": 7,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 9,
+          "lower": 0.6,
+          "mean_prediction": 0.692993031203,
+          "observed_rate": 0.777777777778,
+          "positive_count": 7,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 2,
+          "lower": 0.8,
+          "mean_prediction": 0.815763496283,
+          "observed_rate": 1.0,
+          "positive_count": 2,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.016579081797,
+      "supported_bins": 2
+    },
+    "hist_gbm": {
+      "hyperparameters": {
+        "learning_rate": 0.03,
+        "max_leaf_nodes": 7,
+        "min_samples_leaf": 60
+      },
+      "max_abs_deviation_supported": 0.031438871718,
+      "mean_log_loss": 0.268004334632,
+      "per_fold": [
+        {
+          "brier": 0.078388846997,
+          "fold": 0,
+          "log_loss": 0.274092573455,
+          "pr_auc": 0.253514219045,
+          "roc_auc": 0.764983491243
+        },
+        {
+          "brier": 0.078334190043,
+          "fold": 1,
+          "log_loss": 0.281720838732,
+          "pr_auc": 0.304986484826,
+          "roc_auc": 0.724807692308
+        },
+        {
+          "brier": 0.067198046223,
+          "fold": 2,
+          "log_loss": 0.249996000979,
+          "pr_auc": 0.283880629706,
+          "roc_auc": 0.728038507822
+        },
+        {
+          "brier": 0.068809651306,
+          "fold": 3,
+          "log_loss": 0.251192646113,
+          "pr_auc": 0.26502318706,
+          "roc_auc": 0.745827132687
+        },
+        {
+          "brier": 0.08055900533,
+          "fold": 4,
+          "log_loss": 0.28301961388,
+          "pr_auc": 0.275298141151,
+          "roc_auc": 0.753720238095
+        }
+      ],
+      "pooled_oof": {
+        "brier": 0.074543680264,
+        "log_loss": 0.267693052138,
+        "n": 2872,
+        "positive_count": 257,
+        "pr_auc": 0.259193763152,
+        "prevalence": 0.089484679666,
+        "roc_auc": 0.741322510806
+      },
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 2570,
+          "lower": 0.0,
+          "mean_prediction": 0.061390585738,
+          "observed_rate": 0.065758754864,
+          "positive_count": 169,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 233,
+          "lower": 0.2,
+          "mean_prediction": 0.293241446825,
+          "observed_rate": 0.261802575107,
+          "positive_count": 61,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 69,
+          "lower": 0.4,
+          "mean_prediction": 0.452970023672,
+          "observed_rate": 0.391304347826,
+          "positive_count": 27,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 0,
+          "lower": 0.6,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 0,
+          "lower": 0.8,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 1.0
+        }
+      ],
+      "sd_log_loss_ddof0": 0.014543731979,
+      "supported_bins": 2
+    }
+  },
+  "code_commit": "4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca",
+  "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+  "d11_min_support": 100,
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "experiment_id": "exp-20260806-wp2_5-gradient-boosting",
+  "gbm_fixed_hyperparameters": {
+    "early_stopping": false,
+    "interaction_cst": null,
+    "l2_regularization": 1.0,
+    "max_bins": 255,
+    "max_iter": 200
+  },
+  "gbm_grid": [
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    }
+  ],
+  "gbm_grid_size": 12,
+  "gbm_search": [
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.074889668049,
+      "mean_log_loss": 0.268210436659,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.07465794798,
+      "mean_log_loss": 0.268004334632,
+      "min_samples_leaf": 60.0
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.077069946118,
+      "mean_log_loss": 0.278140663377,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.076429330083,
+      "mean_log_loss": 0.27795348528,
+      "min_samples_leaf": 60.0
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.076174318849,
+      "mean_log_loss": 0.274227285544,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.076110317371,
+      "mean_log_loss": 0.275296676863,
+      "min_samples_leaf": 60.0
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.079369459758,
+      "mean_log_loss": 0.291779776485,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.078508848684,
+      "mean_log_loss": 0.291954365617,
+      "min_samples_leaf": 60.0
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.077546066754,
+      "mean_log_loss": 0.281434842057,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7.0,
+      "mean_brier": 0.077583816366,
+      "mean_log_loss": 0.283133106733,
+      "min_samples_leaf": 60.0
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.082057505228,
+      "mean_log_loss": 0.308848599161,
+      "min_samples_leaf": 20.0
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15.0,
+      "mean_brier": 0.080904663556,
+      "mean_log_loss": 0.306968797347,
+      "min_samples_leaf": 60.0
+    }
+  ],
+  "gbm_selected_hyperparameters": {
+    "learning_rate": 0.03,
+    "max_leaf_nodes": 7,
+    "min_samples_leaf": 60
+  },
+  "input_config_path": "experiments/run-configs/wp2_5-gradient-boosting.json",
+  "input_config_sha256": "ddb15e39789c0a916ad0de8c95974af7e77cf10a4ab7b03e22974ad70df37f02",
+  "model_family": "hist-gradient-boosting",
+  "model_pickle_sha256": "f4a1387d04b144de0f90b741c9f85cc94931aec952f7a8a9305b0be178cdf801",
+  "n_matches": 115,
+  "n_rows": 2872,
+  "protocol_incumbent": "constant",
+  "random_seed": 0,
+  "replacement_chain_a": {
+    "gbm_beats_protocol_incumbent": false,
+    "geometry_beats_constant": false,
+    "note": "continuity with the WP2.4 record; the first two outcomes must reproduce it. This chain is not the selection - see replacement_chain_b.",
+    "order": [
+      "constant",
+      "geometry_logistic",
+      "full_minus_presence",
+      "hist_gbm"
+    ],
+    "protocol_incumbent": "constant",
+    "shipped_beats_incumbent": false
+  },
+  "replacement_chain_b": {
+    "candidate": "hist_gbm",
+    "gbm_beats_shipped_logistic": false,
+    "incumbent": "full_minus_presence",
+    "note": "the PLAN 4.1 decision of record for WP2.5 (ADR 0011 D-A)",
+    "selection_incumbent": "full_minus_presence"
+  },
+  "reproduction_commit": "4fc0031c1e1c19dd6e110bbd2bd8e82ef5c36aca",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "omp_num_threads": "1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpool_num_threads": [
+      1
+    ],
+    "threadpoolctl_version": "3.6.0"
+  },
+  "shipped_candidate": "full_minus_presence",
+  "shipped_feature_columns": [
+    "distance_to_goal",
+    "visible_goal_angle",
+    "body_part_name::Head",
+    "body_part_name::Left Foot",
+    "body_part_name::rare",
+    "technique_name::Half Volley",
+    "technique_name::Volley",
+    "technique_name::rare",
+    "play_pattern_name::From Corner",
+    "play_pattern_name::From Counter",
+    "play_pattern_name::From Free Kick",
+    "play_pattern_name::From Goal Kick",
+    "play_pattern_name::From Keeper",
+    "play_pattern_name::From Kick Off",
+    "play_pattern_name::From Throw In",
+    "play_pattern_name::rare"
+  ],
+  "shipped_feature_set": "geometry+categoricals",
+  "thread_limit": 1,
+  "uv_lock_sha256": "f02faa7ea86d5808a8f210c0c8c2cda6781bdbb3a029bc8be0f87d032e95e71d",
+  "vocabulary": {
+    "levels": {
+      "body_part_name": [
+        "Head",
+        "Left Foot",
+        "rare"
+      ],
+      "play_pattern_name": [
+        "From Corner",
+        "From Counter",
+        "From Free Kick",
+        "From Goal Kick",
+        "From Keeper",
+        "From Kick Off",
+        "From Throw In",
+        "rare"
+      ],
+      "technique_name": [
+        "Half Volley",
+        "Volley",
+        "rare"
+      ]
+    },
+    "rare_members": {
+      "body_part_name": [
+        "Other"
+      ],
+      "play_pattern_name": [
+        "Other"
+      ],
+      "technique_name": [
+        "Backheel",
+        "Diving Header",
+        "Lob",
+        "Overhead Kick"
+      ]
+    },
+    "reference": {
+      "body_part_name": "Right Foot",
+      "play_pattern_name": "Regular Play",
+      "technique_name": "Normal"
+    }
+  }
+}
