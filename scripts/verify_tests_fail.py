@@ -250,6 +250,10 @@ ARTIFACT_CONTRACT_TESTS = (
     "uv run pytest backend/tests/test_wp2_4_artifact.py backend/tests/test_wp2_5_artifact.py -q"
 )
 WP24_PROVENANCE_TESTS = "uv run pytest backend/tests/test_wp2_4_provenance.py -q"
+WP25_BOOSTING_TESTS = "uv run pytest backend/tests/test_wp2_5_boosting.py -q"
+WP25_TRAIN_MODELING_TESTS = "uv run pytest backend/tests/test_wp2_5_train_modeling.py -q"
+WP25_PRE_REGISTRATION_TESTS = "uv run pytest backend/tests/test_wp2_5_pre_registration.py -q"
+WP25_PROCESS_DETERMINISM_TESTS = "uv run pytest backend/tests/test_wp2_5_process_determinism.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1787,6 +1791,82 @@ BREAKS: list[Break] = [
         ),
         replacement='        "artifact_schema_version": artifact_schema_version,\n',
         command=WP24_EXPERIMENT_CONSISTENCY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 OpenMP must be pinned to one thread at process start (D20)",
+        path=ROOT / "backend/src/touchline/modeling/__init__.py",
+        anchor="    os.environ[OMP_ENV_VAR] = OMP_THREAD_PIN\n",
+        replacement="    pass  # DELIBERATE BREAK: thread pin removed\n",
+        command=WP25_PROCESS_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 must refuse to start under a foreign OpenMP thread count",
+        path=ROOT / "backend/src/touchline/modeling/__init__.py",
+        anchor="    if inherited is not None and inherited.strip() != OMP_THREAD_PIN:\n",
+        replacement="    if False:  # DELIBERATE BREAK: foreign thread count tolerated\n",
+        command=WP25_PROCESS_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 boosting must not use early stopping (it would split a locked fold)",
+        path=ROOT / "backend/src/touchline/modeling/boosting.py",
+        anchor="        early_stopping=EARLY_STOPPING,\n",
+        replacement="        early_stopping=True,  # DELIBERATE BREAK\n",
+        command=WP25_BOOSTING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 D15 fixed hyperparameters must reach the estimator explicitly",
+        path=ROOT / "backend/src/touchline/modeling/boosting.py",
+        anchor="        interaction_cst=INTERACTION_CST,\n",
+        replacement='        interaction_cst="no_interactions",  # DELIBERATE BREAK\n',
+        command=WP25_BOOSTING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 grid selection must follow the total D16 ordering key",
+        path=ROOT / "backend/src/touchline/modeling/boosting.py",
+        anchor="    best = min(scored, key=_selection_key)\n",
+        replacement="    best = scored[0]  # DELIBERATE BREAK: enumeration order\n",
+        command=WP25_BOOSTING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 declared search space must not be tunable from the run config (D17)",
+        path=ROOT / "backend/src/touchline/modeling/train_boosting.py",
+        anchor="    if gbm_grid != GBM_GRID:\n",
+        replacement="    if False:  # DELIBERATE BREAK: any grid accepted\n",
+        command=WP25_PRE_REGISTRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 must refuse to run before the pre-registration is accepted",
+        path=ROOT / "backend/src/touchline/modeling/train_boosting.py",
+        anchor="        signoff = check_pre_registration()\n",
+        replacement="        signoff = UNVERIFIABLE  # DELIBERATE BREAK: gate skipped\n",
+        command=WP25_PRE_REGISTRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 results row must describe the boosting artifact, not the winner",
+        path=ROOT / "backend/src/touchline/modeling/train_boosting.py",
+        anchor="    artifact_metrics = cast(_CandidateReadOut, candidates[artifact_key])\n",
+        replacement=("    artifact_metrics = cast(_CandidateReadOut, candidates[selection_key])\n"),
+        command=WP25_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 chain A must extend the WP2.4 chain, not substitute its last step (D18)",
+        path=ROOT / "backend/src/touchline/modeling/train_boosting.py",
+        anchor=(
+            'CHAIN_A_ORDER = ("constant", "geometry_logistic", SHIPPED_LOGISTIC_KEY, GBM_KEY)\n'
+        ),
+        replacement=(
+            'CHAIN_A_ORDER = ("constant", "geometry_logistic", GBM_KEY)  # DELIBERATE BREAK\n'
+        ),
+        command=WP25_TRAIN_MODELING_TESTS,
         cwd=ROOT,
     ),
 ]

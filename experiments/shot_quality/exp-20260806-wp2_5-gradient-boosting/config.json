@@ -1,0 +1,166 @@
+{
+  "artifact_candidate": "hist_gbm",
+  "artifacts_dir": "artifacts/models/exp-20260806-wp2_5-gradient-boosting",
+  "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+  "bin_count": 5,
+  "c_grid": [
+    0.01,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "code_commit": "27d16f9862cf94f24a75f155907c1616ec3b7a04",
+  "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL",
+  "expected_fold_sizes": {
+    "0": 570,
+    "1": 552,
+    "2": 602,
+    "3": 576,
+    "4": 572
+  },
+  "expected_matches": 115,
+  "expected_shots": 2872,
+  "experiment_id": "exp-20260806-wp2_5-gradient-boosting",
+  "gbm_grid": [
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.03,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.06,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 7,
+      "min_samples_leaf": 60
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 20
+    },
+    {
+      "learning_rate": 0.1,
+      "max_leaf_nodes": 15,
+      "min_samples_leaf": 60
+    }
+  ],
+  "gbm_selected_hyperparameters": {
+    "learning_rate": 0.03,
+    "max_leaf_nodes": 7,
+    "min_samples_leaf": 60
+  },
+  "input_config_path": "experiments/run-configs/wp2_5-gradient-boosting.json",
+  "input_config_sha256": "ddb15e39789c0a916ad0de8c95974af7e77cf10a4ab7b03e22974ad70df37f02",
+  "model_family": "hist-gradient-boosting",
+  "n_folds": 5,
+  "out_dir": "experiments/shot_quality/exp-20260806-wp2_5-gradient-boosting",
+  "protocol_incumbent": "constant",
+  "random_seed": 0,
+  "reproduction_commit": "27d16f9862cf94f24a75f155907c1616ec3b7a04",
+  "results_csv": "experiments/results.csv",
+  "runtime_fingerprint": {
+    "machine": "AMD64",
+    "numpy_version": "2.5.1",
+    "omp_num_threads": "1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpool_num_threads": [
+      1
+    ],
+    "threadpoolctl_version": "3.6.0"
+  },
+  "shipped_candidate": "full_minus_presence",
+  "shipped_feature_columns": [
+    "distance_to_goal",
+    "visible_goal_angle",
+    "body_part_name::Head",
+    "body_part_name::Left Foot",
+    "body_part_name::rare",
+    "technique_name::Half Volley",
+    "technique_name::Volley",
+    "technique_name::rare",
+    "play_pattern_name::From Corner",
+    "play_pattern_name::From Counter",
+    "play_pattern_name::From Free Kick",
+    "play_pattern_name::From Goal Kick",
+    "play_pattern_name::From Keeper",
+    "play_pattern_name::From Kick Off",
+    "play_pattern_name::From Throw In",
+    "play_pattern_name::rare"
+  ],
+  "shipped_feature_set": "geometry+categoricals",
+  "thread_limit": 1,
+  "uv_lock_sha256": "f02faa7ea86d5808a8f210c0c8c2cda6781bdbb3a029bc8be0f87d032e95e71d"
+}
