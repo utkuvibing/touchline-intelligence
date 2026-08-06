@@ -1,6 +1,7 @@
 """WP2.5 training entry point: one gradient-boosting candidate on the locked development split.
 
-``python -m touchline.modeling.train_boosting --config <path>`` reads a JSON config, verifies the
+Launched through ``python -m touchline.boosting_bootstrap --config <path>``, which pins the
+OpenMP thread count before scikit-learn loads (D20). This module reads a JSON config, verifies the
 pinned WP2.3 artifacts (byte-pin + canonical LF), loads **development rows only** through the WP2.1
 cohort query, and runs the locked protocol with one added candidate:
 
@@ -46,6 +47,7 @@ from typing import TypedDict, cast
 import numpy as np
 from threadpoolctl import threadpool_limits  # type: ignore[import-untyped]
 
+from touchline.boosting_bootstrap import OMP_ENV_VAR, OMP_THREAD_PIN, is_pinned
 from touchline.modeling.artifact import (
     BoostingBundle,
     boosting_artifact_schema_version,
@@ -529,7 +531,8 @@ def _run_protocol_unlimited(
     bundle = BoostingBundle(
         schema_version=boosting_artifact_schema_version,
         experiment_id=config.experiment_id,
-        shipped_candidate=GBM_KEY,
+        artifact_candidate=GBM_KEY,
+        selection_incumbent=selection_incumbent,
         hyperparameters={k: float(v) for k, v in best_params.as_dict().items()},
         code_commit=config.code_commit,
         reproduction_commit=config.reproduction_commit,
@@ -612,6 +615,19 @@ def write_experiment(
     candidates = cast(Mapping[str, object], metrics["candidates"])
     artifact_metrics = cast(_CandidateReadOut, candidates[artifact_key])
 
+    # The bundle, the metrics and the manifest must use these two words identically. They were
+    # once the same word for two different things, and the results row inherited the confusion.
+    if bundle.artifact_candidate != artifact_key:
+        raise AssertionError(
+            f"bundle.artifact_candidate {bundle.artifact_candidate!r} != metrics "
+            f"artifact_candidate {artifact_key!r}; the records disagree on what was built"
+        )
+    if bundle.selection_incumbent != selection_key:
+        raise AssertionError(
+            f"bundle.selection_incumbent {bundle.selection_incumbent!r} != metrics "
+            f"shipped_candidate {selection_key!r}; the records disagree on what won"
+        )
+
     pickle_bytes = pickle.dumps(bundle, protocol=5)
     bundle_hash = hashlib.sha256(pickle_bytes).hexdigest()
     recorded_hash = cast(str, metrics["model_pickle_sha256"])
@@ -674,6 +690,8 @@ def write_experiment(
         "model_family": config.model_family,
         "artifact_candidate": artifact_key,
         "shipped_candidate": selection_key,
+        "bundle_artifact_candidate": bundle.artifact_candidate,
+        "bundle_selection_incumbent": bundle.selection_incumbent,
         "shipped_feature_set": metrics["shipped_feature_set"],
         "shipped_feature_columns": list(cast(list[object], metrics["shipped_feature_columns"])),
         "gbm_selected_hyperparameters": metrics["gbm_selected_hyperparameters"],
@@ -685,12 +703,10 @@ def write_experiment(
             "database": (
                 "set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database"
             ),
-            "run": (
-                f"uv run python -m touchline.modeling.train_boosting --config {input_cfg_posix}"
-            ),
+            "run": (f"uv run python -m touchline.boosting_bootstrap --config {input_cfg_posix}"),
         },
         "recreation_command": (
-            f"uv run python -m touchline.modeling.train_boosting --config {input_cfg_posix}"
+            f"uv run python -m touchline.boosting_bootstrap --config {input_cfg_posix}"
         ),
         "coefficients_json": record_path(out / "metrics.json"),
     }
@@ -800,6 +816,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+
+    # D20 is a *process* contract, so it is checked here rather than assumed. Running this module
+    # directly skips the launcher that pins the thread count, and the artifact hash would not be
+    # reproducible; say so before an hour of fitting rather than after.
+    if not is_pinned():
+        print(
+            f"Refusing to run: {OMP_ENV_VAR} is "
+            f"{os.environ.get(OMP_ENV_VAR, '(unset)')!r}, not {OMP_THREAD_PIN!r}. Launch through "
+            "`python -m touchline.boosting_bootstrap`, which pins it before scikit-learn loads.",
+            file=sys.stderr,
+        )
+        return 1
 
     config = _load_config(Path(args.config))
     if config.require_clean_provenance and args.code_commit is not None:

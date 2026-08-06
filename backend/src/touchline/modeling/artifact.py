@@ -247,7 +247,13 @@ def load_bundle(path: str | Path) -> ArtifactBundle:
 #: ``artifact_schema_version``. ``ArtifactBundle`` is not modified by WP2.5: bumping a shared
 #: version — or adding a field to the logistic bundle — would change its pickled bytes and make the
 #: ``model_pickle_sha256`` published in WP2.4's evidence unreproducible.
-boosting_artifact_schema_version = 1
+#:
+#: Version 2 renamed ``shipped_candidate`` to ``artifact_candidate`` and added
+#: ``selection_incumbent``. Version 1 used ``shipped_candidate`` for *what the bundle contains*,
+#: while the metrics, manifest and results row used the same word for *which candidate won the
+#: comparison* — two different things under one name, which is exactly the confusion the split
+#: fields now prevent.
+boosting_artifact_schema_version = 2
 
 
 @dataclass(frozen=True)
@@ -262,7 +268,13 @@ class BoostingBundle:
 
     schema_version: int
     experiment_id: str
-    shipped_candidate: str
+    #: What this bundle **contains** — the candidate whose fitted estimator is serialized here.
+    artifact_candidate: str
+    #: Which candidate **won** the comparison that produced it. Recorded because a reader holding
+    #: only the pickle should be able to tell whether this model was adopted, and deliberately
+    #: named differently from :attr:`artifact_candidate` because the two can disagree: WP2.5 built
+    #: a booster and the logistic regression won.
+    selection_incumbent: str
     hyperparameters: Mapping[str, float]
     code_commit: str
     reproduction_commit: str
@@ -309,7 +321,8 @@ class BoostingBundle:
         return {
             "boosting_artifact_schema_version": self.schema_version,
             "experiment_id": self.experiment_id,
-            "shipped_candidate": self.shipped_candidate,
+            "artifact_candidate": self.artifact_candidate,
+            "selection_incumbent": self.selection_incumbent,
             "hyperparameters": dict(self.hyperparameters),
             "code_commit": self.code_commit,
             "reproduction_commit": self.reproduction_commit,

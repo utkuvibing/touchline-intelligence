@@ -146,6 +146,8 @@ def test_results_row_describes_the_boosting_artifact_when_the_booster_loses(tmp_
         "fixture no longer exercises the losing-booster case"
     )
     assert metrics["artifact_candidate"] == GBM_KEY
+    assert bundle.artifact_candidate == GBM_KEY
+    assert bundle.selection_incumbent == metrics["shipped_candidate"]
 
     write_experiment(metrics, bundle, config)
     row = _results_row(tmp_path / "results.csv", config.experiment_id)

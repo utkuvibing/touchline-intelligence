@@ -149,8 +149,6 @@ def runtime_fingerprint() -> dict[str, object]:
     import sklearn  # type: ignore[import-untyped]
     import threadpoolctl  # type: ignore[import-untyped]
 
-    from touchline.modeling import OMP_ENV_VAR
-
     sanitized: list[dict[str, object]] = []
     for entry in threadpoolctl.threadpool_info():
         safe = {key: value for key, value in dict(entry).items() if key != "filepath"}
@@ -167,7 +165,7 @@ def runtime_fingerprint() -> dict[str, object]:
         "scipy_version": scipy.__version__,
         "scikit_learn_version": sklearn.__version__,
         "threadpoolctl_version": threadpoolctl.__version__,
-        "omp_num_threads": os.environ.get(OMP_ENV_VAR),
+        "omp_num_threads": os.environ.get("OMP_NUM_THREADS"),
         "threadpool_num_threads": thread_counts,
         "threadpool_info": sanitized,
     }

@@ -99,7 +99,8 @@ def _make_bundle() -> tuple[BoostingBundle, list[ShotRow], list[int]]:
     bundle = BoostingBundle(
         schema_version=boosting_artifact_schema_version,
         experiment_id="unit",
-        shipped_candidate="hist_gbm",
+        artifact_candidate="hist_gbm",
+        selection_incumbent="full_minus_presence",
         hyperparameters={k: float(v) for k, v in PARAMS.as_dict().items()},
         code_commit="c",
         reproduction_commit="c",
@@ -132,7 +133,7 @@ def test_wp2_4_artifact_is_untouched_by_wp2_5() -> None:
 
 
 def test_boosting_artifact_identity_and_its_own_schema_version() -> None:
-    assert boosting_artifact_schema_version == 1
+    assert boosting_artifact_schema_version == 2
     assert BoostingBundle.__module__ == "touchline.modeling.artifact"
     assert BoostingBundle.__qualname__ == "BoostingBundle"
 
@@ -153,6 +154,20 @@ def test_load_round_trip_and_infer_scores_raw_rows(tmp_path: Path) -> None:
     full, _ = encode_rows(query, loaded.vocabulary, loaded.scaler)
     expected = loaded.estimator.predict_proba(full[:, list(loaded.selected_indices)])[:, 1]
     assert np.array_equal(probabilities, expected)
+
+
+def test_the_bundle_separates_what_it_contains_from_what_won() -> None:
+    """The two words that were once one. A bundle must be able to say "I lost"."""
+    bundle, _rows, _ = _make_bundle()
+    assert bundle.artifact_candidate == "hist_gbm"
+    assert bundle.selection_incumbent == "full_minus_presence"
+    assert bundle.artifact_candidate != bundle.selection_incumbent
+    exported = bundle.as_dict()
+    assert exported["artifact_candidate"] == bundle.artifact_candidate
+    assert exported["selection_incumbent"] == bundle.selection_incumbent
+    assert "shipped_candidate" not in exported, (
+        "the ambiguous name must not come back: metrics uses it for the winner"
+    )
 
 
 def test_the_two_bundle_families_cannot_be_confused(tmp_path: Path) -> None:

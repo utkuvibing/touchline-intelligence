@@ -35,6 +35,7 @@ from typing import Any
 
 import pytest
 
+from touchline.boosting_bootstrap import OMP_ENV_VAR, OMP_THREAD_PIN
 from touchline.modeling import train_boosting
 from touchline.modeling.boosting import GBM_GRID
 from touchline.modeling.train_boosting import (
@@ -147,6 +148,9 @@ def test_an_unaccepted_adr_stops_main_before_provenance_or_any_database_call(
     monkeypatch.setattr(train_boosting, "open_db", must_not_run)
     monkeypatch.setattr(train_boosting, "load_development_cohort", must_not_run)
     monkeypatch.setenv("TOUCHLINE_DB_URL", "postgresql://user:pw@localhost:5432/db")
+    # The pin check runs first and is a separate contract; supply a pinned environment so
+    # this test exercises the pre-registration gate rather than stopping short of it.
+    monkeypatch.setenv(OMP_ENV_VAR, OMP_THREAD_PIN)
 
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps(_config_payload(tmp_path)), encoding="utf-8")

@@ -5,8 +5,12 @@ scikit-learn's histogram gradient booster serializes differently under different
 counts, and the thread count is read by the OpenMP runtime when it initialises. Calling
 ``fit_boosting`` twice inside one interpreter cannot see that — the runtime is already loaded and
 both fits share it, so such a test passes whether or not the pin exists. Only a fresh process
-exercises the real entry/import path, which is where ``touchline.modeling.__init__`` sets the pin
+exercises the real entry/import path, which is where ``touchline.boosting_bootstrap`` sets the pin
 before scikit-learn is imported.
+
+A fourth contract guards the other direction: the pin belongs to the launcher, so importing the
+WP2.3 split code or the WP2.4 logistic code must neither fail nor mutate the environment, whatever
+the operator set ``OMP_NUM_THREADS`` to.
 
 Three contracts:
 
@@ -28,16 +32,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "backend" / "src"
 
-#: Runs in a *fresh* interpreter. It imports the real training entry module first, exactly as
-#: ``python -m touchline.modeling.train_boosting`` does, so the package ``__init__`` pin runs
-#: before scikit-learn is imported.
+#: Runs in a *fresh* interpreter, pinning first and importing the trainer second, exactly as
+#: ``python -m touchline.boosting_bootstrap`` does.
 CHILD = """
-# Import order here mirrors `python -m touchline.modeling.train_boosting`, where Python runs the
-# package __init__ (and therefore the pin) before the module body imports numpy or scikit-learn.
-# Importing numpy first would load OpenBLAS under its own default thread count, ahead of the pin --
-# which is precisely what this ordering exists to prevent, and what an earlier draft of this test
-# did wrong.
-from touchline.modeling import train_boosting  # real entry path; triggers the D20 pin
+# Import order mirrors `python -m touchline.boosting_bootstrap`: pin first, then import the
+# trainer. Importing numpy first would load OpenBLAS under its own default thread count ahead of
+# the pin -- precisely what this ordering exists to prevent, and what an earlier draft got wrong.
+from touchline.boosting_bootstrap import pin_openmp_threads  # the official launcher's pin
+pin_openmp_threads()
+from touchline.modeling import train_boosting  # imported only after the pin, as main() does
 
 import hashlib, json, os, pickle
 import numpy as np
@@ -73,7 +76,7 @@ est = fit_boosting(X, y, params).estimator
 
 bundle = BoostingBundle(
     schema_version=boosting_artifact_schema_version, experiment_id="proc-determinism",
-    shipped_candidate="hist_gbm",
+    artifact_candidate="hist_gbm", selection_incumbent="full_minus_presence",
     hyperparameters={k: float(v) for k, v in params.as_dict().items()},
     code_commit="c", reproduction_commit="c", data_source_commit="d",
     cohort_sql_sha256="0" * 64, assignments_sha256="0" * 64,
@@ -136,9 +139,52 @@ def test_the_pin_took_effect_through_the_real_import_path() -> None:
 
 def test_a_process_started_under_a_different_thread_count_fails_loudly() -> None:
     result = _run_child({"OMP_NUM_THREADS": "8"})
-    assert result.returncode != 0, "importing under OMP_NUM_THREADS=8 must not be allowed"
+    assert result.returncode != 0, "launching under OMP_NUM_THREADS=8 must not be allowed"
     assert "ThreadPinError" in result.stderr
     assert "OMP_NUM_THREADS" in result.stderr
+
+
+#: Imports the WP2.3 and WP2.4 modelling modules and reports the environment it observed. It must
+#: not raise, and it must leave OMP_NUM_THREADS exactly as the operator set it.
+UNAFFECTED_CHILD = """
+import json, os
+before = os.environ.get("OMP_NUM_THREADS")
+import touchline.modeling.splits          # WP2.3
+import touchline.modeling.train           # WP2.4
+import touchline.modeling.logistic        # WP2.4
+print(json.dumps({"before": before, "after": os.environ.get("OMP_NUM_THREADS")}))
+"""
+
+
+def test_importing_wp2_3_and_wp2_4_modules_neither_fails_nor_mutates_the_environment() -> None:
+    """The pin belongs to the WP2.5 launcher, not to the modelling package.
+
+    An earlier version pinned from ``touchline.modeling.__init__``, so importing the split code or
+    the logistic trainer -- neither of which the thread count affects -- rewrote the process
+    environment and raised if the operator had chosen a different value. Import should not do that.
+    """
+    for setting in ("8", "1", None):
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(SRC)
+        if setting is None:
+            env.pop("OMP_NUM_THREADS", None)
+        else:
+            env["OMP_NUM_THREADS"] = setting
+        result = subprocess.run(
+            [sys.executable, "-c", UNAFFECTED_CHILD],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(ROOT),
+            check=False,
+        )
+        assert result.returncode == 0, f"OMP_NUM_THREADS={setting!r}: {result.stderr}"
+        payload = json.loads(result.stdout)
+        assert payload["before"] == setting
+        assert payload["after"] == setting, (
+            f"importing modelling modules mutated OMP_NUM_THREADS from {setting!r} to "
+            f"{payload['after']!r}"
+        )
 
 
 def test_an_inherited_pin_of_one_is_accepted() -> None:

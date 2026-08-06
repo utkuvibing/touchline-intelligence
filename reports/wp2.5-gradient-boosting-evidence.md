@@ -28,6 +28,7 @@ git checkout 27d16f9862cf94f24a75f155907c1616ec3b7a04
 uv sync --locked
 # set TOUCHLINE_FULL_COHORT_DB_URL to the local ingested four-tournament database
 uv run poe train-boosting --config experiments/run-configs/wp2_5-gradient-boosting.json
+# (poe train-boosting runs `python -m touchline.boosting_bootstrap`, which pins OMP_NUM_THREADS=1)
 ```
 
 ## Population and protocol
@@ -142,17 +143,33 @@ this run the comparison rested on a shared basis: paired deviations 0.053595 for
 0.031439 for the booster. This is reported, not ruled on — the rule kept reading each candidate's
 own supported-bin deviation.
 
-## What this means
+## What was measured
 
-The interesting part is not that the booster lost. It is *how*. On this population the booster is
-**better calibrated and more stable** than the logistic model, and **worse at ranking** — lower ROC
-AUC (0.7413 vs 0.7530) and lower PR AUC (0.2592 vs 0.2942). With 2,872 rows, roughly 257 goals, and
-a feature set of two geometry terms plus one-hot categoricals, there is little non-linear structure
-for trees to find that the logistic model has not already captured, and the trees pay for the
-search with variance in the ranking.
+Stated as differences, without a causal account attached to them:
 
-A pre-registered rule weighted toward proper scoring rules therefore keeps the simpler, more
-interpretable model — which is what "ties go to the simpler model" is for.
+- **Ranking.** The booster ranks worse: ROC AUC 0.7413 against 0.7530, PR AUC 0.2592 against
+  0.2942.
+- **Calibration.** The booster is closer to observed rates on the supported bins: maximum absolute
+  deviation 0.031 against 0.054.
+- **Fold-to-fold stability.** The booster varies less across the five folds: cross-fold standard
+  deviation of log loss 0.0145 against 0.0162 — the smallest of any candidate.
+- **Proper scoring rules.** The booster is worse on both: mean log loss 0.268004 against 0.263358,
+  pooled Brier 0.074544 against 0.073044.
+
+Relative to knowing only the base rate, the booster recovers 0.033882 nats per shot and the
+logistic model 0.038528 — the booster captures about 88% of the incumbent's information gain.
+
+**Possible explanations, none of them tested here.** Sample size is one: 2,872 rows with roughly
+257 goals is a small budget for a model class that can express interactions, and the positives are
+what constrain a probability estimate. Shrinkage is another: the selected configuration uses the
+slowest learning rate in the declared grid at a fixed 200 iterations, which compresses predictions
+toward the base rate, and a compressed predictor would be expected to rank less sharply while
+sitting closer to observed rates in the bins holding most of the mass. Feature representation is a
+third: the booster consumed the logistic model's one-hot encoding rather than a tree-native
+categorical form. This report does not distinguish between these, and nothing in WP2.5 was designed
+to. They are candidate explanations for a measured pattern, not findings.
+
+Under a pre-registered rule weighted toward proper scoring rules, the incumbent is kept.
 
 ## Determinism
 
@@ -172,14 +189,19 @@ measured result was identical before and after: mean log loss 0.268004334632 eit
 
 ## Limitations
 
-- The booster's advantage on calibration and stability is real but was not decisive under the
+- The booster's advantage on calibration and stability is measured but was not decisive under the
   pre-registered rule, and this report does not argue that it should have been. The rule was fixed
   before the measurement.
+- The explanations offered above for the ranking/calibration pattern are untested hypotheses. WP2.5
+  ran one configuration of one model family on one population; it cannot separate sample size from
+  shrinkage from representation.
 - Reliability mass sits overwhelmingly in `[0, 0.2)`. Only two bins clear the support floor, so the
   calibration comparison rests on a narrow basis for every candidate.
 - The declared grid is twelve points. A larger search might find a better booster; that is a
   different, separately pre-registered question, and widening the grid after seeing this result
   would not have been a search, it would have been a rationalisation.
+- The direction within the grid (slowest learning rate, shallower trees) is a description of twelve
+  measured points, not evidence about the shape of the loss surface beyond them.
 - The booster consumed the logistic model's one-hot encoding rather than a tree-native categorical
   representation. That keeps the comparison clean — one variable changed — at the cost of not
   showing what a booster could do with its natural input format.

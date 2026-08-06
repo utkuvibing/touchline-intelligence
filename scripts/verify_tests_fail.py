@@ -4,9 +4,15 @@ A green suite proves the tests pass, not that they would fail if the behaviour b
 introduces one deliberate break per protected contract, runs the relevant tests, asserts they fail,
 and restores the file.
 
-Run with a clean working tree:
+Run with a clean working tree, **and with both database variables set**:
 
-    uv run python scripts/verify_tests_fail.py
+    TOUCHLINE_DB_URL=... TOUCHLINE_FULL_COHORT_DB_URL=... uv run python scripts/verify_tests_fail.py
+
+Both are required, and the script refuses to start without them. Integration and full-cohort tests
+skip when their variable is missing; a skipped test suite exits zero, which this harness would read
+as "the mutation was not noticed". A run without the variables once reported 71 CAUGHT and 98
+MISSED where the real figure was 169 CAUGHT — an environment gap masquerading as 98 unprotected
+contracts. Refusing up front is cheaper than the investigation that mistake costs.
 
 It has already earned its place three times. It found that the /health liveness test passed even
 when /health was made to call the database (the failure was invisible from the response body), that
@@ -17,6 +23,7 @@ observing the production query's transaction. All three tests were rewritten.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -1795,7 +1802,7 @@ BREAKS: list[Break] = [
     ),
     Break(
         contract="WP2.5 OpenMP must be pinned to one thread at process start (D20)",
-        path=ROOT / "backend/src/touchline/modeling/__init__.py",
+        path=ROOT / "backend/src/touchline/boosting_bootstrap.py",
         anchor="    os.environ[OMP_ENV_VAR] = OMP_THREAD_PIN\n",
         replacement="    pass  # DELIBERATE BREAK: thread pin removed\n",
         command=WP25_PROCESS_DETERMINISM_TESTS,
@@ -1803,7 +1810,7 @@ BREAKS: list[Break] = [
     ),
     Break(
         contract="WP2.5 must refuse to start under a foreign OpenMP thread count",
-        path=ROOT / "backend/src/touchline/modeling/__init__.py",
+        path=ROOT / "backend/src/touchline/boosting_bootstrap.py",
         anchor="    if inherited is not None and inherited.strip() != OMP_THREAD_PIN:\n",
         replacement="    if False:  # DELIBERATE BREAK: foreign thread count tolerated\n",
         command=WP25_PROCESS_DETERMINISM_TESTS,
@@ -1943,7 +1950,38 @@ def check(defect: Break) -> bool:
     return caught
 
 
+REQUIRED_ENV = (
+    ("TOUCHLINE_DB_URL", "integration contracts (they skip without it, and a skip exits zero)"),
+    ("TOUCHLINE_FULL_COHORT_DB_URL", "full-cohort contracts (same failure mode)"),
+)
+
+
+def preflight() -> list[str]:
+    """Missing prerequisites must not be reportable as survived mutations.
+
+    A skipped test suite exits zero, and this harness reads a zero exit as "the break went
+    unnoticed". Without these variables the integration and full-cohort contracts therefore look
+    unprotected when they are simply not running.
+    """
+    return [
+        f"{name} is not set - required by the {why}"
+        for name, why in REQUIRED_ENV
+        if not os.environ.get(name)
+    ]
+
+
 def main() -> int:
+    missing = preflight()
+    if missing:
+        print("Refusing to run: the mutation harness needs a database environment.")
+        for line in missing:
+            print(f"  - {line}")
+        print(
+            "Without them, contracts whose tests skip would be scored as MISSED and "
+            "read as unprotected behaviour. Set both and run again."
+        )
+        return 2
+
     results = [check(defect) for defect in BREAKS]
     caught = results.count(True)
     missed = results.count(False)
