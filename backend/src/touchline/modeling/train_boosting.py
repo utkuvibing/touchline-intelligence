@@ -15,6 +15,10 @@ cohort query, and runs the locked protocol with one added candidate:
 - the D19 calibration-support diagnostic, which reports the supported-bin asymmetry without any
   decision reading it.
 
+``main`` refuses to run at all while ADR 0011 is unaccepted: :func:`check_pre_registration` is
+called **before** provenance is derived and before the database is opened, so an unsigned
+pre-registration stops the run before it can reach data.
+
 The §4.1 rule body, the D11 support floor and the five-bin reliability table are inherited
 unmodified from ``touchline.modeling.protocol``. Nothing here fits calibration, reads a holdout or
 calibration row, or re-runs WP2.4's D5 protocol — WP2.5 inherits D5's outcome.
@@ -31,6 +35,7 @@ import hashlib
 import json
 import os
 import pickle
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -48,6 +53,7 @@ from touchline.modeling.artifact import (
 from touchline.modeling.boosting import (
     EARLY_STOPPING,
     GBM_GRID,
+    INTERACTION_CST,
     L2_REGULARIZATION,
     MAX_BINS,
     MAX_ITER,
@@ -118,6 +124,68 @@ SHIPPED_LOGISTIC_KEY = "full_minus_presence"
 
 #: D18 chain A: WP2.4's chain, extended by exactly one step.
 CHAIN_A_ORDER = ("constant", "geometry_logistic", SHIPPED_LOGISTIC_KEY, GBM_KEY)
+
+#: The pre-registration this entry point refuses to run ahead of.
+ADR_PATH = ROOT / "docs" / "adr" / "0011-wp2-5-comparison-target-and-boosting-search-space.md"
+
+#: Returned by :func:`check_pre_registration` when the ADR is not on disk at all. That is the
+#: published-checkout case (``docs/`` is git-ignored), where the gate has nothing to read.
+UNVERIFIABLE = "unverifiable"
+
+#: ``Accepted`` followed by an ISO date. A bare ``Accepted`` with no date is not a sign-off.
+#: The separator class is hyphen, en dash and em dash, written as escapes: the accepted ADRs in
+#: this repository use an em dash, and a literal one here reads as an ambiguous character.
+_DASHES = "-" + chr(0x2013) + chr(0x2014)  # hyphen, en dash, em dash
+_ACCEPTED_PATTERN = re.compile(r"Accepted\s*[" + _DASHES + r"]\s*(\d{4}-\d{2}-\d{2})")
+_STATUS_HEADING = re.compile(r"^##\s+Status\s*$", re.MULTILINE)
+_NEXT_HEADING = re.compile(r"^##\s+", re.MULTILINE)
+
+
+class PreRegistrationError(RuntimeError):
+    """The WP2.5 pre-registration has not been accepted, so no evidence may be produced."""
+
+
+def _status_section(text: str) -> str:
+    """The body of the ADR's ``## Status`` heading, or the whole document if it has none.
+
+    Scoped deliberately: the word "Accepted" appears in ADR prose (other ADRs are referred to by
+    status), and a gate that matched anywhere in the file would pass on a sentence rather than on
+    the status line.
+    """
+    heading = _STATUS_HEADING.search(text)
+    if heading is None:
+        return text
+    rest = text[heading.end() :]
+    following = _NEXT_HEADING.search(rest)
+    return rest[: following.start()] if following else rest
+
+
+def check_pre_registration(adr_path: Path = ADR_PATH) -> str:
+    """Refuse to proceed while ADR 0011 is unaccepted. Called **before** any database access.
+
+    Three outcomes, and the middle one is the point of the function:
+
+    - the ADR is present and its ``## Status`` section reads ``Accepted`` with an ISO date: the
+      date is returned and the run proceeds;
+    - the ADR is present and is **not** accepted: :class:`PreRegistrationError` is raised, before
+      provenance is derived and before the database is opened. Producing evidence under a
+      ``Proposed`` pre-registration is the failure PLAN 4.1 exists to prevent;
+    - the ADR is **absent**: ``docs/`` is git-ignored, so a published checkout cannot see it. This
+      returns :data:`UNVERIFIABLE` rather than raising, because refusing would make the recorded
+      recreation command unrunnable from a clean clone. The caller is expected to say so out loud;
+      it is explicitly **not** a pass.
+    """
+    if not adr_path.is_file():
+        return UNVERIFIABLE
+    match = _ACCEPTED_PATTERN.search(_status_section(adr_path.read_text(encoding="utf-8")))
+    if match is None:
+        raise PreRegistrationError(
+            f"{adr_path.name} is not Accepted with a date. WP2.5's search space and comparison "
+            "target must be signed off before any measurement is produced; running first and "
+            "documenting after is exactly what the pre-registration prevents."
+        )
+    return match.group(1)
+
 
 REQUIRED_CONFIG_KEYS = frozenset(
     {
@@ -484,6 +552,7 @@ def _run_protocol_unlimited(
             "l2_regularization": L2_REGULARIZATION,
             "max_bins": MAX_BINS,
             "early_stopping": EARLY_STOPPING,
+            "interaction_cst": INTERACTION_CST,
         },
         "random_seed": seed,
         "bin_count": config.bin_count,
@@ -517,9 +586,13 @@ def write_experiment(
     out.mkdir(parents=True, exist_ok=True)
     art.mkdir(parents=True, exist_ok=True)
 
-    selected_key = cast(str, metrics["shipped_candidate"])
+    # Two different things, deliberately kept apart. ``artifact_key`` is what this experiment
+    # built and serialized (always the booster). ``selection_key`` is chain B's verdict, which is
+    # the shipped logistic whenever the booster fails to replace it.
+    artifact_key = cast(str, metrics["artifact_candidate"])
+    selection_key = cast(str, metrics["shipped_candidate"])
     candidates = cast(Mapping[str, object], metrics["candidates"])
-    selected_metrics = cast(_CandidateReadOut, candidates[selected_key])
+    artifact_metrics = cast(_CandidateReadOut, candidates[artifact_key])
 
     pickle_bytes = pickle.dumps(bundle, protocol=5)
     bundle_hash = hashlib.sha256(pickle_bytes).hexdigest()
@@ -556,8 +629,8 @@ def write_experiment(
         "bin_count": config.bin_count,
         "thread_limit": THREAD_LIMIT,
         "results_csv": record_path(config.results_csv),
-        "artifact_candidate": metrics["artifact_candidate"],
-        "shipped_candidate": selected_key,
+        "artifact_candidate": artifact_key,
+        "shipped_candidate": selection_key,
         "shipped_feature_set": metrics["shipped_feature_set"],
         "shipped_feature_columns": list(cast(list[object], metrics["shipped_feature_columns"])),
         "gbm_selected_hyperparameters": metrics["gbm_selected_hyperparameters"],
@@ -581,8 +654,8 @@ def write_experiment(
         "runtime_fingerprint": config.runtime_fingerprint,
         "boosting_artifact_schema_version": boosting_artifact_schema_version,
         "model_family": config.model_family,
-        "artifact_candidate": metrics["artifact_candidate"],
-        "shipped_candidate": selected_key,
+        "artifact_candidate": artifact_key,
+        "shipped_candidate": selection_key,
         "shipped_feature_set": metrics["shipped_feature_set"],
         "shipped_feature_columns": list(cast(list[object], metrics["shipped_feature_columns"])),
         "gbm_selected_hyperparameters": metrics["gbm_selected_hyperparameters"],
@@ -608,6 +681,16 @@ def write_experiment(
     # The results index keeps WP2.4's twenty-five-column header. Widening it would force a
     # positional rewrite of the committed WP2.4 row, which is published evidence for a closed work
     # package; the two logistic-shaped columns therefore carry an explicit "n/a".
+    #
+    # ``model``, ``primary_value``/``brier``/``log_loss`` and ``model_pickle_sha256`` all describe
+    # **one** object: the boosting artifact this experiment produced. Reading the metrics from the
+    # *winner* instead would emit a row whose model label and pickle hash say "hist-gradient-
+    # boosting" beside the logistic's numbers whenever the booster fails to replace it — three
+    # columns describing two different models. ``shipped_candidate`` stays as the separate
+    # selection outcome, which is where a disagreement belongs and is visible.
+    #
+    # This is a different column semantic from WP2.4's row, where the artifact and the winner were
+    # necessarily the same object and the distinction could not arise.
     results_row = {
         "experiment_id": config.experiment_id,
         "date_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -623,11 +706,11 @@ def write_experiment(
         "model": MODEL_FAMILY,
         "seed": config.random_seed,
         "primary_metric": "mean_log_loss",
-        "primary_value": selected_metrics["mean_log_loss"],
-        "brier": selected_metrics["pooled_oof"]["brier"],
-        "log_loss": selected_metrics["pooled_oof"]["log_loss"],
+        "primary_value": artifact_metrics["mean_log_loss"],
+        "brier": artifact_metrics["pooled_oof"]["brier"],
+        "log_loss": artifact_metrics["pooled_oof"]["log_loss"],
         "protocol_incumbent": metrics["protocol_incumbent"],
-        "shipped_candidate": selected_key,
+        "shipped_candidate": selection_key,
         "d5_include": "n/a",
         "shipped_best_c": "n/a",
         "model_pickle_sha256": bundle_hash,
@@ -707,6 +790,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
+
+    # The sign-off gate runs here, ahead of provenance derivation and ahead of every database
+    # call, so an unaccepted pre-registration stops the run before it can touch data at all.
+    try:
+        signoff = check_pre_registration()
+    except PreRegistrationError as exc:
+        print(f"Refusing to run: {exc}", file=sys.stderr)
+        return 1
+    if signoff == UNVERIFIABLE:
+        print(
+            f"WARNING: {ADR_PATH.name} is not present, so the WP2.5 pre-registration could not be "
+            "verified. This is expected in a published checkout (docs/ is git-ignored) and is not "
+            "a sign-off.",
+            file=sys.stderr,
+        )
+    else:
+        print(f"Pre-registration ADR 0011 accepted {signoff}.")
 
     # The fingerprint is derived inside the thread limit so the recorded threadpool state is the
     # one the fits actually ran under (D20).

@@ -21,6 +21,7 @@ import pytest
 from touchline.modeling.boosting import (
     EARLY_STOPPING,
     GBM_GRID,
+    INTERACTION_CST,
     L2_REGULARIZATION,
     MAX_BINS,
     MAX_ITER,
@@ -84,11 +85,18 @@ def test_declared_grid_is_exactly_the_twelve_pre_registered_points() -> None:
 
 
 def test_fixed_hyperparameters_are_the_d15_constants() -> None:
-    """Especially ``early_stopping=False``: an inner split would subdivide a locked fold."""
+    """Every D15 value must reach the estimator explicitly, not via a library default.
+
+    ``interaction_cst=None`` happens to match today's scikit-learn default, which is exactly why
+    it is asserted: a default that is never passed can change in a later release while the
+    experiment record still claims the old value. ``early_stopping=False`` matters for a second
+    reason — an inner validation split would subdivide a fold WP2.3 locked.
+    """
     assert MAX_ITER == 200
     assert L2_REGULARIZATION == 1.0
     assert MAX_BINS == 255
     assert EARLY_STOPPING is False
+    assert INTERACTION_CST is None
 
     specs = _separable_specs(n_folds=1)
     X_train, _X_val, y_train, _y_val = specs[0]
@@ -98,6 +106,7 @@ def test_fixed_hyperparameters_are_the_d15_constants() -> None:
     assert params["max_iter"] == MAX_ITER
     assert params["l2_regularization"] == L2_REGULARIZATION
     assert params["max_bins"] == MAX_BINS
+    assert params["interaction_cst"] is INTERACTION_CST
     assert params["random_state"] == 0
     # The grid point actually reached the estimator, rather than a library default.
     assert params["learning_rate"] == SMALL_GRID[0].learning_rate

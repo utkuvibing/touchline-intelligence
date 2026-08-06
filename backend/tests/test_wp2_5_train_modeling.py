@@ -20,12 +20,15 @@ coverage theatre. What is genuinely new in WP2.5, and therefore tested here:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
+from pathlib import Path
 from typing import cast
 
 import numpy as np
 
 from touchline.modeling.artifact import BoostingBundle, infer_boosting
 from touchline.modeling.boosting import BoostingParams
+from touchline.modeling.experiment import RESULTS_CSV_HEADER
 from touchline.modeling.logistic import L2_C_GRID
 from touchline.modeling.preprocessing import PRESENCE_SOURCE_FIELDS, ShotRow, encode_rows
 from touchline.modeling.protocol import run_replacement_chain
@@ -37,6 +40,7 @@ from touchline.modeling.train_boosting import (
     THREAD_LIMIT,
     BoostingRunConfig,
     run_protocol,
+    write_experiment,
 )
 
 #: Two points only: this suite tests protocol wiring, not the size of the declared grid (which
@@ -105,6 +109,74 @@ def _config(grid: Sequence[BoostingParams] = TEST_GRID) -> BoostingRunConfig:
         bin_count=5,
         results_csv="experiments/results.csv",
     )
+
+
+def _results_row(path: Path, experiment_id: str) -> dict[str, str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split(",")
+    for line in lines[1:]:
+        cells = line.split(",")
+        if cells and cells[0] == experiment_id:
+            return dict(zip(header, cells, strict=True))
+    raise AssertionError(f"no results row for {experiment_id} in {path}")
+
+
+def test_results_row_describes_the_boosting_artifact_when_the_booster_loses(tmp_path: Path) -> None:
+    """Regression: three columns must not describe two different models.
+
+    ``model``, the three metric columns and ``model_pickle_sha256`` all name **one** object — the
+    boosting artifact this experiment produced. Reading the metrics from the *winner* instead
+    emitted a row labelled ``hist-gradient-boosting``, carrying the booster's pickle hash, beside
+    the **logistic's** numbers whenever the booster failed to replace it.
+
+    ``shipped_candidate`` carries the selection outcome, which is where the disagreement belongs
+    and stays visible.
+    """
+    rows = _rows()
+    config = replace(
+        _config(),
+        out_dir=str(tmp_path / "exp"),
+        artifacts_dir=str(tmp_path / "art"),
+        results_csv=str(tmp_path / "results.csv"),
+    )
+    metrics, bundle = run_protocol(rows, config)
+
+    # The fixture must actually exercise the losing branch, or this test proves nothing.
+    assert metrics["shipped_candidate"] == SHIPPED_LOGISTIC_KEY, (
+        "fixture no longer exercises the losing-booster case"
+    )
+    assert metrics["artifact_candidate"] == GBM_KEY
+
+    write_experiment(metrics, bundle, config)
+    row = _results_row(tmp_path / "results.csv", config.experiment_id)
+
+    candidates = cast(Mapping[str, Mapping[str, object]], metrics["candidates"])
+    booster = candidates[GBM_KEY]
+    pooled = cast(Mapping[str, float], booster["pooled_oof"])
+
+    # One object, described consistently.
+    assert row["model"] == MODEL_FAMILY
+    assert row["model_pickle_sha256"] == metrics["model_pickle_sha256"]
+    assert float(row["primary_value"]) == booster["mean_log_loss"]
+    assert float(row["brier"]) == pooled["brier"]
+    assert float(row["log_loss"]) == pooled["log_loss"]
+
+    # ...and demonstrably not the winner's numbers, which is the defect this replaces.
+    winner = candidates[SHIPPED_LOGISTIC_KEY]
+    winner_pooled = cast(Mapping[str, float], winner["pooled_oof"])
+    assert float(row["primary_value"]) != winner["mean_log_loss"]
+    assert float(row["log_loss"]) != winner_pooled["log_loss"]
+
+    # The selection outcome is still recorded, in its own column.
+    assert row["shipped_candidate"] == SHIPPED_LOGISTIC_KEY
+    assert row["protocol_incumbent"] == metrics["protocol_incumbent"]
+
+    # The inherited header is untouched, and the logistic-shaped columns say so explicitly.
+    assert (tmp_path / "results.csv").read_text(encoding="utf-8").splitlines()[
+        0
+    ] == RESULTS_CSV_HEADER
+    assert row["d5_include"] == "n/a"
+    assert row["shipped_best_c"] == "n/a"
 
 
 def test_chain_a_order_is_the_wp2_4_chain_plus_exactly_one_step() -> None:
@@ -219,15 +291,18 @@ def test_bundle_round_trip_scores_raw_rows_through_the_persisted_preprocessing()
     }
 
 
-def test_row_order_changes_no_reported_metric_and_no_decision() -> None:
+def test_row_order_changes_no_reported_metric_on_this_fixture() -> None:
     """Fold membership comes from each row's own ``fold`` field, never from input ordering.
 
     Measured boundary, stated rather than assumed: reversing the input permutes the summation
     order inside every mean, which moves the raw floats by ~1e-16. The canonical record's
-    twelve-decimal rounding absorbs all of it, so **every reported metric is identical**. The one
+    twelve-decimal rounding absorbs all of it, so every reported metric is identical here. The one
     value that is not permutation-stable is ``model_pickle_sha256``: the final refit's coefficients
     differ in their last bits, and a pickle hash has no tolerance. That hash is only ever claimed
     stable for a repeated run on the same input — which ``test_wp2_5_determinism.py`` pins.
+
+    Read this as an observation on this fixture, not as a permutation-invariance guarantee: the
+    rounding absorbs a 1e-16 perturbation, but nothing here proves it always would.
     """
     from touchline.modeling.metrics import canonical_metrics_json
 
@@ -236,9 +311,16 @@ def test_row_order_changes_no_reported_metric_and_no_decision() -> None:
     metrics_a, _ = run_protocol(rows, _config())
     metrics_b, _ = run_protocol(reversed_rows, _config())
 
-    # Structure and every decision are order-independent outright.
+    # Structurally order-independent by construction: the vocabulary is built from counts and the
+    # column set from names, so neither can depend on input order.
     assert metrics_a["vocabulary"] == metrics_b["vocabulary"]
     assert metrics_a["shipped_feature_columns"] == metrics_b["shipped_feature_columns"]
+
+    # Observed on this fixture, and deliberately not stated as a guarantee: the selected grid
+    # point and both verdicts are unchanged. They are decided by comparisons between floats that
+    # the permutation moves at ~1e-16, so two near-tied grid points could in principle swap. The
+    # narrow claim this suite makes about selection stability is in test_wp2_5_boosting.py:
+    # repeat calls on the same input agree, and the ordering key is total.
     assert metrics_a["gbm_selected_hyperparameters"] == metrics_b["gbm_selected_hyperparameters"]
     assert metrics_a["replacement_chain_a"] == metrics_b["replacement_chain_a"]
     assert metrics_a["replacement_chain_b"] == metrics_b["replacement_chain_b"]

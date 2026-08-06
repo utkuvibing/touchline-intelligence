@@ -7,11 +7,17 @@ same protocol code. Four locked properties, all pre-registered in ADR 0011 / the
   ``{0.03, 0.06, 0.1}`` times ``max_leaf_nodes`` in ``{7, 15}`` times ``min_samples_leaf`` in
   ``{20, 60}``. It is enumerated as a tuple, not generated from ranges, so a reviewer can count it.
 - **Everything else is fixed, not searched** (D15): ``max_iter=200``, ``l2_regularization=1.0``,
-  ``max_bins=255``, ``early_stopping=False``. Early stopping is deliberately off: it would need an
-  inner validation split inside a fold structure WP2.3 locked and proved.
+  ``max_bins=255``, ``early_stopping=False``, ``interaction_cst=None``. Every one is passed
+  explicitly rather than left to a library default, so a future scikit-learn release cannot change
+  the model under a record that claims these values. Early stopping is deliberately off: it would
+  need an inner validation split inside a fold structure WP2.3 locked and proved.
 - **Selection follows D16**: unweighted arithmetic mean of the five fold-level log losses, ties
-  broken by mean Brier, then by the hyperparameters in a fixed order. The key is total, so repeat
-  runs and row-order changes cannot move the choice.
+  broken by mean Brier, then by the hyperparameters in a fixed order. Two properties are
+  demonstrated (``test_wp2_5_boosting.py``): repeat calls on the same input agree exactly, and the
+  ordering key is **total**, so the order in which the grid is enumerated cannot decide a tie.
+  Invariance to the *input row* order is a different and stronger claim, and is **not** made here:
+  permuting rows perturbs the fold-level means at the ~1e-16 level, which could in principle move
+  a selection between two near-tied points.
 - **Determinism is the caller's job to pin** (D20): histogram boosting sums gradients in a
   thread-dependent order, so the training entry point wraps every fit in
   ``threadpoolctl.threadpool_limits(1)``. This module fixes ``random_state`` and nothing else.
@@ -37,11 +43,17 @@ IntArray = npt.NDArray[np.int_]
 EVALUATION_SEED = 0
 
 #: Pre-registered fixed hyperparameters (D15): held constant so the declared grid's three axes are
-#: the only moving parts of the search.
+#: the only moving parts of the search. All of them are passed explicitly to the estimator — a
+#: value that matches today's library default is still recorded and still passed, because a default
+#: can change between releases while the experiment record keeps claiming the old one.
 MAX_ITER = 200
 L2_REGULARIZATION = 1.0
 MAX_BINS = 255
 EARLY_STOPPING = False
+
+#: No interaction constraints: every feature may interact with every other. Pre-registered as an
+#: explicit ``None`` rather than an omission, so the record states the choice was made.
+INTERACTION_CST: str | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +134,7 @@ def fit_boosting(
         l2_regularization=L2_REGULARIZATION,
         max_bins=MAX_BINS,
         early_stopping=EARLY_STOPPING,
+        interaction_cst=INTERACTION_CST,
         random_state=random_state,
     )
     estimator.fit(np.asarray(X_train, dtype=np.float64), np.asarray(y_train).ravel())
@@ -155,8 +168,12 @@ def select_hyperparameters(
 
     Returns ``(best_params, scored)`` where ``scored`` carries, per grid point, the three
     hyperparameters plus ``mean_log_loss`` and ``mean_brier`` (unweighted means of the fold-level
-    values). The ordering key is total, so the selection is deterministic: no tie can be resolved
-    by iteration order.
+    values).
+
+    The ordering key is **total**, so no tie is ever resolved by the order in which ``grid`` is
+    enumerated, and repeat calls on the same input return the same point. That is the whole claim:
+    it says nothing about permuting the *rows* inside a fold, which perturbs the means at the
+    ~1e-16 level.
     """
     if not grid:
         raise ValueError("the declared search space is empty")
