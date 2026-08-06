@@ -1,0 +1,38 @@
+{
+  "experiment_id": "exp-20260806-wp2_5-gradient-boosting",
+  "out_dir": "experiments/shot_quality/exp-20260806-wp2_5-gradient-boosting",
+  "artifacts_dir": "artifacts/models/exp-20260806-wp2_5-gradient-boosting",
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL",
+  "require_clean_provenance": true,
+  "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+  "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+  "model_family": "hist-gradient-boosting",
+  "c_grid": [0.01, 0.1, 1.0, 10.0],
+  "gbm_grid": [
+    { "learning_rate": 0.03, "max_leaf_nodes": 7, "min_samples_leaf": 20 },
+    { "learning_rate": 0.03, "max_leaf_nodes": 7, "min_samples_leaf": 60 },
+    { "learning_rate": 0.03, "max_leaf_nodes": 15, "min_samples_leaf": 20 },
+    { "learning_rate": 0.03, "max_leaf_nodes": 15, "min_samples_leaf": 60 },
+    { "learning_rate": 0.06, "max_leaf_nodes": 7, "min_samples_leaf": 20 },
+    { "learning_rate": 0.06, "max_leaf_nodes": 7, "min_samples_leaf": 60 },
+    { "learning_rate": 0.06, "max_leaf_nodes": 15, "min_samples_leaf": 20 },
+    { "learning_rate": 0.06, "max_leaf_nodes": 15, "min_samples_leaf": 60 },
+    { "learning_rate": 0.1, "max_leaf_nodes": 7, "min_samples_leaf": 20 },
+    { "learning_rate": 0.1, "max_leaf_nodes": 7, "min_samples_leaf": 60 },
+    { "learning_rate": 0.1, "max_leaf_nodes": 15, "min_samples_leaf": 20 },
+    { "learning_rate": 0.1, "max_leaf_nodes": 15, "min_samples_leaf": 60 }
+  ],
+  "random_seed": 0,
+  "n_folds": 5,
+  "expected_shots": 2872,
+  "expected_matches": 115,
+  "expected_fold_sizes": {
+    "0": 570,
+    "1": 552,
+    "2": 602,
+    "3": 576,
+    "4": 572
+  },
+  "bin_count": 5
+}

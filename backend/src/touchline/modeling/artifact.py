@@ -33,6 +33,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.ensemble import HistGradientBoostingClassifier  # type: ignore[import-untyped]
 from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
 from touchline.modeling.preprocessing import ShotRow, StandardScaler, Vocabulary, encode_rows
@@ -40,9 +41,14 @@ from touchline.modeling.preprocessing import ShotRow, StandardScaler, Vocabulary
 __all__ = [
     "ArtifactBundle",
     "ArtifactCompatibilityError",
+    "BoostingBundle",
     "artifact_schema_version",
+    "boosting_artifact_schema_version",
     "infer",
+    "infer_boosting",
+    "load_boosting_bundle",
     "load_bundle",
+    "validate_column_contract",
 ]
 
 FloatArray = npt.NDArray[np.float64]
@@ -58,6 +64,74 @@ class ArtifactCompatibilityError(ValueError):
     Distinct from a generic ``ValueError`` so that schema/feature mismatches can be caught and
     reported precisely instead of being mistaken for a modelling error.
     """
+
+
+def validate_column_contract(
+    *,
+    all_columns: Sequence[str],
+    selected_columns: Sequence[str],
+    selected_indices: Sequence[int],
+    current_columns: Sequence[str],
+    n_features_in: int,
+) -> None:
+    """Fail loudly if the encoder's columns no longer match a persisted feature contract.
+
+    Ordering, membership (missing/unexpected), uniqueness, index bounds, selected-name/index
+    agreement and the estimator's feature count are all checked. The artifact is never silently
+    reordered, and no index mismatch is allowed to surface as a bare ``IndexError``.
+
+    Shared by every bundle family so the logistic and boosting artifacts cannot drift apart on the
+    one check that stands between a schema change and silently scoring the wrong columns. It is a
+    module-level function, not a method, so adding a second bundle class does not duplicate it —
+    and because methods are not pickled, hoisting it left ``ArtifactBundle``'s persisted bytes
+    untouched.
+    """
+    all_cols = list(all_columns)
+    if len(all_cols) != len(set(all_cols)):
+        raise ArtifactCompatibilityError(
+            "persisted all_columns contains duplicate column names; contract is ambiguous"
+        )
+    current = list(current_columns)
+    if len(current) != len(set(current)):
+        raise ArtifactCompatibilityError(
+            "encoder returned duplicate column names; the schema contract is ambiguous"
+        )
+    if current != all_cols:
+        raise ArtifactCompatibilityError(
+            "encoder column names/order no longer match the persisted all_columns "
+            f"(current has {len(current)} names, persisted {len(all_cols)}); refusing to "
+            "infer on an ambiguous feature schema"
+        )
+    if len(selected_indices) != len(set(selected_indices)):
+        raise ArtifactCompatibilityError(
+            "persisted selected_indices contain duplicates; the feature selection is ambiguous"
+        )
+    # Bounds must be checked before the indices are used. A negative index would silently
+    # wrap around and select a different column (no exception at all), and an out-of-range
+    # index would surface as a bare ``IndexError`` that reads like an internal bug rather
+    # than the artifact-compatibility failure it is.
+    out_of_range = [index for index in selected_indices if index < 0 or index >= len(all_cols)]
+    if out_of_range:
+        raise ArtifactCompatibilityError(
+            f"persisted selected_indices {out_of_range} are outside the persisted "
+            f"all_columns range [0, {len(all_cols)}); refusing to infer on an out-of-bounds "
+            "feature selection"
+        )
+    expected_selected = [all_cols[index] for index in selected_indices]
+    if list(selected_columns) != expected_selected:
+        raise ArtifactCompatibilityError(
+            "persisted selected_columns do not match selected_indices into all_columns; "
+            "refusing to infer on an inconsistent feature selection"
+        )
+    if len(selected_columns) != len(set(selected_columns)):
+        raise ArtifactCompatibilityError(
+            "persisted selected_columns contain duplicates; the feature selection is ambiguous"
+        )
+    if n_features_in != len(selected_columns):
+        raise ArtifactCompatibilityError(
+            f"estimator was fitted on {n_features_in} features but the "
+            f"artifact selects {len(selected_columns)}; refusing to infer"
+        )
 
 
 @dataclass(frozen=True)
@@ -105,60 +179,14 @@ class ArtifactBundle:
             )
 
     def _validate_feature_contract(self, current_columns: Sequence[str]) -> None:
-        """Fail loudly if the encoder's columns no longer match the persisted feature contract.
-
-        Ordering, membership (missing/unexpected), uniqueness, index bounds, selected-name/index
-        agreement and the estimator's feature count are all checked. The artifact is never silently
-        reordered, and no index mismatch is allowed to surface as a bare ``IndexError``.
-        """
-        all_cols = list(self.all_columns)
-        if len(all_cols) != len(set(all_cols)):
-            raise ArtifactCompatibilityError(
-                "persisted all_columns contains duplicate column names; contract is ambiguous"
-            )
-        current = list(current_columns)
-        if len(current) != len(set(current)):
-            raise ArtifactCompatibilityError(
-                "encoder returned duplicate column names; the schema contract is ambiguous"
-            )
-        if current != all_cols:
-            raise ArtifactCompatibilityError(
-                "encoder column names/order no longer match the persisted all_columns "
-                f"(current has {len(current)} names, persisted {len(all_cols)}); refusing to "
-                "infer on an ambiguous feature schema"
-            )
-        if len(self.selected_indices) != len(set(self.selected_indices)):
-            raise ArtifactCompatibilityError(
-                "persisted selected_indices contain duplicates; the feature selection is ambiguous"
-            )
-        # Bounds must be checked before the indices are used. A negative index would silently
-        # wrap around and select a different column (no exception at all), and an out-of-range
-        # index would surface as a bare ``IndexError`` that reads like an internal bug rather
-        # than the artifact-compatibility failure it is.
-        out_of_range = [
-            index for index in self.selected_indices if index < 0 or index >= len(all_cols)
-        ]
-        if out_of_range:
-            raise ArtifactCompatibilityError(
-                f"persisted selected_indices {out_of_range} are outside the persisted "
-                f"all_columns range [0, {len(all_cols)}); refusing to infer on an out-of-bounds "
-                "feature selection"
-            )
-        expected_selected = [all_cols[index] for index in self.selected_indices]
-        if list(self.selected_columns) != expected_selected:
-            raise ArtifactCompatibilityError(
-                "persisted selected_columns do not match selected_indices into all_columns; "
-                "refusing to infer on an inconsistent feature selection"
-            )
-        if len(self.selected_columns) != len(set(self.selected_columns)):
-            raise ArtifactCompatibilityError(
-                "persisted selected_columns contain duplicates; the feature selection is ambiguous"
-            )
-        if self.estimator.n_features_in_ != len(self.selected_columns):
-            raise ArtifactCompatibilityError(
-                f"estimator was fitted on {self.estimator.n_features_in_} features but the "
-                f"artifact selects {len(self.selected_columns)}; refusing to infer"
-            )
+        """Delegate to the shared column-contract validator (see ``validate_column_contract``)."""
+        validate_column_contract(
+            all_columns=self.all_columns,
+            selected_columns=self.selected_columns,
+            selected_indices=self.selected_indices,
+            current_columns=current_columns,
+            n_features_in=self.estimator.n_features_in_,
+        )
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -209,6 +237,129 @@ def load_bundle(path: str | Path) -> ArtifactBundle:
     if not isinstance(obj, ArtifactBundle):
         raise ArtifactCompatibilityError(
             f"pickle at {path} is not a touchline.modeling.artifact.ArtifactBundle (got "
+            f"{type(obj).__module__}.{type(obj).__qualname__})"
+        )
+    obj._require_supported_schema()
+    return obj
+
+
+#: WP2.5's boosting artifact carries its **own** schema version, deliberately separate from
+#: ``artifact_schema_version``. ``ArtifactBundle`` is not modified by WP2.5: bumping a shared
+#: version — or adding a field to the logistic bundle — would change its pickled bytes and make the
+#: ``model_pickle_sha256`` published in WP2.4's evidence unreproducible.
+#:
+#: Version 2 renamed ``shipped_candidate`` to ``artifact_candidate`` and added
+#: ``selection_incumbent``. Version 1 used ``shipped_candidate`` for *what the bundle contains*,
+#: while the metrics, manifest and results row used the same word for *which candidate won the
+#: comparison* — two different things under one name, which is exactly the confusion the split
+#: fields now prevent.
+boosting_artifact_schema_version = 2
+
+
+@dataclass(frozen=True)
+class BoostingBundle:
+    """The persisted, self-contained inference artifact for the WP2.5 boosting candidate.
+
+    Structurally parallel to :class:`ArtifactBundle` and validated by the same
+    :func:`validate_column_contract`, but a distinct class: the two families differ in the
+    estimator type and in what identifies the selected model (a hyperparameter mapping rather than
+    a single ``C``), and keeping them separate is what leaves WP2.4's artifact byte-identical.
+    """
+
+    schema_version: int
+    experiment_id: str
+    #: What this bundle **contains** — the candidate whose fitted estimator is serialized here.
+    artifact_candidate: str
+    #: Which candidate **won** the comparison that produced it. Recorded because a reader holding
+    #: only the pickle should be able to tell whether this model was adopted, and deliberately
+    #: named differently from :attr:`artifact_candidate` because the two can disagree: WP2.5 built
+    #: a booster and the logistic regression won.
+    selection_incumbent: str
+    hyperparameters: Mapping[str, float]
+    code_commit: str
+    reproduction_commit: str
+    data_source_commit: str
+    cohort_sql_sha256: str
+    assignments_sha256: str
+    input_config_sha256: str
+    uv_lock_sha256: str
+    estimator: HistGradientBoostingClassifier
+    scaler: StandardScaler
+    vocabulary: Vocabulary
+    all_columns: tuple[str, ...]
+    selected_columns: tuple[str, ...]
+    selected_indices: tuple[int, ...]
+    reference_levels: Mapping[str, str]
+    rare_mapping: Mapping[str, tuple[str, ...]]
+
+    def predict_proba(self, rows: Sequence[ShotRow]) -> FloatArray:
+        """Goal probabilities for raw rows, using the persisted preprocessing (never a refit)."""
+        self._require_supported_schema()
+        full, current_columns = encode_rows(rows, self.vocabulary, self.scaler)
+        self._validate_feature_contract(current_columns)
+        subset = full[:, list(self.selected_indices)]
+        return np.asarray(self.estimator.predict_proba(subset), dtype=np.float64)[:, 1]
+
+    def _require_supported_schema(self) -> None:
+        if self.schema_version != boosting_artifact_schema_version:
+            raise ArtifactCompatibilityError(
+                f"boosting artifact schema version {self.schema_version} is unsupported; "
+                f"expected {boosting_artifact_schema_version}"
+            )
+
+    def _validate_feature_contract(self, current_columns: Sequence[str]) -> None:
+        """Delegate to the shared column-contract validator (see ``validate_column_contract``)."""
+        validate_column_contract(
+            all_columns=self.all_columns,
+            selected_columns=self.selected_columns,
+            selected_indices=self.selected_indices,
+            current_columns=current_columns,
+            n_features_in=self.estimator.n_features_in_,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "boosting_artifact_schema_version": self.schema_version,
+            "experiment_id": self.experiment_id,
+            "artifact_candidate": self.artifact_candidate,
+            "selection_incumbent": self.selection_incumbent,
+            "hyperparameters": dict(self.hyperparameters),
+            "code_commit": self.code_commit,
+            "reproduction_commit": self.reproduction_commit,
+            "data_source_commit": self.data_source_commit,
+            "cohort_sql_sha256": self.cohort_sql_sha256,
+            "assignments_sha256": self.assignments_sha256,
+            "input_config_sha256": self.input_config_sha256,
+            "uv_lock_sha256": self.uv_lock_sha256,
+            "n_features": len(self.selected_columns),
+            "all_columns": list(self.all_columns),
+            "selected_columns": list(self.selected_columns),
+            "selected_indices": list(self.selected_indices),
+            "reference_levels": dict(self.reference_levels),
+            "rare_mapping": {k: list(v) for k, v in self.rare_mapping.items()},
+        }
+
+
+#: Same identity pin as ``ArtifactBundle``: the persisted class must never become ``__main__``.
+BoostingBundle.__module__ = "touchline.modeling.artifact"
+
+
+def infer_boosting(bundle: BoostingBundle, rows: Sequence[ShotRow]) -> FloatArray:
+    """The explicit inference entry point for the boosting artifact."""
+    return bundle.predict_proba(rows)
+
+
+def load_boosting_bundle(path: str | Path) -> BoostingBundle:
+    """Load a previously generated boosting artifact from a trusted location.
+
+    Only ``BoostingBundle`` instances from this module, under a supported schema version, are
+    accepted — an ``ArtifactBundle`` is refused too, so the two families cannot be confused.
+    """
+    with open(path, "rb") as handle:
+        obj = pickle.load(handle)
+    if not isinstance(obj, BoostingBundle):
+        raise ArtifactCompatibilityError(
+            f"pickle at {path} is not a touchline.modeling.artifact.BoostingBundle (got "
             f"{type(obj).__module__}.{type(obj).__qualname__})"
         )
     obj._require_supported_schema()
