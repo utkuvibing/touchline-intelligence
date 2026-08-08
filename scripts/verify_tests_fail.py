@@ -262,6 +262,13 @@ WP25_TRAIN_MODELING_TESTS = "uv run pytest backend/tests/test_wp2_5_train_modeli
 WP25_PRE_REGISTRATION_TESTS = "uv run pytest backend/tests/test_wp2_5_pre_registration.py -q"
 WP25_PROCESS_DETERMINISM_TESTS = "uv run pytest backend/tests/test_wp2_5_process_determinism.py -q"
 WP25_ARTIFACT_INTEGRITY_TESTS = "uv run pytest backend/tests/test_wp2_5_artifact_integrity.py -q"
+WP26_MLP_TESTS = "uv run pytest backend/tests/test_wp2_6_mlp.py -q"
+WP26_PROTOCOL_TESTS = "uv run pytest backend/tests/test_wp2_6_protocol.py -q"
+WP26_DETERMINISM_TESTS = "uv run pytest backend/tests/test_wp2_6_determinism.py -q"
+WP26_ARTIFACT_TESTS = "uv run pytest backend/tests/test_wp2_6_mlp_artifact.py -q"
+WP26_EXPERIMENT_TESTS = "uv run pytest backend/tests/test_wp2_6_experiment_consistency.py -q"
+WP26_DEPENDENCY_TESTS = "uv run pytest backend/tests/test_wp2_6_dependency_boundary.py -q"
+WP26_QUALIFICATION_TESTS = "uv run pytest backend/tests/test_wp2_6_qualification.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1886,6 +1893,400 @@ BREAKS: list[Break] = [
             'CHAIN_A_ORDER = ("constant", "geometry_logistic", GBM_KEY)  # DELIBERATE BREAK\n'
         ),
         command=WP25_TRAIN_MODELING_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 architecture is fixed at 16 -> 8 -> 1",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="HIDDEN_DIM = 8\n",
+        replacement="HIDDEN_DIM = 7  # DELIBERATE BREAK\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forward returns logits without sigmoid",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor=(
+            "        return cast(torch.Tensor, "
+            "self.output(self.activation(self.hidden(features))).squeeze(-1))\n"
+        ),
+        replacement=(
+            "        return torch.sigmoid(self.output(self.activation(self.hidden(features))))"
+            ".squeeze(-1)  # DELIBERATE BREAK\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 uses numerically stable BCEWithLogitsLoss",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor=(
+            '    criterion = nn.BCEWithLogitsLoss(weight=None, reduction="mean", pos_weight=None)\n'
+        ),
+        replacement=(
+            '    criterion = nn.BCELoss(weight=None, reduction="mean")  # DELIBERATE BREAK\n'
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 trains in train mode",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="        model.train()\n",
+        replacement="        model.eval()  # DELIBERATE BREAK\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 evaluation disables gradients",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    with torch.no_grad():\n        for features, targets in loader:\n",
+        replacement=(
+            "    with torch.enable_grad():  # DELIBERATE BREAK\n"
+            "        for features, targets in loader:\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 DataLoader consumes every training row",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="        drop_last=False,\n",
+        replacement="        drop_last=True,  # DELIBERATE BREAK\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 model initialization resets the Torch seed before every fit",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    torch.manual_seed(seed)\n",
+        replacement="    pass  # DELIBERATE BREAK: Torch seed omitted\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 AdamW learning rate remains pre-registered",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="LEARNING_RATE = 1e-3\n",
+        replacement="LEARNING_RATE = 1e-2  # DELIBERATE BREAK\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 deterministic algorithms fail rather than warn",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    torch.use_deterministic_algorithms(True, warn_only=False)\n",
+        replacement="    torch.use_deterministic_algorithms(False)  # DELIBERATE BREAK\n",
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 pins IEEE FP32 through the current PyTorch API",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor='    torch.backends.fp32_precision = "ieee"  # type: ignore[attr-defined]\n',
+        replacement=(
+            '    torch.backends.fp32_precision = "tf32"  '
+            "# type: ignore[attr-defined]  # DELIBERATE BREAK\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 never silently falls back from requested CUDA",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor=(
+            '            raise RuntimeError("CUDA was requested but is not available in this '
+            "locked "
+            'environment")\n'
+        ),
+        replacement='            return torch.device("cpu")  # DELIBERATE BREAK\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 exact shipped columns exclude presence indicators",
+        path=ROOT / "backend/src/touchline/modeling/mlp_protocol.py",
+        anchor=(
+            "    selected_indices = tuple(\n"
+            "        index for index, name in enumerate(all_columns) if name not in presence\n"
+            "    )\n"
+        ),
+        replacement=(
+            "    selected_indices = tuple(range(len(all_columns)))  "
+            "# DELIBERATE BREAK: presence admitted\n"
+        ),
+        command=WP26_PROTOCOL_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 Chain B compares directly against full-minus-presence logistic",
+        path=ROOT / "backend/src/touchline/modeling/mlp_protocol.py",
+        anchor=(
+            "    mlp_replaces = replacement_rule("
+            "candidates[SHIPPED_LOGISTIC_KEY], candidates[MLP_KEY])\n"
+        ),
+        replacement=(
+            '    mlp_replaces = replacement_rule(candidates["constant"], candidates[MLP_KEY])  '
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP26_PROTOCOL_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 final all-development preprocessing occurs only after OOF selection",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor="    chains = selection_chains(candidates)\n",
+        replacement=(
+            "    final_scaler = fit_scaler(rows_list)  # DELIBERATE BREAK: before selection\n"
+            "    chains = selection_chains(candidates)\n"
+        ),
+        command=WP26_PROTOCOL_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 validates the state-dictionary file hash before load",
+        path=ROOT / "backend/src/touchline/modeling/mlp_artifact.py",
+        anchor="    if _sha256(weights_path) != expected_weights_sha:\n",
+        replacement="    if False:  # DELIBERATE BREAK: file hash ignored\n",
+        command=WP26_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 ledger never places a pt hash under model_pickle_sha256",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor=(
+            '            "shipped_best_c": "n/a",\n            "model_pickle_sha256": "n/a",\n'
+        ),
+        replacement=(
+            '            "shipped_best_c": "n/a",\n'
+            '            "model_pickle_sha256": metadata["weights_sha256"],  '
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 production image excludes every default dependency group",
+        path=ROOT / "Dockerfile",
+        anchor="RUN uv sync --locked --no-default-groups\n",
+        replacement="RUN uv sync --locked  # DELIBERATE BREAK: modeling group installed\n",
+        command=WP26_DEPENDENCY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 training shuffle uses the dedicated seeded DataLoader generator",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    train_loader = _loader(training, shuffle=True, generator=generator)\n",
+        replacement=(
+            "    train_loader = _loader(training, shuffle=True, generator=None)  "
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 BCE loss remains unweighted",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="pos_weight=None)\n",
+        replacement=(
+            "pos_weight=torch.ones(1, device=device))  # DELIBERATE BREAK: class weighting\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 validation switches the model to eval mode",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    model.eval()\n    loss_sum = 0.0\n",
+        replacement="    model.train()  # DELIBERATE BREAK\n    loss_sum = 0.0\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 resets all CUDA RNGs before every fit",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="    torch.cuda.manual_seed_all(seed)\n",
+        replacement="    pass  # DELIBERATE BREAK: CUDA seed omitted\n",
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 CUDA matmul precision remains IEEE FP32",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor='    torch.backends.cuda.matmul.fp32_precision = "ieee"\n',
+        replacement=(
+            '    torch.backends.cuda.matmul.fp32_precision = "tf32"  # DELIBERATE BREAK\n'
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids deprecated TF32 controls",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor='    torch.backends.cudnn.fp32_precision = "ieee"\n',
+        replacement=(
+            "    torch.backends.cudnn.allow_tf32 = False  # DELIBERATE BREAK: deprecated API\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids early stopping",
+        path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
+        anchor='    "early_stopping": false,\n',
+        replacement='    "early_stopping": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids a learning-rate scheduler",
+        path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
+        anchor='    "scheduler": false,\n',
+        replacement='    "scheduler": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids mixed precision",
+        path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
+        anchor='    "mixed_precision": false,\n',
+        replacement='    "mixed_precision": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids gradient clipping",
+        path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
+        anchor='    "gradient_clipping": false,\n',
+        replacement='    "gradient_clipping": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 forbids torch.compile",
+        path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
+        anchor='    "torch_compile": false,\n',
+        replacement='    "torch_compile": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 architecture contains no dropout",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="        self.activation = nn.ReLU()\n",
+        replacement=(
+            "        self.activation = nn.Sequential(nn.ReLU(), nn.Dropout(0.2))  "
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 architecture contains no batch normalization",
+        path=ROOT / "backend/src/touchline/modeling/mlp.py",
+        anchor="        self.activation = nn.ReLU()\n",
+        replacement=(
+            "        self.activation = nn.Sequential(nn.BatchNorm1d(HIDDEN_DIM), nn.ReLU())  "
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP26_MLP_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 CUDA qualification cannot publish a CUDA-derived selection",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor=(
+            '        "frozen_canonical_cpu_selection": frozen_selection,\n'
+            '        "runtime_fingerprint": config.runtime_fingerprint,\n'
+        ),
+        replacement=(
+            '        "frozen_canonical_cpu_selection": frozen_selection,\n'
+            '        "runtime_fingerprint": config.runtime_fingerprint,\n'
+            '        "cuda_selection": result.chains,  # DELIBERATE BREAK\n'
+        ),
+        command=WP26_QUALIFICATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 keeps artifact candidate distinct from the selection incumbent",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor="        artifact_candidate=MLP_KEY,\n",
+        replacement=(
+            "        artifact_candidate=selection_incumbent,  "
+            "# DELIBERATE BREAK: winner conflated\n"
+        ),
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 validates the learned-parameter digest after strict load",
+        path=ROOT / "backend/src/touchline/modeling/mlp_artifact.py",
+        anchor=('    if actual_parameter_digest != str(payload.get("parameter_digest", "")):\n'),
+        replacement="    if False:  # DELIBERATE BREAK: parameter digest ignored\n",
+        command=WP26_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 validates final preprocessing against committed identity",
+        path=ROOT / "backend/src/touchline/modeling/mlp_artifact.py",
+        anchor="        or actual_preprocessing_digest != expected_preprocessing_digest\n",
+        replacement="        or False  # DELIBERATE BREAK: trusted digest ignored\n",
+        command=WP26_ARTIFACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 Torch modules remain outside the production API import graph",
+        path=ROOT / "backend/src/touchline/main.py",
+        anchor="from __future__ import annotations\n",
+        replacement="from __future__ import annotations\n\nimport torch  # DELIBERATE BREAK\n",
+        command=WP26_DEPENDENCY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 historical reproduction fails on missing published metrics",
+        path=ROOT / "backend/src/touchline/modeling/mlp_protocol.py",
+        anchor=(
+            '            raise ValueError(f"historical reproduction missing published key '
+            '{path}.{key}")\n'
+        ),
+        replacement="            continue  # DELIBERATE BREAK: missing metric ignored\n",
+        command=WP26_PROTOCOL_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 qualification supervisor rejects CUDA-derived selection",
+        path=ROOT / "backend/src/touchline/modeling/qualify_mlp.py",
+        anchor='    if any(payload.get("selection_effect") != "none" for payload in cuda):\n',
+        replacement="    if False:  # DELIBERATE BREAK: CUDA selection accepted\n",
+        command=WP26_QUALIFICATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 qualification supervisor enforces same-weight CPU/CUDA parity",
+        path=ROOT / "backend/src/touchline/modeling/qualify_mlp.py",
+        anchor=(
+            "    if not np.allclose(cpu_probabilities, cuda_probabilities, atol=1e-6, rtol=1e-5):\n"
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: parity ignored\n",
+        command=WP26_QUALIFICATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 canonical measurement remains ignored until qualification succeeds",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='    output = artifact_dir / "evidence-staging"\n',
+        replacement=(
+            "    output = abs_path(config.out_dir)  # DELIBERATE BREAK: publishes too early\n"
+        ),
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 CPU reproductions must match canonical OOF evidence, not only each other",
+        path=ROOT / "backend/src/touchline/modeling/qualify_mlp.py",
+        anchor="        if actual_digest != expected_digest:\n",
+        replacement="        if False:  # DELIBERATE BREAK: canonical comparison bypassed\n",
+        command=WP26_QUALIFICATION_TESTS,
         cwd=ROOT,
     ),
 ]

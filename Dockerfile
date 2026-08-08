@@ -15,11 +15,11 @@ WORKDIR /app
 # Dependencies before source: this layer is rebuilt only when the lockfile changes, so ordinary
 # code changes redeploy without re-resolving anything.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project --no-dev
+RUN uv sync --locked --no-install-project --no-default-groups
 
 COPY backend ./backend
 COPY README.md ./
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-default-groups
 
 
 FROM python:3.12-slim-bookworm AS runtime

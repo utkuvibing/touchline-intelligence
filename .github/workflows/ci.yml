@@ -125,3 +125,13 @@ jobs:
       # the entrypoint resolves and the app imports: no database, no port, just `--help`.
       - name: Entrypoint resolves
         run: docker run --rm --entrypoint uvicorn touchline-api:ci --help
+
+      # The modeling group contains the Windows/Linux PyTorch training stack. Production installs
+      # no default groups, so the image must prove both API importability and Torch absence.
+      - name: Training dependencies stay outside production
+        run: >-
+          docker run --rm --entrypoint python
+          -e TOUCHLINE_DB_URL=postgresql://touchline:test@127.0.0.1:1/touchline
+          touchline-api:ci -c
+          'import importlib.util; import touchline.main;
+          assert importlib.util.find_spec("torch") is None'
