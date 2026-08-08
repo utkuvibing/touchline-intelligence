@@ -66,6 +66,14 @@ class ProvenanceError(RuntimeError):
     """Evidence-generation provenance is missing, dirty or unverifiable."""
 
 
+class GitRepositoryUnavailableError(ProvenanceError):
+    """Git itself or repository metadata is unavailable for a historical check."""
+
+
+class HistoricalGitObjectError(ProvenanceError):
+    """A requested historical revision or blob is missing from an available repository."""
+
+
 @dataclass(frozen=True)
 class Provenance:
     """The runnable-reproduction identity recorded into every machine record (blocking 3)."""
@@ -128,6 +136,47 @@ def git(root: Path, *args: str) -> str:
     if result.returncode != 0:
         raise ProvenanceError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def historical_git_blob_bytes(root: Path, revision: str, relative_path: str) -> bytes:
+    """Return exact blob bytes from ``revision`` without consulting the working tree.
+
+    Repository absence is distinct from a missing historical object: callers may explicitly skip
+    the former in source archives, while the latter means a checkout cannot reproduce its own
+    committed evidence and must fail.
+    """
+    command = ["git", "-C", str(root)]
+    try:
+        probe = subprocess.run(
+            [*command, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise GitRepositoryUnavailableError(f"Git is unavailable: {exc}") from exc
+    if probe.returncode != 0 or probe.stdout.strip() != b"true":
+        raise GitRepositoryUnavailableError(f"{root} is not an available Git work tree")
+
+    try:
+        result = subprocess.run(
+            [*command, "show", f"{revision}:{relative_path}"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise GitRepositoryUnavailableError(f"Git is unavailable: {exc}") from exc
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise HistoricalGitObjectError(
+            f"cannot resolve historical Git blob {revision}:{relative_path}; fetch the recorded "
+            f"reproduction commit and retry. Git said: {detail}"
+        )
+    return result.stdout
+
+
+def historical_git_blob_sha256(root: Path, revision: str, relative_path: str) -> str:
+    """Hash exact bytes returned by :func:`historical_git_blob_bytes`."""
+    return sha256_bytes(historical_git_blob_bytes(root, revision, relative_path))
 
 
 def runtime_fingerprint() -> dict[str, object]:

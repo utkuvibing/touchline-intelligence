@@ -13,7 +13,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
+
+import pytest
+
+from touchline.modeling.experiment import (
+    GitRepositoryUnavailableError,
+    HistoricalGitObjectError,
+    historical_git_blob_bytes,
+    historical_git_blob_sha256,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 EXP = ROOT / "experiments" / "shot_quality" / "exp-20260806-wp2_5-gradient-boosting"
@@ -31,6 +41,19 @@ JSON_RECORDS = ("metrics.json", "config.json", "artifact-manifest.json")
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+HISTORICAL_GIT_SKIP_REASON = (
+    "Historical WP2.5 `uv.lock` integrity cannot be validated because Git repository data "
+    "is unavailable."
+)
+
+
+def _historical_uv_lock_sha256(root: Path, reproduction_commit: str) -> str:
+    try:
+        return historical_git_blob_sha256(root, reproduction_commit, "uv.lock")
+    except GitRepositoryUnavailableError:
+        pytest.skip(HISTORICAL_GIT_SKIP_REASON)
 
 
 def test_every_hashed_record_is_canonical_lf() -> None:
@@ -68,12 +91,59 @@ def test_the_uv_lock_on_disk_is_line_ending_canonical() -> None:
 
 
 def test_the_run_consumed_the_pinned_inputs_that_are_on_disk() -> None:
-    """The digests the record claims must be the digests of the files in this checkout."""
+    """Current contracts match disk; the historical lock matches its reproduction commit."""
     metrics = json.loads((EXP / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["assignments_sha256"] == _sha256(ASSIGNMENTS)
     assert metrics["cohort_sql_sha256"] == _sha256(COHORT_SQL)
     assert metrics["input_config_sha256"] == _sha256(RUN_CONFIG)
-    assert metrics["uv_lock_sha256"] == _sha256(ROOT / "uv.lock")
+    assert metrics["uv_lock_sha256"] == _historical_uv_lock_sha256(
+        ROOT, str(metrics["reproduction_commit"])
+    )
+
+
+def _git(repo: Path, *args: str) -> bytes:
+    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True)
+    return result.stdout
+
+
+def test_historical_lock_resolution_reads_the_recorded_commit_not_the_working_tree(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.name", "WP2.5 integrity test")
+    _git(repo, "config", "user.email", "wp25-integrity@example.invalid")
+    lock = repo / "uv.lock"
+    historical = b"version = 1\nrevision = 'wp2.5'\n"
+    lock.write_bytes(historical)
+    _git(repo, "add", "uv.lock")
+    _git(repo, "commit", "-qm", "historical lock")
+    reproduction_commit = _git(repo, "rev-parse", "HEAD").decode("ascii").strip()
+
+    lock.write_bytes(b"version = 1\nrevision = 'wp2.6'\n")
+    _git(repo, "add", "uv.lock")
+    _git(repo, "commit", "-qm", "current lock")
+
+    expected = hashlib.sha256(historical).hexdigest()
+    assert historical_git_blob_bytes(repo, reproduction_commit, "uv.lock") == historical
+    assert historical_git_blob_sha256(repo, reproduction_commit, "uv.lock") == expected
+    assert _historical_uv_lock_sha256(repo, reproduction_commit) == expected
+    assert expected != hashlib.sha256(lock.read_bytes()).hexdigest()
+
+
+def test_non_git_checkout_skips_with_the_explicit_reason(tmp_path: Path) -> None:
+    with pytest.raises(pytest.skip.Exception, match=r"Historical WP2\.5") as skipped:
+        _historical_uv_lock_sha256(tmp_path, "a" * 40)
+    assert str(skipped.value) == HISTORICAL_GIT_SKIP_REASON
+
+
+def test_git_checkout_with_missing_historical_object_fails(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    with pytest.raises(HistoricalGitObjectError, match="fetch the recorded reproduction commit"):
+        historical_git_blob_sha256(repo, "a" * 40, "uv.lock")
 
 
 def test_the_model_digest_is_stated_identically_everywhere_it_appears() -> None:

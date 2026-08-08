@@ -261,6 +261,7 @@ WP25_BOOSTING_TESTS = "uv run pytest backend/tests/test_wp2_5_boosting.py -q"
 WP25_TRAIN_MODELING_TESTS = "uv run pytest backend/tests/test_wp2_5_train_modeling.py -q"
 WP25_PRE_REGISTRATION_TESTS = "uv run pytest backend/tests/test_wp2_5_pre_registration.py -q"
 WP25_PROCESS_DETERMINISM_TESTS = "uv run pytest backend/tests/test_wp2_5_process_determinism.py -q"
+WP25_ARTIFACT_INTEGRITY_TESTS = "uv run pytest backend/tests/test_wp2_5_artifact_integrity.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -1798,6 +1799,17 @@ BREAKS: list[Break] = [
         ),
         replacement='        "artifact_schema_version": artifact_schema_version,\n',
         command=WP24_EXPERIMENT_CONSISTENCY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 uv.lock identity must resolve at the recorded reproduction commit",
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor="    return result.stdout\n",
+        replacement=(
+            "    return (root / relative_path).read_bytes()  "
+            "# DELIBERATE BREAK: current working tree\n"
+        ),
+        command=WP25_ARTIFACT_INTEGRITY_TESTS,
         cwd=ROOT,
     ),
     Break(
