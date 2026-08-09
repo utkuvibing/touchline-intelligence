@@ -269,6 +269,8 @@ WP26_ARTIFACT_TESTS = "uv run pytest backend/tests/test_wp2_6_mlp_artifact.py -q
 WP26_EXPERIMENT_TESTS = "uv run pytest backend/tests/test_wp2_6_experiment_consistency.py -q"
 WP26_DEPENDENCY_TESTS = "uv run pytest backend/tests/test_wp2_6_dependency_boundary.py -q"
 WP26_QUALIFICATION_TESTS = "uv run pytest backend/tests/test_wp2_6_qualification.py -q"
+WP27_CALIBRATION_TESTS = "uv run pytest backend/tests/test_wp2_7_calibration.py -q"
+WP27_DATASET_TESTS = "uv run pytest backend/tests/test_wp2_4_dataset.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -2422,6 +2424,150 @@ BREAKS: list[Break] = [
         anchor='            "primary_metric": "mean_log_loss",\n',
         replacement='            "primary_metric": "mean_fold_log_loss",  # DELIBERATE BREAK\n',
         command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 raw-anchor bins assign both variants to the same raw-defined groups",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor=(
+            "    return min(\n"
+            "        bisect_right(RAW_ANCHOR_BIN_EDGES, value) - 1,\n"
+            "        N_RELIABILITY_BINS - 1,\n"
+            "    )\n"
+        ),
+        replacement=(
+            "    return N_RELIABILITY_BINS - 1  # DELIBERATE BREAK: variant-specific grouping\n"
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 adoption rejects a non-positive Platt slope",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor="    if not math.isfinite(platt_slope) or platt_slope <= 0.0:\n",
+        replacement="    if False:  # DELIBERATE BREAK: slope gate removed\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 holdout rejects a calibration decision for a different frozen base",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor="    if recorded != frozen.identity.as_dict():\n",
+        replacement="    if False:  # DELIBERATE BREAK: base identity gate removed\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 detects in-memory estimator and preprocessing identity mutation",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor="    if current != frozen.identity:\n",
+        replacement="    if False:  # DELIBERATE BREAK: frozen identity mutation ignored\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 holdout session permits exactly one logical open",
+        path=ROOT / "backend/src/touchline/modeling/holdout.py",
+        anchor="        if self._opened:\n",
+        replacement="        if False:  # DELIBERATE BREAK: one-open gate removed\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 holdout packet contains only raw and calibrated selected-logistic variants",
+        path=ROOT / "backend/src/touchline/modeling/holdout.py",
+        anchor=('        "variants": {\n            "raw": _score_variant(y, raw),\n'),
+        replacement=(
+            '        "variants": {\n'
+            '            "constant": _score_variant(y, np.full(y.shape, float(y.mean()))),  '
+            "# DELIBERATE BREAK\n"
+            '            "raw": _score_variant(y, raw),\n'
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 evaluation loader re-checks the requested partition membership",
+        path=ROOT / "backend/src/touchline/modeling/dataset.py",
+        anchor="    allowed = set(ids)\n",
+        replacement=('    allowed = set(assignments.ids_for("holdout"))  # DELIBERATE BREAK\n'),
+        command=WP27_DATASET_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 calibration phase can request WC2022 calibration rows only",
+        path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
+        anchor=(
+            "            rows = load_partition_cohort(connection, sql, assignments, "
+            '"calibration")\n'
+        ),
+        replacement=(
+            "            rows = load_partition_cohort(connection, sql, assignments, "
+            '"holdout")  '
+            "# DELIBERATE BREAK\n"
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 frozen base must match the externally registered model digest",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor="    if actual_model_hash != pins.model_pickle_sha256:\n",
+        replacement="    if False:  # DELIBERATE BREAK: external model pin ignored\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 decision identity preserves exact binary64 Platt parameters",
+        path=ROOT / "backend/src/touchline/modeling/calibration.py",
+        anchor=(
+            "    if isinstance(value, (str, int, float, bool)) or value is None:\n"
+            "        return value\n"
+        ),
+        replacement=(
+            "    if isinstance(value, float):\n"
+            "        return round(value, 12)  # DELIBERATE BREAK: identity float rounded\n"
+            "    if isinstance(value, (str, int, bool)) or value is None:\n"
+            "        return value\n"
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 real holdout bootstrap is fixed at 2,000 replicates and seed 0",
+        path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
+        anchor="    if bootstrap != {\n",
+        replacement=(
+            "    if False and bootstrap != {  # DELIBERATE BREAK: protocol override admitted\n"
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 audit cannot finalize before the holdout connection is closed",
+        path=ROOT / "backend/src/touchline/modeling/holdout.py",
+        anchor="    if audit.stages != expected_stages:\n",
+        replacement="    if False:  # DELIBERATE BREAK: closure stage ignored\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 holdout execution identity must match the calibration decision",
+        path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
+        anchor="    if any(recorded.get(key) != current.get(key) for key in keys):\n",
+        replacement="    if False:  # DELIBERATE BREAK: execution drift admitted\n",
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.7 audit records a separate hash for the final experiment record",
+        path=ROOT / "backend/src/touchline/modeling/holdout.py",
+        anchor=(
+            "    evidence_hashes[record_path(record_path_value)] = "
+            "_sha256(record_path_value.read_bytes())\n"
+        ),
+        replacement=("    # DELIBERATE BREAK: final experiment-record hash omitted\n"),
+        command=WP27_CALIBRATION_TESTS,
         cwd=ROOT,
     ),
 ]

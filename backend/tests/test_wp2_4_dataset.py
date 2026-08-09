@@ -24,6 +24,7 @@ from touchline.modeling.dataset import (
     MatchAssignments,
     NonCanonicalArtifactError,
     load_development_cohort,
+    load_partition_cohort,
     parse_match_assignments,
     verify_assignments_csv,
     verify_cohort_sql,
@@ -184,6 +185,25 @@ def _fake_row(match_id: int, event_index: int, is_goal: int = 0) -> tuple[object
     )
 
 
+def _fake_evaluation_row(match_id: int, event_index: int, is_goal: int = 0) -> tuple[object, ...]:
+    # Column order mirrors the loader's EVALUATION_LOAD_COLUMNS projection.
+    return (
+        f"00000000-0000-0000-0000-{event_index:012d}",  # shot_id
+        match_id,
+        55,  # competition_id
+        282,  # season_id
+        100.0,  # raw_location_x
+        40.0,  # raw_location_y
+        None,  # under_pressure
+        "Right Foot",  # body_part_name
+        "Normal",  # technique_name
+        "Regular Play",  # play_pattern_name
+        None,  # first_time
+        "Open Play",  # shot_type_name
+        is_goal,  # is_goal
+    )
+
+
 def test_loader_runs_read_only_and_queries_development_ids_only() -> None:
     assignment = MatchAssignments(development_match_ids=frozenset({1, 2}), fold_of={1: 0, 2: 1})
     conn = _FakeConnection([_fake_row(1, 1), _fake_row(2, 2)])
@@ -204,3 +224,34 @@ def test_loader_rejects_a_non_development_row_that_reaches_the_client() -> None:
     conn = _FakeConnection([_fake_row(1, 1), _fake_row(4, 2)])
     with pytest.raises(DevelopmentLeakError):
         load_development_cohort(conn, "SELECT 1", assignment)  # type: ignore[arg-type]
+
+
+def test_evaluation_loader_reads_only_the_requested_locked_partition() -> None:
+    assignment = MatchAssignments(
+        development_match_ids=frozenset({1, 2}),
+        fold_of={1: 0, 2: 1},
+        match_ids_by_split={
+            "development": frozenset({1, 2}),
+            "calibration": frozenset({3}),
+            "holdout": frozenset({4}),
+        },
+    )
+    conn = _FakeConnection([_fake_evaluation_row(3, 3, 1)])
+    rows = load_partition_cohort(conn, "SELECT 1", assignment, "calibration")  # type: ignore[arg-type]
+    assert conn.cursor_used is not None
+    assert any("match_id = ANY(%s)" in sql for sql in conn.cursor_used.executed)
+    assert conn.cursor_used.params[0] == [3]
+    assert rows[0].match_id == 3
+    assert rows[0].fold is None
+    assert rows[0].shot_type_name == "Open Play"
+
+
+def test_evaluation_loader_rejects_a_row_from_another_partition() -> None:
+    assignment = MatchAssignments(
+        development_match_ids=frozenset({1}),
+        fold_of={1: 0},
+        match_ids_by_split={"calibration": frozenset({3}), "holdout": frozenset({4})},
+    )
+    conn = _FakeConnection([_fake_evaluation_row(4, 4)])
+    with pytest.raises(AssignmentDataError):
+        load_partition_cohort(conn, "SELECT 1", assignment, "calibration")  # type: ignore[arg-type]

@@ -176,7 +176,7 @@ def test_naive_divides_by_zero_exactly_on_the_circle() -> None:
     assert close(visible_goal_angle(116.0, 40.0), math.pi / 2)
 
 
-def test_naive_returns_a_negative_angle_two_yards_from_an_empty_goal() -> None:
+def test_naive_returns_a_negative_angle_two_coordinate_units_from_an_empty_goal() -> None:
     """The headline regression anchor: same cross and dot, opposite conclusions."""
     cross, dot = cross_and_dot(118.0, 40.0)
     assert (cross, dot) == (16.0, -12.0)

@@ -91,6 +91,8 @@ class ShotRow:
     play_pattern_name: str
     first_time: bool | None
     under_pressure: bool | None
+    # Retained for WP2.7 slice analysis; it is not part of the shipped feature vector.
+    shot_type_name: str = "unknown"
 
     def presence(self, field: str) -> int:
         """Presence indicator: 1 when the provider annotated this TRUE, else 0. Never "false"."""

@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Any, Literal
 
 import psycopg
 
@@ -41,6 +42,14 @@ LOCKED_FOLD_SHOT_SIZES: Mapping[int, int] = {0: 570, 1: 552, 2: 602, 3: 576, 4: 
 LOAD_COLUMNS = (
     "shot_id, match_id, competition_id, season_id, raw_location_x, raw_location_y, "
     "under_pressure, body_part_name, technique_name, play_pattern_name, first_time, is_goal"
+)
+
+# WP2.7 evaluation projection.  The extra shot-type field is a descriptive slice only and never
+# enters the frozen model feature matrix.
+EVALUATION_LOAD_COLUMNS = (
+    "shot_id, match_id, competition_id, season_id, raw_location_x, raw_location_y, "
+    "under_pressure, body_part_name, technique_name, play_pattern_name, first_time, "
+    "shot_type_name, is_goal"
 )
 
 
@@ -117,6 +126,12 @@ class MatchAssignments:
 
     development_match_ids: frozenset[int]
     fold_of: Mapping[int, int]
+    match_ids_by_split: Mapping[str, frozenset[int]] = field(default_factory=dict)
+
+    def ids_for(self, split: Literal["development", "calibration", "holdout"]) -> frozenset[int]:
+        if split == "development":
+            return self.development_match_ids
+        return self.match_ids_by_split.get(split, frozenset())
 
     def fold(self, match_id: int) -> int:
         try:
@@ -138,6 +153,7 @@ def parse_match_assignments(csv_text: str) -> MatchAssignments:
     if not lines or lines[0] != CSV_HEADER:
         raise ArtifactIntegrityError("assignment CSV header is missing or malformed")
     dev_ids: set[int] = set()
+    split_ids: dict[str, set[int]] = {name: set() for name in SPLIT_NAMES}
     fold_of: dict[int, int] = {}
     for lineno, line in enumerate(lines[1:], start=2):
         parts = line.split(",")
@@ -154,6 +170,7 @@ def parse_match_assignments(csv_text: str) -> MatchAssignments:
             raise AssignmentDataError(
                 f"assignment CSV line {lineno} has non-integer match id {match_id!r}"
             ) from None
+        split_ids[split].add(match_id_int)
         if split == "development":
             try:
                 fold_int = int(fold_raw)
@@ -173,7 +190,73 @@ def parse_match_assignments(csv_text: str) -> MatchAssignments:
             )
     if not dev_ids:
         raise AssignmentDataError("assignment CSV contains no development matches")
-    return MatchAssignments(development_match_ids=frozenset(dev_ids), fold_of=fold_of)
+    return MatchAssignments(
+        development_match_ids=frozenset(dev_ids),
+        fold_of=fold_of,
+        match_ids_by_split=MappingProxyType(
+            {split: frozenset(ids) for split, ids in split_ids.items()}
+        ),
+    )
+
+
+def load_partition_cohort(
+    conn: psycopg.Connection,
+    cohort_sql: str,
+    assignments: MatchAssignments,
+    split: Literal["calibration", "holdout"],
+) -> list[ShotRow]:
+    """Load one non-development partition for its single supervised WP2.7 phase.
+
+    This function is intentionally not used by the development training commands.  The phase
+    runner calls it exactly once for calibration and exactly once for the supervised holdout
+    session, then keeps all real-row work in memory.
+    """
+    ids = assignments.ids_for(split)
+    if not ids:
+        raise AssignmentDataError(f"assignment CSV contains no {split} matches")
+    body = cohort_sql.rstrip()
+    if body.endswith(";"):
+        body = body[:-1]
+    sql = (
+        f"SELECT {EVALUATION_LOAD_COLUMNS} FROM ({body}) AS cohort "
+        "WHERE match_id = ANY(%s) ORDER BY shot_id"
+    )
+    with conn.transaction(), conn.cursor() as cur:
+        cur.execute("SET TRANSACTION READ ONLY")
+        cur.execute(sql, (sorted(ids),))
+        raw_rows = cur.fetchall()
+    allowed = set(ids)
+    rows: list[ShotRow] = []
+    seen_shots: set[str] = set()
+    for raw in raw_rows:
+        shot_id = str(raw[0])
+        match_id = int(raw[1])
+        if shot_id in seen_shots:
+            raise AssignmentDataError(f"duplicate {split} shot id {shot_id}")
+        seen_shots.add(shot_id)
+        if match_id not in allowed:
+            raise AssignmentDataError(
+                f"row for match {match_id} is not in the locked {split} assignment"
+            )
+        rows.append(
+            ShotRow(
+                shot_id=shot_id,
+                match_id=match_id,
+                fold=None,
+                competition_id=int(raw[2]),
+                season_id=int(raw[3]),
+                y=int(raw[12]),
+                distance_to_goal=distance_to_goal(float(raw[4]), float(raw[5])),
+                visible_goal_angle=visible_goal_angle(float(raw[4]), float(raw[5])),
+                body_part_name=str(raw[7]),
+                technique_name=str(raw[8]),
+                play_pattern_name=str(raw[9]),
+                first_time=_as_optional_bool(raw[10]),
+                under_pressure=_as_optional_bool(raw[6]),
+                shot_type_name=str(raw[11]),
+            )
+        )
+    return rows
 
 
 def load_development_cohort(

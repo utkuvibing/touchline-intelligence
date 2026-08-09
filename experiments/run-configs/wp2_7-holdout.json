@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
+  "phase": "holdout",
+  "status": "pre_registered_not_run",
+  "require_clean_provenance": true,
+  "code_commit": "AUTO_FROM_CLEAN_HEAD",
+  "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "calibration_config_path": "experiments/run-configs/wp2_7-calibration.json",
+  "calibration_config_sha256": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
+  "required_calibration_decision": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/calibration-decision.json",
+  "decision_sha256_must_be_supplied_to_holdout_command": true,
+  "scoring_variants": ["raw", "calibrated"],
+  "constant_baseline_included": false,
+  "prevalence_role": "descriptive_context_only",
+  "bootstrap": {
+    "replicates": 2000,
+    "seed": 0,
+    "interval": "95_percentile"
+  },
+  "slice_support": {
+    "shots": 50,
+    "goals": 5,
+    "misses": 5,
+    "matches": 10
+  },
+  "distance_bands": ["[0,10)", "[10,20)", "[20,30)", "[30,+inf)"],
+  "distance_unit": "StatsBomb coordinate units",
+  "visible_angle_unit": "radians",
+  "holdout_tournament": "Euro2024",
+  "one_supervised_execution": true,
+  "post_run_real_row_reload": false,
+  "output_dir": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout",
+  "experiment_record_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json",
+  "published_evidence_report": "reports/wp2.7-calibration-holdout-evidence.md",
+  "published_model_card": "reports/wp2.7-model-card.md",
+  "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL"
+}

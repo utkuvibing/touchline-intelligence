@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
+  "work_package": "WP2.7",
+  "status": "pre_registered_not_run",
+  "calibration_config": "experiments/run-configs/wp2_7-calibration.json",
+  "holdout_config": "experiments/run-configs/wp2_7-holdout.json",
+  "base_candidate": "full_minus_presence",
+  "base_fit_scope": "development_only",
+  "calibration_split": "WC2022",
+  "holdout_split": "Euro2024",
+  "registered_config_sha256": {
+    "calibration": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
+    "holdout": "d77187ad0bf7e5053d73c2debe0a61b8e1464885b16601d025f43d811267589b"
+  },
+  "registered_base_sha256": {
+    "artifact": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+    "manifest": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79"
+  },
+  "identity_serialization": "exact_binary64_round_trip",
+  "holdout_bootstrap": {"replicates": 2000, "seed": 0, "interval": "95_percentile"},
+  "audit_schema_version": 2,
+  "required_outputs": [
+    "calibration-decision.json",
+    "holdout-metrics.json",
+    "holdout-access-audit.json",
+    "evidence.md",
+    "model-card.md",
+    "plots/reliability.svg",
+    "plots/slices.svg"
+  ],
+  "real_rows_accessed_in_this_recording": false,
+  "note": "This pre-registration records no calibration or holdout metrics. The two supervised phase commands populate the declared outputs later."
+}

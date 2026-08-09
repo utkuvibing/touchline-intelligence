@@ -46,6 +46,7 @@ __all__ = [
     "boosting_artifact_schema_version",
     "infer",
     "infer_boosting",
+    "infer_logit",
     "load_boosting_bundle",
     "load_bundle",
     "validate_column_contract",
@@ -171,6 +172,14 @@ class ArtifactBundle:
         subset = full[:, list(self.selected_indices)]
         return np.asarray(self.estimator.predict_proba(subset), dtype=np.float64)[:, 1]
 
+    def predict_logit(self, rows: Sequence[ShotRow]) -> FloatArray:
+        """Return the frozen estimator's raw linear score without fitting anything."""
+        self._require_supported_schema()
+        full, current_columns = encode_rows(rows, self.vocabulary, self.scaler)
+        self._validate_feature_contract(current_columns)
+        subset = full[:, list(self.selected_indices)]
+        return np.asarray(self.estimator.decision_function(subset), dtype=np.float64).reshape(-1)
+
     def _require_supported_schema(self) -> None:
         if self.schema_version != artifact_schema_version:
             raise ArtifactCompatibilityError(
@@ -224,6 +233,11 @@ def infer(bundle: ArtifactBundle, rows: Sequence[ShotRow]) -> FloatArray:
     re-fitted at inference time.
     """
     return bundle.predict_proba(rows)
+
+
+def infer_logit(bundle: ArtifactBundle, rows: Sequence[ShotRow]) -> FloatArray:
+    """The explicit inference entry point for the frozen base linear score."""
+    return bundle.predict_logit(rows)
 
 
 def load_bundle(path: str | Path) -> ArtifactBundle:

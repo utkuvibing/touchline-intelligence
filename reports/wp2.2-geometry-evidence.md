@@ -51,7 +51,7 @@ out-of-domain value.
 
 | Feature | min | p05 | median | mean | p95 | max |
 |---|---:|---:|---:|---:|---:|---:|
-| `distance_to_goal` (yards) | 0.7616 | 6.7936 | 18.2681 | 18.8162 | 32.6267 | 72.3327 |
+| `distance_to_goal` (StatsBomb coordinate units) | 0.7616 | 6.7936 | 18.2681 | 18.8162 | 32.6267 | 72.3327 |
 | `visible_goal_angle` (rad) | 0.0000 | 0.1958 | 0.3460 | 0.4486 | 1.0197 | 2.7932 |
 
 Median visible angle 19.83°, mean 25.70°. Three rows have `angle = 0` exactly — the three shots

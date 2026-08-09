@@ -70,6 +70,8 @@ train = "python -m touchline.modeling.train"
 train-boosting = "python -m touchline.boosting_bootstrap"
 train-mlp = "python -m touchline.pytorch_bootstrap"
 qualify-mlp = "python -m touchline.modeling.qualify_mlp"
+wp2-7-calibrate = "python -m touchline.modeling.wp2_7 calibrate"
+wp2-7-holdout = "python -m touchline.modeling.wp2_7 holdout"
 reproducibility-fixture = "pytest backend/tests/test_wp1_6_fixture_manifest.py backend/tests/test_wp1_6_reproducibility_integration.py"
 
 [tool.ruff]
