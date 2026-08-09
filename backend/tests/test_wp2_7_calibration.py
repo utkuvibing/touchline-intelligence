@@ -35,6 +35,7 @@ from touchline.modeling.calibration import (
     write_calibration_decision,
 )
 from touchline.modeling.dataset import parse_match_assignments
+from touchline.modeling.experiment import Provenance
 from touchline.modeling.holdout import (
     HoldoutAccessAudit,
     HoldoutAccessError,
@@ -512,6 +513,81 @@ def test_real_phase_configs_are_byte_pinned_to_the_registered_base() -> None:
     assert calibration["frozen_base"] == wp2_7.EXPECTED_BASE_PIN_PAYLOAD
     holdout = json.loads(wp2_7.DEFAULT_HOLDOUT_CONFIG_PATH.read_text(encoding="utf-8"))
     assert holdout["calibration_config_sha256"] == wp2_7.DEFAULT_CALIBRATION_CONFIG_SHA256
+
+
+def test_committed_source_identity_uses_git_blobs_not_crlf_working_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CRLF Python checkout bytes do not change identity, but a different committed blob does."""
+    fake_root = tmp_path / "repo"
+    fake_root.mkdir()
+    config_path = fake_root / "calibration.json"
+    config_path.write_bytes(b'{"phase":"calibration"}\n')
+    config_digest = _sha(config_path)
+    config = wp2_7.PhaseConfig(
+        path=config_path,
+        sha256=config_digest,
+        payload={
+            "phase": "calibration",
+            "experiment_id": "synthetic-provenance",
+            "code_commit": "AUTO_FROM_CLEAN_HEAD",
+            "data_source_commit": "synthetic-source",
+            "require_clean_provenance": True,
+        },
+    )
+
+    committed_lf = {
+        path: sha256(f"committed-{index}\n".encode()).hexdigest()
+        for index, path in enumerate(wp2_7.WP27_SOURCE_PATHS)
+    }
+    changed_blob = wp2_7.WP27_SOURCE_PATHS[0]
+    committed_by_revision = {
+        "commit-a": committed_lf,
+        "commit-b": {
+            **committed_lf,
+            changed_blob: sha256(b"different-committed-blob\n").hexdigest(),
+        },
+    }
+    for index, path in enumerate(wp2_7.WP27_SOURCE_PATHS):
+        source = fake_root / path
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(f"committed-{index}\r\n".encode())
+
+    current_revision = "commit-a"
+
+    def fake_provenance(_config: object) -> Provenance:
+        return Provenance(
+            code_commit=current_revision,
+            reproduction_commit=current_revision,
+            input_config_path="calibration.json",
+            input_config_sha256=config_digest,
+            uv_lock_sha256="u" * 64,
+            runtime_fingerprint={},
+            data_source_commit="synthetic-source",
+        )
+
+    def fake_blob_sha256(_root: Path, revision: str, relative_path: str) -> str:
+        if relative_path == "calibration.json":
+            return config_digest
+        return committed_by_revision[revision][relative_path]
+
+    monkeypatch.setattr(wp2_7, "ROOT", fake_root)
+    monkeypatch.setattr(wp2_7, "record_path", lambda _path: "calibration.json")
+    monkeypatch.setattr(wp2_7, "resolve_provenance", fake_provenance)
+    monkeypatch.setattr(wp2_7, "historical_git_blob_sha256", fake_blob_sha256)
+
+    first = wp2_7._resolve_execution_provenance(config)
+    assert first["source_files_sha256"] == committed_lf
+    assert first["source_bundle_sha256"] == exact_payload_sha256(
+        {"source_files_sha256": committed_lf}
+    )
+
+    current_revision = "commit-b"
+    second = wp2_7._resolve_execution_provenance(config)
+    assert second["source_files_sha256"] != first["source_files_sha256"]
+    decision = CalibrationDecision("0" * 64, {"execution_provenance": first})
+    with pytest.raises(RuntimeError, match="identity differs"):
+        wp2_7._assert_decision_execution_matches(decision, second)
 
 
 def test_holdout_phase_rejects_a_mismatched_decision_before_loader(tmp_path: Path) -> None:

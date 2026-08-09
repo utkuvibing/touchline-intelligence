@@ -2442,6 +2442,26 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract=(
+            "WP2.7 committed source identity must use Git blob bytes, not Python working-tree bytes"
+        ),
+        path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
+        anchor=(
+            "    return {\n"
+            "        path: historical_git_blob_sha256(ROOT, code_commit, path) "
+            "for path in WP27_SOURCE_PATHS\n"
+            "    }\n"
+        ),
+        replacement=(
+            "    return {\n"
+            "        path: sha256_bytes((ROOT / path).read_bytes()) for path in "
+            "WP27_SOURCE_PATHS  # DELIBERATE BREAK: CRLF working-tree identity\n"
+            "    }\n"
+        ),
+        command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.7 adoption rejects a non-positive Platt slope",
         path=ROOT / "backend/src/touchline/modeling/calibration.py",
         anchor="    if not math.isfinite(platt_slope) or platt_slope <= 0.0:\n",

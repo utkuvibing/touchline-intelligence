@@ -281,6 +281,19 @@ def _validate_holdout_config(config: PhaseConfig) -> None:
         raise RuntimeError("WP2.7 holdout config changes the pre-registered slice support")
 
 
+def _committed_source_hashes(code_commit: str) -> dict[str, str]:
+    """Hash WP2.7 Python sources from exact Git blobs at the execution commit.
+
+    Python files are intentionally not EOL-pinned. Using working-tree bytes here would make a
+    clean Windows checkout with CRLF source appear to be a different implementation from its
+    committed LF blobs. The tracked-tree cleanliness check remains the separate guard against
+    modified tracked files.
+    """
+    return {
+        path: historical_git_blob_sha256(ROOT, code_commit, path) for path in WP27_SOURCE_PATHS
+    }
+
+
 def _resolve_execution_provenance(config: PhaseConfig) -> dict[str, object]:
     adapter = _ProvenanceConfig(
         code_commit=config.text("code_commit"),
@@ -291,17 +304,18 @@ def _resolve_execution_provenance(config: PhaseConfig) -> dict[str, object]:
     resolved: Provenance = resolve_provenance(adapter)
     if resolved.input_config_sha256 != config.sha256:
         raise RuntimeError("resolved WP2.7 config digest changed during provenance capture")
-    source_hashes = {path: sha256_bytes((ROOT / path).read_bytes()) for path in WP27_SOURCE_PATHS}
     if adapter.require_clean_provenance:
+        source_hashes = _committed_source_hashes(resolved.code_commit)
         registered_config_path = record_path(config.path)
         if (
             historical_git_blob_sha256(ROOT, resolved.code_commit, registered_config_path)
             != config.sha256
         ):
             raise RuntimeError("registered WP2.7 config is not byte-identical to the clean HEAD")
-        for path, current_digest in source_hashes.items():
-            if historical_git_blob_sha256(ROOT, resolved.code_commit, path) != current_digest:
-                raise RuntimeError(f"WP2.7 source {path} is not byte-identical to the clean HEAD")
+    else:
+        source_hashes = {
+            path: sha256_bytes((ROOT / path).read_bytes()) for path in WP27_SOURCE_PATHS
+        }
     payload = resolved.as_dict()
     payload.update(
         {
