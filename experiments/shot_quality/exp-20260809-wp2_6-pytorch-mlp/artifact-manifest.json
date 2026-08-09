@@ -1,0 +1,280 @@
+{
+  "architecture": {
+    "activation": "ReLU",
+    "dtype": "torch.float32",
+    "hidden_dim": 8,
+    "input_dim": 16,
+    "output_dim": 1,
+    "output_semantics": "raw_logit",
+    "parameter_count": 145
+  },
+  "artifact_candidate": "pytorch_mlp",
+  "artifact_schema_version": 1,
+  "canonical_cpu_runtime": {
+    "cublas_workspace_config": null,
+    "cuda_matmul_fp32_precision": "ieee",
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "cudnn_fp32_precision": "ieee",
+    "deterministic_algorithms": true,
+    "fp32_precision": "ieee",
+    "machine": "AMD64",
+    "mkl_num_threads": "1",
+    "numpy_version": "2.5.1",
+    "omp_num_threads": "1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "pythonhashseed": "0",
+    "requested_device": "cpu",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpool_num_threads": [
+      1
+    ],
+    "threadpoolctl_version": "3.6.0",
+    "torch_cuda_version": "13.0",
+    "torch_num_interop_threads": 1,
+    "torch_num_threads": 1,
+    "torch_version": "2.13.0+cu130"
+  },
+  "cpu_reproduction_runtime": {
+    "cublas_workspace_config": null,
+    "cuda_matmul_fp32_precision": "ieee",
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "cudnn_fp32_precision": "ieee",
+    "deterministic_algorithms": true,
+    "fp32_precision": "ieee",
+    "machine": "AMD64",
+    "mkl_num_threads": "1",
+    "numpy_version": "2.5.1",
+    "omp_num_threads": "1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "pythonhashseed": "0",
+    "requested_device": "cpu",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpool_num_threads": [
+      1
+    ],
+    "threadpoolctl_version": "3.6.0",
+    "torch_cuda_version": "13.0",
+    "torch_num_interop_threads": 1,
+    "torch_num_threads": 1,
+    "torch_version": "2.13.0+cu130"
+  },
+  "cuda_qualification_runtime": {
+    "cublas_workspace_config": ":4096:8",
+    "cuda_compute_capability": [
+      8,
+      9
+    ],
+    "cuda_device_count": 1,
+    "cuda_device_name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "cuda_matmul_fp32_precision": "ieee",
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "cudnn_fp32_precision": "ieee",
+    "cudnn_version": 92000,
+    "deterministic_algorithms": true,
+    "fp32_precision": "ieee",
+    "machine": "AMD64",
+    "mkl_num_threads": "1",
+    "numpy_version": "2.5.1",
+    "nvidia_driver_version": "610.62",
+    "omp_num_threads": "1",
+    "os": "Windows",
+    "os_release": "11",
+    "python_implementation": "CPython",
+    "python_version": "3.12.11",
+    "pythonhashseed": "0",
+    "requested_device": "cuda",
+    "scikit_learn_version": "1.9.0",
+    "scipy_version": "1.18.0",
+    "threadpool_info": [
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.31.dev"
+      },
+      {
+        "architecture": "Haswell",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "threading_layer": "pthreads",
+        "user_api": "blas",
+        "version": "0.3.33.112.0"
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libiomp",
+        "user_api": "openmp",
+        "version": null
+      },
+      {
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "vcomp",
+        "user_api": "openmp",
+        "version": null
+      }
+    ],
+    "threadpool_num_threads": [
+      1
+    ],
+    "threadpoolctl_version": "3.6.0",
+    "torch_cuda_version": "13.0",
+    "torch_num_interop_threads": 1,
+    "torch_num_threads": 1,
+    "torch_version": "2.13.0+cu130"
+  },
+  "experiment_id": "exp-20260809-wp2_6-pytorch-mlp",
+  "metadata_path": "artifacts/models/exp-20260809-wp2_6-pytorch-mlp/metadata.json",
+  "parameter_digest": "d95de7821936b092dc35163b1d4d3fe7d9587b46d0abc184b9f5c602e3cf32a0",
+  "preprocessing_digest": "5c1aa68bdbef4c373f25adb300fa060d9f96d0ea7c9c718cc981a1b12cd28a3c",
+  "provenance": {
+    "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+    "code_commit": "b8bb30e01e978fe5acf3aeed3a63a342143d0fa6",
+    "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+    "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+    "input_config_sha256": "6a2c52bac5d22acfda160638c4a244def52665b8b82c5c5ca03e2c4325675a82",
+    "reproduction_commit": "b8bb30e01e978fe5acf3aeed3a63a342143d0fa6",
+    "uv_lock_sha256": "1a8a7ee20e7df7703e043118c50be16eb59e9d73ac56ce502a95e09677cde5d3"
+  },
+  "qualification_record_path": "experiments/shot_quality/exp-20260809-wp2_6-pytorch-mlp/cuda-qualification.json",
+  "qualification_sha256": "5b04d620448381cd988e6d9a993971eb5cf38a886d735bf95117599719f14c94",
+  "recreation_command": "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cpu",
+  "recreation_commands": {
+    "canonical_cpu_measurement": "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cpu",
+    "cpu_reproduction": [
+      "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cpu --no-write --canonical-metrics artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/metrics.json --reproduction-output artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cpu-1.json",
+      "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cpu --no-write --canonical-metrics artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/metrics.json --reproduction-output artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cpu-2.json"
+    ],
+    "cuda_qualification": [
+      "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cuda --canonical-metrics artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/metrics.json --qualification-output artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cuda-1.json",
+      "uv run poe train-mlp --config experiments/run-configs/wp2_6-pytorch-mlp.json --device cuda --canonical-metrics artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/metrics.json --qualification-output artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cuda-2.json"
+    ],
+    "finalize_and_publish": "uv run poe qualify-mlp --cpu-run artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cpu-1.json --cpu-run artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cpu-2.json --cuda-run artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cuda-1.json --cuda-run artifacts/models/exp-20260809-wp2_6-pytorch-mlp/qualification-staging/cuda-2.json --canonical-metrics artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/metrics.json --canonical-history artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/training-history.json --output artifacts/models/exp-20260809-wp2_6-pytorch-mlp/evidence-staging/cuda-qualification.json"
+  },
+  "selected_columns": [
+    "distance_to_goal",
+    "visible_goal_angle",
+    "body_part_name::Head",
+    "body_part_name::Left Foot",
+    "body_part_name::rare",
+    "technique_name::Half Volley",
+    "technique_name::Volley",
+    "technique_name::rare",
+    "play_pattern_name::From Corner",
+    "play_pattern_name::From Counter",
+    "play_pattern_name::From Free Kick",
+    "play_pattern_name::From Goal Kick",
+    "play_pattern_name::From Keeper",
+    "play_pattern_name::From Kick Off",
+    "play_pattern_name::From Throw In",
+    "play_pattern_name::rare"
+  ],
+  "selection_incumbent": "full_minus_presence",
+  "weights_path": "artifacts/models/exp-20260809-wp2_6-pytorch-mlp/weights.pt",
+  "weights_sha256": "0344279bc07cbe26eb5ed188240e23de8af86af140e6b3385f80a4d63194c6bd"
+}

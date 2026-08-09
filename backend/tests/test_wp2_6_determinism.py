@@ -16,7 +16,6 @@ from touchline.modeling.experiment import Provenance
 from touchline.modeling.mlp import configure_deterministic_runtime
 from touchline.modeling.train_mlp import (
     MlpConfigError,
-    PreRegistrationError,
     _runtime_fingerprint,
     check_pre_registration,
     load_config,
@@ -49,9 +48,10 @@ def test_device_resolution_never_silently_falls_back(monkeypatch: pytest.MonkeyP
 
 
 def test_accepted_adr_exposes_the_author_signoff_date() -> None:
-    assert check_pre_registration(
-        ROOT / "docs/adr/0012-wp2-6-bounded-pytorch-mlp-lifecycle.md"
-    ) == "2026-08-09"
+    assert (
+        check_pre_registration(ROOT / "docs/adr/0012-wp2-6-bounded-pytorch-mlp-lifecycle.md")
+        == "2026-08-09"
+    )
 
 
 def test_committed_config_is_the_exact_pre_registered_contract(tmp_path: Path) -> None:
