@@ -46,7 +46,19 @@ jobs:
       # Setting it here would make CI assert 5,606 rows against a database that has none.
 
     steps:
+      # WP2.5 artifact integrity resolves uv.lock at its recorded reproduction commit. A shallow
+      # checkout can turn missing history into an unreproducible evidence claim, so keep history.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The WP2.5 record names a reproduction commit that is no longer reachable from a branch
+      # after the WP2.5 branch was merged and deleted. Retain that exact historical object without
+      # weakening the test to the mutable working-tree uv.lock.
+      - name: Fetch the WP2.5 reproduction retention tag
+        run: >-
+          git fetch --no-tags origin
+          refs/tags/wp2-5-reproduction-eef18ef:refs/tags/wp2-5-reproduction-eef18ef
 
       - name: Install uv
         # Pinned exactly: setup-uv publishes no floating `v9` major tag, only `v9.0.0`.
@@ -121,3 +133,13 @@ jobs:
       # the entrypoint resolves and the app imports: no database, no port, just `--help`.
       - name: Entrypoint resolves
         run: docker run --rm --entrypoint uvicorn touchline-api:ci --help
+
+      # The modeling group contains the Windows/Linux PyTorch training stack. Production installs
+      # no default groups, so the image must prove both API importability and Torch absence.
+      - name: Training dependencies stay outside production
+        run: >-
+          docker run --rm --entrypoint python
+          -e TOUCHLINE_DB_URL=postgresql://touchline:test@127.0.0.1:1/touchline
+          touchline-api:ci -c
+          'import importlib.util; import touchline.main;
+          assert importlib.util.find_spec("torch") is None'

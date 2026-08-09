@@ -22,6 +22,28 @@ dev = [
     "mypy",
     "poethepoet",     # command runner; a Python dep, so no system install needed on Windows
 ]
+modeling = [
+    "torch==2.13.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "modeling"]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
@@ -46,6 +68,8 @@ ingest = "python -m touchline.ingest.cli"
 quality = "python -m touchline.quality_cli"
 train = "python -m touchline.modeling.train"
 train-boosting = "python -m touchline.boosting_bootstrap"
+train-mlp = "python -m touchline.pytorch_bootstrap"
+qualify-mlp = "python -m touchline.modeling.qualify_mlp"
 reproducibility-fixture = "pytest backend/tests/test_wp1_6_fixture_manifest.py backend/tests/test_wp1_6_reproducibility_integration.py"
 
 [tool.ruff]
@@ -77,6 +101,7 @@ pythonpath = ["backend/src"]
 addopts = "-q --strict-markers"
 markers = [
     "integration: requires a running PostgreSQL (skipped unless TOUCHLINE_DB_URL is set)",
+    "cuda: requires the local locked CUDA-capable PyTorch environment and a CUDA device",
     "full_source: slow acceptance test over the cached pinned four-tournament source",
     # Distinct from `integration`: those tests build what they need in an isolated schema, so any
     # empty PostgreSQL satisfies them. These read a database that must already hold the ingested
