@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -136,5 +137,11 @@ def test_publication_uses_n_a_and_binds_qualification_identity(tmp_path: Path) -
     assert lines[1].startswith("historical,kept,")
     keys = RESULTS_CSV_HEADER.split(",")
     row = dict(zip(keys, lines[2].split(","), strict=True))
+    assert row["date_utc"]
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", row["date_utc"])
+    assert row["dataset_id"] == "wp2_3_split_lock"
+    assert row["split_strategy"] == "wp2_3_tournament_split"
+    assert row["primary_metric"] == "mean_log_loss"
+    assert row["model"] == "pytorch-mlp-16-8-1"
     assert row["model_pickle_sha256"] == "n/a"
     assert metrics["weights_sha256"] not in lines[2]

@@ -2121,6 +2121,38 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP2.6 CUDA runtime records the cuDNN version",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor=(
+            '                "cudnn_version": torch.backends.cudnn.version(),  '
+            "# type: ignore[no-untyped-call]\n"
+        ),
+        replacement=(
+            '                "cudnn_version": 0, # DELIBERATE BREAK: cuDNN identity omitted\n'
+        ),
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 CUDA runtime records the NVIDIA driver version",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor="    version = versions.pop()\n",
+        replacement='    version = "unknown"  # DELIBERATE BREAK: driver identity omitted\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 NVIDIA driver provenance uses a read-only subprocess query",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor="            timeout=10,\n",
+        replacement=(
+            "            timeout=10,\n"
+            "            shell=True,  # DELIBERATE BREAK: query shell enabled\n"
+        ),
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.6 forbids deprecated TF32 controls",
         path=ROOT / "backend/src/touchline/modeling/mlp.py",
         anchor='    torch.backends.cudnn.fp32_precision = "ieee"\n',
@@ -2167,6 +2199,34 @@ BREAKS: list[Break] = [
         path=ROOT / "experiments/run-configs/wp2_6-pytorch-mlp.json",
         anchor='    "torch_compile": false,\n',
         replacement='    "torch_compile": true,\n',
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 config enforces the inherited scientific contract",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='    if payload.get("scientific_contract") != expected_scientific:\n',
+        replacement="    if False:  # DELIBERATE BREAK: inherited scientific constants ignored\n",
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 config enforces immutable run topology identifiers",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor="    for key, expected in _expected_immutable_run_contract().items():\n",
+        replacement=(
+            "    for key, expected in {}.items():  # DELIBERATE BREAK: run topology ignored\n"
+        ),
+        command=WP26_DETERMINISM_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 config enforces the inherited top-level shot count",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor=(
+            '    if payload.get("expected_shots") != expected_scientific["development_shots"]:\n'
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: shot count ignored\n",
         command=WP26_DETERMINISM_TESTS,
         cwd=ROOT,
     ),
@@ -2287,6 +2347,42 @@ BREAKS: list[Break] = [
         anchor="        if actual_digest != expected_digest:\n",
         replacement="        if False:  # DELIBERATE BREAK: canonical comparison bypassed\n",
         command=WP26_QUALIFICATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 ledger preserves the full UTC timestamp vocabulary",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='            "date_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),\n',
+        replacement=(
+            '            "date_utc": datetime.now(UTC).date().isoformat(), # DELIBERATE BREAK\n'
+        ),
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 ledger preserves the inherited dataset identifier",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='            "dataset_id": config["dataset_id"],\n',
+        replacement='            "dataset_id": "wp2_3-development",  # DELIBERATE BREAK\n',
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 ledger preserves the inherited split strategy",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='            "split_strategy": config["split_strategy"],\n',
+        replacement=(
+            '            "split_strategy": "saved-match-grouped-5-fold", # DELIBERATE BREAK\n'
+        ),
+        command=WP26_EXPERIMENT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.6 ledger preserves the inherited primary metric name",
+        path=ROOT / "backend/src/touchline/modeling/train_mlp.py",
+        anchor='            "primary_metric": "mean_log_loss",\n',
+        replacement='            "primary_metric": "mean_fold_log_loss",  # DELIBERATE BREAK\n',
+        command=WP26_EXPERIMENT_TESTS,
         cwd=ROOT,
     ),
 ]

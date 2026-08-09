@@ -8,6 +8,11 @@ ADR 0012 owns the decisions. This document is the executable acceptance map.
 - Saved match-grouped folds: 570 / 552 / 602 / 576 / 572 validation rows.
 - Existing binary `ShotRow.y` target and development-wide label-free vocabulary.
 - The sixteen WP2.4 `geometry+categoricals` columns; no presence indicators.
+- The committed run config pins the inherited WP2.3 identifiers: `wp2_3_split_lock`,
+  `wp2_3_tournament_split`, 2,872 shots, 115 matches, fold sizes 570 / 552 / 602 / 576 / 572,
+  five reliability bins, the saved-assignment SHA, cohort-SQL SHA, source commit, target,
+  tournament memberships and exact feature-column list. A changed accepted-run config fails before
+  database access.
 - Fold-training-only continuous scaler and existing metrics/reliability implementation.
 - No calibration fitting, WC 2022 labels, Euro 2024 access, weighting, resampling or retuning.
 
@@ -38,7 +43,8 @@ recreation commands. The results ledger writes `model_pickle_sha256=n/a` without
 Qualification is supervised, not inferred from individual successful commands: two fresh CPU
 reproduction payloads and two fresh CUDA payloads must agree within device, strictly reload the
 canonical state dictionary and committed preprocessing identity, and pass same-weight cross-device
-probability parity. The CPU payload must also exactly reproduce canonical MLP metrics, ordered OOF
+probability parity. CUDA runtime provenance includes the cuDNN version and the NVIDIA driver version
+returned by a bounded read-only `nvidia-smi --query-gpu=driver_version` call. The CPU payload must also exactly reproduce canonical MLP metrics, ordered OOF
 predictions, fold parameter digests, complete training history, final parameters and selection.
 Only after all checks pass may `uv run poe qualify-mlp` atomically publish the tracked evidence set,
 the experiment-local `cuda-qualification.json`, and the single `status=complete` ledger row.

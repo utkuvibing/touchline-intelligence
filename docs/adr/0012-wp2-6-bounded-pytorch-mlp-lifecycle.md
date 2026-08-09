@@ -28,7 +28,9 @@ Canonical selection evidence runs on CPU in fresh processes. CUDA qualification 
 fits and an all-development refit twice on the local RTX 4050 but is diagnostic and cannot enter
 selection. Deterministic algorithms are hard errors; Python, NumPy, Torch CPU/CUDA and DataLoader
 seeds are reset before each fit. CUDA uses `CUBLAS_WORKSPACE_CONFIG=:4096:8` and only PyTorch 2.13's
-`fp32_precision="ieee"` API family. Same canonical weights are scored on CPU and CUDA with
+`fp32_precision="ieee"` API family. CUDA runtime provenance records
+`torch.backends.cudnn.version()` and the NVIDIA driver version from a bounded read-only
+`nvidia-smi --query-gpu=driver_version` query. Same canonical weights are scored on CPU and CUDA with
 `atol=1e-6`, `rtol=1e-5` probability parity.
 
 Chain B compares the MLP directly with `full_minus_presence` logistic under the unchanged four-part
@@ -46,7 +48,10 @@ The artifact is a strict state dictionary at
 carry `weights_sha256`, a serialization-independent parameter digest, and a canonical preprocessing
 digest over the final scaler, vocabulary, encoded schema and selected columns. Strict reload requires
 that committed preprocessing identity; ignored metadata cannot authenticate itself. The frozen
-ledger keeps `model_pickle_sha256=n/a`; a `.pt` hash must never be placed under that legacy name.
+ledger keeps the inherited shared vocabulary (`date_utc` as a full UTC timestamp,
+`dataset_id=wp2_3_split_lock`, `split_strategy=wp2_3_tournament_split`, and
+`primary_metric=mean_log_loss`) and `model_pickle_sha256=n/a`; a `.pt` hash must never be placed
+under that legacy name. The MLP identity remains in the model-specific `model` field.
 
 The canonical CPU measurement first writes only to ignored artifact staging, leaving the tracked
 experiment directory and ledger clean. Two fresh no-write CPU reproductions and two fresh CUDA

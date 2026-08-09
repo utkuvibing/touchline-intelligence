@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -49,6 +50,7 @@ from touchline.modeling.mlp import (
 from touchline.modeling.mlp_artifact import infer_mlp, load_mlp_artifact, save_mlp_artifact
 from touchline.modeling.mlp_protocol import (
     MLP_KEY,
+    SHIPPED_FEATURE_COLUMNS,
     MlpOofResult,
     PreparedFolds,
     assert_metrics_reproduce_to_12_decimals,
@@ -99,6 +101,11 @@ class MlpRunConfig:
     input_config_sha256: str = ""
     uv_lock_sha256: str = ""
     runtime_fingerprint: Mapping[str, object] | None = None
+    dataset_id: str = "wp2_3_split_lock"
+    split_strategy: str = "wp2_3_tournament_split"
+    target: str = "ShotRow.y"
+    feature_set: str = "geometry+categoricals"
+    feature_columns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -172,8 +179,52 @@ def _expected_training() -> dict[str, object]:
     }
 
 
+def _expected_scientific_contract() -> dict[str, object]:
+    """Return the inherited WP2.3/WP2.4 scientific constants that config must pin."""
+    return {
+        "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+        "bin_count": 5,
+        "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+        "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+        "dataset_id": "wp2_3_split_lock",
+        "development_matches": 115,
+        "development_shots": 2872,
+        "development_tournaments": ["WC 2018", "Euro 2020"],
+        "feature_columns": list(SHIPPED_FEATURE_COLUMNS),
+        "feature_set": "geometry+categoricals",
+        "fold_sizes": {"0": 570, "1": 552, "2": 602, "3": 576, "4": 572},
+        "holdout_tournament": "Euro 2024",
+        "n_folds": 5,
+        "reliability_bin_count": 5,
+        "split_strategy": "wp2_3_tournament_split",
+        "target": "ShotRow.y",
+        "calibration_tournament": "WC 2022",
+    }
+
+
+def _expected_immutable_run_contract() -> dict[str, object]:
+    """Return non-model run identifiers that an accepted config may not redefine."""
+    return {
+        "artifacts_dir": "artifacts/models/exp-20260809-wp2_6-pytorch-mlp",
+        "code_commit": "derived-from-clean-git-head",
+        "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL",
+        "experiment_id": "exp-20260809-wp2_6-pytorch-mlp",
+        "out_dir": "experiments/shot_quality/exp-20260809-wp2_6-pytorch-mlp",
+        "published_wp2_5_metrics": (
+            "experiments/shot_quality/exp-20260806-wp2_5-gradient-boosting/metrics.json"
+        ),
+        "require_clean_provenance": True,
+        "results_csv": "experiments/results.csv",
+    }
+
+
 def load_config(path: Path) -> MlpRunConfig:
     payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+    for key, expected in _expected_immutable_run_contract().items():
+        if payload.get(key) != expected:
+            raise MlpConfigError(
+                f"immutable run identifier {key} differs from the accepted contract"
+            )
     if payload.get("architecture") != _expected_architecture():
         raise MlpConfigError("architecture differs from ADR 0012")
     if payload.get("training") != _expected_training():
@@ -182,6 +233,32 @@ def load_config(path: Path) -> MlpRunConfig:
         raise MlpConfigError("WP2.6 requires seed 0 and five saved outer folds")
     if payload.get("model_family") != "pytorch-mlp":
         raise MlpConfigError("model_family must be pytorch-mlp")
+    expected_scientific = _expected_scientific_contract()
+    if payload.get("scientific_contract") != expected_scientific:
+        raise MlpConfigError("scientific constants differ from the inherited WP2.3/WP2.4 contract")
+    expected_fold_sizes = cast(dict[str, int], expected_scientific["fold_sizes"])
+    if payload.get("expected_fold_sizes") != expected_fold_sizes:
+        raise MlpConfigError("expected fold sizes differ from the inherited WP2.3 split")
+    for key in (
+        "assignments_sha256",
+        "cohort_sql_sha256",
+        "data_source_commit",
+        "dataset_id",
+        "split_strategy",
+    ):
+        if payload.get(key) != expected_scientific[key]:
+            raise MlpConfigError(f"scientific identifier {key} differs from the inherited contract")
+    if payload.get("expected_shots") != expected_scientific["development_shots"]:
+        raise MlpConfigError(
+            "expected shot count differs from the inherited development population"
+        )
+    if payload.get("expected_matches") != expected_scientific["development_matches"]:
+        raise MlpConfigError(
+            "expected match count differs from the inherited development population"
+        )
+    if payload.get("bin_count") != expected_scientific["bin_count"]:
+        raise MlpConfigError("reliability bin count differs from the inherited protocol")
+    scientific_contract = cast(dict[str, object], payload["scientific_contract"])
     fold_sizes = {int(key): int(value) for key, value in payload["expected_fold_sizes"].items()}
     return MlpRunConfig(
         experiment_id=str(payload["experiment_id"]),
@@ -203,7 +280,39 @@ def load_config(path: Path) -> MlpRunConfig:
         input_config_path=str(path),
         require_clean_provenance=bool(payload["require_clean_provenance"]),
         model_family=str(payload["model_family"]),
+        dataset_id=str(payload["dataset_id"]),
+        split_strategy=str(payload["split_strategy"]),
+        target=str(scientific_contract["target"]),
+        feature_set=str(scientific_contract["feature_set"]),
+        feature_columns=tuple(cast(list[str], scientific_contract["feature_columns"])),
     )
+
+
+def read_nvidia_driver_version() -> str:
+    """Read the installed NVIDIA driver through a bounded, read-only nvidia-smi query."""
+    try:
+        completed = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=driver_version",
+                "--format=csv,noheader,nounits",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(f"cannot read NVIDIA driver version with nvidia-smi: {exc}") from exc
+    versions = {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+    if len(versions) != 1:
+        raise RuntimeError(
+            "nvidia-smi returned no single consistent NVIDIA driver version for the CUDA run"
+        )
+    version = versions.pop()
+    if re.fullmatch(r"\d+(?:\.\d+)+", version) is None:
+        raise RuntimeError(f"nvidia-smi returned an invalid NVIDIA driver version: {version!r}")
+    return version
 
 
 def _runtime_fingerprint(provenance: Provenance, device: torch.device) -> dict[str, object]:
@@ -232,6 +341,8 @@ def _runtime_fingerprint(provenance: Provenance, device: torch.device) -> dict[s
                 "cuda_device_name": torch.cuda.get_device_name(0),
                 "cuda_compute_capability": list(torch.cuda.get_device_capability(0)),
                 "cuda_device_count": torch.cuda.device_count(),
+                "cudnn_version": torch.backends.cudnn.version(),  # type: ignore[no-untyped-call]
+                "nvidia_driver_version": read_nvidia_driver_version(),
             }
         )
     return runtime
@@ -345,6 +456,11 @@ def _base_metrics(
         "input_config_path": config.input_config_path,
         "input_config_sha256": config.input_config_sha256,
         "uv_lock_sha256": config.uv_lock_sha256,
+        "dataset_id": config.dataset_id,
+        "split_strategy": config.split_strategy,
+        "target": config.target,
+        "feature_set": config.feature_set,
+        "feature_columns": list(config.feature_columns or result.prepared.selected_columns),
         "cohort_sql_sha256": config.cohort_sql_sha256,
         "assignments_sha256": config.assignments_sha256,
         "runtime_fingerprint": config.runtime_fingerprint,
@@ -545,19 +661,19 @@ def publish_qualified_experiment(
         str(config["results_csv"]),
         {
             "experiment_id": metrics["experiment_id"],
-            "date_utc": datetime.now(UTC).date().isoformat(),
+            "date_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "code_commit": metrics["code_commit"],
             "reproduction_commit": metrics["reproduction_commit"],
             "data_source_commit": metrics["data_source_commit"],
-            "dataset_id": "wp2_3-development",
+            "dataset_id": config["dataset_id"],
             "query_hash": metrics["cohort_sql_sha256"],
             "input_config_sha256": metrics["input_config_sha256"],
             "uv_lock_sha256": metrics["uv_lock_sha256"],
             "shipped_feature_set": "geometry+categoricals",
-            "split_strategy": "saved-match-grouped-5-fold",
+            "split_strategy": config["split_strategy"],
             "model": "pytorch-mlp-16-8-1",
             "seed": SEED,
-            "primary_metric": "mean_fold_log_loss",
+            "primary_metric": "mean_log_loss",
             "primary_value": candidate["mean_log_loss"],
             "brier": pooled["brier"],
             "log_loss": pooled["log_loss"],
