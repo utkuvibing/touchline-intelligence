@@ -48,9 +48,10 @@ def test_device_resolution_never_silently_falls_back(monkeypatch: pytest.MonkeyP
         resolve_device("auto")
 
 
-def test_proposed_adr_blocks_before_any_training_or_data_access() -> None:
-    with pytest.raises(PreRegistrationError, match="not accepted"):
-        check_pre_registration(ROOT / "docs/adr/0012-wp2-6-bounded-pytorch-mlp-lifecycle.md")
+def test_accepted_adr_exposes_the_author_signoff_date() -> None:
+    assert check_pre_registration(
+        ROOT / "docs/adr/0012-wp2-6-bounded-pytorch-mlp-lifecycle.md"
+    ) == "2026-08-09"
 
 
 def test_committed_config_is_the_exact_pre_registered_contract(tmp_path: Path) -> None:
