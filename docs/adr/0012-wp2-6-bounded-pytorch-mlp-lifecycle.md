@@ -1,6 +1,6 @@
 # ADR 0012: Bounded PyTorch MLP lifecycle
 
-- Status: **proposed — author acceptance required before cohort execution**
+- Status: **accepted — 2026-08-09**
 - Date: 2026-08-09
 - Owners: WP2.6
 
