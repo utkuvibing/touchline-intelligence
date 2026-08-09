@@ -1820,6 +1820,45 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP2.5 retention tag must resolve to the recorded reproduction commit",
+        path=ROOT / "backend/tests/test_wp2_5_artifact_integrity.py",
+        anchor="    assert tag_commit == reproduction_commit\n",
+        replacement='    assert tag_commit == "0" * 40  # DELIBERATE BREAK\n',
+        command=WP25_ARTIFACT_INTEGRITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 missing retention tag must fail in a Git checkout",
+        path=ROOT / "backend/tests/test_wp2_5_artifact_integrity.py",
+        anchor=(
+            "    if tag_type.returncode != 0:\n"
+            '        detail = tag_type.stderr.decode("utf-8", errors="replace").strip()\n'
+            "        raise HistoricalGitObjectError(\n"
+            '            f"cannot resolve WP2.5 reproduction retention tag {tag!r}; fetch the '
+            'retention tag "\n'
+            '            f"and retry. Git said: {detail}"\n'
+            "        )\n"
+        ),
+        replacement=(
+            "    if tag_type.returncode != 0:\n"
+            '        pytest.skip("DELIBERATE BREAK: missing retention tag skipped")\n'
+        ),
+        command=WP25_ARTIFACT_INTEGRITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.5 retention tag must be annotated, not lightweight",
+        path=ROOT / "backend/tests/test_wp2_5_artifact_integrity.py",
+        anchor=(
+            '    if tag_type.stdout.strip() != b"tag":\n'
+            '        raise HistoricalGitObjectError(f"WP2.5 reproduction retention tag {tag!r} '
+            'is not annotated")\n'
+        ),
+        replacement=("    if False:  # DELIBERATE BREAK: lightweight tag accepted\n        pass\n"),
+        command=WP25_ARTIFACT_INTEGRITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.5 OpenMP must be pinned to one thread at process start (D20)",
         path=ROOT / "backend/src/touchline/boosting_bootstrap.py",
         anchor="    os.environ[OMP_ENV_VAR] = OMP_THREAD_PIN\n",

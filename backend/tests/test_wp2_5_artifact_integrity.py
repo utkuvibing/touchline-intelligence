@@ -31,6 +31,7 @@ RUN_CONFIG = ROOT / "experiments" / "run-configs" / "wp2_5-gradient-boosting.jso
 ASSIGNMENTS = ROOT / "data" / "model" / "wp2_3_match_assignments.csv"
 COHORT_SQL = ROOT / "backend" / "sql" / "wp2_1" / "01_model_shot_cohort.sql"
 REPORT = ROOT / "reports" / "wp2.5-gradient-boosting-evidence.md"
+WP25_REPRODUCTION_TAG = "wp2-5-reproduction-eef18ef"
 
 #: Only the JSON records are line-ending pinned. ``.gitattributes`` deliberately pins ``*.csv``,
 #: ``*.sql`` and ``*.json`` and nothing else, because those are the files whose SHA-256 digests are
@@ -54,6 +55,49 @@ def _historical_uv_lock_sha256(root: Path, reproduction_commit: str) -> str:
         return historical_git_blob_sha256(root, reproduction_commit, "uv.lock")
     except GitRepositoryUnavailableError:
         pytest.skip(HISTORICAL_GIT_SKIP_REASON)
+
+
+def _retention_tag_commit(root: Path, tag: str) -> str:
+    """Resolve the immutable WP2.5 retention tag, distinguishing Git absence from tag loss."""
+    command = ["git", "-C", str(root)]
+    try:
+        probe = subprocess.run(
+            [*command, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        pytest.skip(HISTORICAL_GIT_SKIP_REASON)
+    if probe.returncode != 0 or probe.stdout.strip() != b"true":
+        pytest.skip(HISTORICAL_GIT_SKIP_REASON)
+
+    tag_ref = f"refs/tags/{tag}"
+    tag_type = subprocess.run(
+        [*command, "cat-file", "-t", tag_ref],
+        capture_output=True,
+        check=False,
+    )
+    if tag_type.returncode != 0:
+        detail = tag_type.stderr.decode("utf-8", errors="replace").strip()
+        raise HistoricalGitObjectError(
+            f"cannot resolve WP2.5 reproduction retention tag {tag!r}; fetch the retention tag "
+            f"and retry. Git said: {detail}"
+        )
+    if tag_type.stdout.strip() != b"tag":
+        raise HistoricalGitObjectError(f"WP2.5 reproduction retention tag {tag!r} is not annotated")
+
+    result = subprocess.run(
+        [*command, "rev-parse", "--verify", f"{tag_ref}^{{commit}}"],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise HistoricalGitObjectError(
+            f"cannot resolve WP2.5 reproduction retention tag {tag!r}; fetch the retention tag "
+            f"and retry. Git said: {detail}"
+        )
+    return result.stdout.decode("ascii").strip()
 
 
 def test_every_hashed_record_is_canonical_lf() -> None:
@@ -101,6 +145,17 @@ def test_the_run_consumed_the_pinned_inputs_that_are_on_disk() -> None:
     )
 
 
+def test_wp2_5_retention_tag_resolves_the_recorded_commit_and_lock() -> None:
+    """The retained tag must preserve the exact historical commit and lock bytes."""
+    metrics = json.loads((EXP / "metrics.json").read_text(encoding="utf-8"))
+    reproduction_commit = str(metrics["reproduction_commit"])
+    tag_commit = _retention_tag_commit(ROOT, WP25_REPRODUCTION_TAG)
+
+    assert tag_commit == reproduction_commit
+    historical_lock = historical_git_blob_bytes(ROOT, reproduction_commit, "uv.lock")
+    assert hashlib.sha256(historical_lock).hexdigest() == metrics["uv_lock_sha256"]
+
+
 def _git(repo: Path, *args: str) -> bytes:
     result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True)
     return result.stdout
@@ -144,6 +199,35 @@ def test_git_checkout_with_missing_historical_object_fails(tmp_path: Path) -> No
     _git(repo, "init", "-q")
     with pytest.raises(HistoricalGitObjectError, match="fetch the recorded reproduction commit"):
         historical_git_blob_sha256(repo, "a" * 40, "uv.lock")
+
+
+def test_git_checkout_with_missing_retention_tag_fails(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    try:
+        _retention_tag_commit(repo, WP25_REPRODUCTION_TAG)
+    except HistoricalGitObjectError as exc:
+        assert "retention tag" in str(exc)
+    except pytest.skip.Exception as exc:
+        pytest.fail(f"a Git checkout must not skip a missing retention tag: {exc}")
+    else:
+        pytest.fail("a Git checkout must fail when the retention tag is missing")
+
+
+def test_lightweight_retention_tag_fails(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.name", "WP2.5 integrity test")
+    _git(repo, "config", "user.email", "wp25-integrity@example.invalid")
+    (repo / "uv.lock").write_bytes(b"historical lock\n")
+    _git(repo, "add", "uv.lock")
+    _git(repo, "commit", "-qm", "historical lock")
+    _git(repo, "tag", WP25_REPRODUCTION_TAG)
+
+    with pytest.raises(HistoricalGitObjectError, match="not annotated"):
+        _retention_tag_commit(repo, WP25_REPRODUCTION_TAG)
 
 
 def test_the_model_digest_is_stated_identically_everywhere_it_appears() -> None:

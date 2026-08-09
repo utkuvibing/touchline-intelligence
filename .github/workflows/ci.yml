@@ -52,6 +52,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The WP2.5 record names a reproduction commit that is no longer reachable from a branch
+      # after the WP2.5 branch was merged and deleted. Retain that exact historical object without
+      # weakening the test to the mutable working-tree uv.lock.
+      - name: Fetch the WP2.5 reproduction retention tag
+        run: >-
+          git fetch --no-tags origin
+          refs/tags/wp2-5-reproduction-eef18ef:refs/tags/wp2-5-reproduction-eef18ef
+
       - name: Install uv
         # Pinned exactly: setup-uv publishes no floating `v9` major tag, only `v9.0.0`.
         uses: astral-sh/setup-uv@v9.0.0
