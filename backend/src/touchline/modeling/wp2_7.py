@@ -289,9 +289,7 @@ def _committed_source_hashes(code_commit: str) -> dict[str, str]:
     committed LF blobs. The tracked-tree cleanliness check remains the separate guard against
     modified tracked files.
     """
-    return {
-        path: historical_git_blob_sha256(ROOT, code_commit, path) for path in WP27_SOURCE_PATHS
-    }
+    return {path: historical_git_blob_sha256(ROOT, code_commit, path) for path in WP27_SOURCE_PATHS}
 
 
 def _resolve_execution_provenance(config: PhaseConfig) -> dict[str, object]:

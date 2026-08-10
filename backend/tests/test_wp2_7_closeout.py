@@ -53,9 +53,12 @@ def test_completed_audit_matches_immutable_aggregate_contract() -> None:
     assert metrics["decision_sha256"] == EXPECTED_DECISION_SHA256
     assert record["decision_sha256"] == EXPECTED_DECISION_SHA256
     assert audit["holdout_open_count"] == 1
-    assert {
-        key: audit[key] for key in ("n_rows", "n_matches", "n_goals", "n_misses")
-    } == {"n_rows": 1304, "n_matches": 51, "n_goals": 98, "n_misses": 1206}
+    assert {key: audit[key] for key in ("n_rows", "n_matches", "n_goals", "n_misses")} == {
+        "n_rows": 1304,
+        "n_matches": 51,
+        "n_goals": 98,
+        "n_misses": 1206,
+    }
     assert audit["stages"] == EXPECTED_STAGES
     assert record["aggregate_counts"] == {
         "rows": 1304,
@@ -97,9 +100,7 @@ def test_legacy_raw_anchor_field_is_calibration_context_not_holdout_rows() -> No
 
 
 def test_closeout_reports_use_only_recorded_aggregate_values() -> None:
-    report = (ROOT / "reports/wp2.7-calibration-holdout-closeout.md").read_text(
-        encoding="utf-8"
-    )
+    report = (ROOT / "reports/wp2.7-calibration-holdout-closeout.md").read_text(encoding="utf-8")
     model_card = (ROOT / "reports/wp2.7-model-card-closeout.md").read_text(encoding="utf-8")
     clarification = (ROOT / "reports/wp2.7-holdout-schema-clarification.md").read_text(
         encoding="utf-8"
