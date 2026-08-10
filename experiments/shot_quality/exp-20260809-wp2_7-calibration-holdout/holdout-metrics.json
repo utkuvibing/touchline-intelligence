@@ -1,0 +1,2492 @@
+{
+  "adopted_variant": "calibrated",
+  "bootstrap": {
+    "calibrated": {
+      "brier": {
+        "lower": 0.055641037736,
+        "upper": 0.075907318637
+      },
+      "log_loss": {
+        "lower": 0.210598611086,
+        "upper": 0.273303673707
+      }
+    },
+    "confidence_level": 0.95,
+    "effect_calibrated_minus_raw": {
+      "brier": {
+        "lower": -1.3107008e-05,
+        "upper": 0.002806020149
+      },
+      "log_loss": {
+        "lower": 9.5442006e-05,
+        "upper": 0.007815706219
+      }
+    },
+    "raw": {
+      "brier": {
+        "lower": 0.053985347273,
+        "upper": 0.074766555611
+      },
+      "log_loss": {
+        "lower": 0.207095650265,
+        "upper": 0.269139852355
+      }
+    },
+    "repetitions": 2000,
+    "seed": 0
+  },
+  "candidate": "full_minus_presence",
+  "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+  "holdout_raw_vs_calibrated_effect": {
+    "brier": 0.00132258148,
+    "log_loss": 0.003805297954
+  },
+  "n_matches": 51,
+  "n_rows": 1304,
+  "observed_prevalence": 0.075153374233,
+  "raw_anchor_reliability": [
+    {
+      "bin": 0,
+      "calibrated_mean_prediction": 0.079534842323,
+      "count": 1324,
+      "lower": 0.0,
+      "observed_rate": 0.083836858006,
+      "positive_count": 111,
+      "raw_mean_prediction": 0.071589088612,
+      "upper": 0.2
+    },
+    {
+      "bin": 1,
+      "calibrated_mean_prediction": 0.370930124495,
+      "count": 84,
+      "lower": 0.2,
+      "observed_rate": 0.321428571429,
+      "positive_count": 27,
+      "raw_mean_prediction": 0.270736307927,
+      "upper": 0.4
+    },
+    {
+      "bin": 2,
+      "calibrated_mean_prediction": 0.668867930318,
+      "count": 18,
+      "lower": 0.4,
+      "observed_rate": 0.666666666667,
+      "positive_count": 12,
+      "raw_mean_prediction": 0.498686291939,
+      "upper": 0.6
+    },
+    {
+      "bin": 3,
+      "calibrated_mean_prediction": 0.848094234053,
+      "count": 3,
+      "lower": 0.6,
+      "observed_rate": 0.333333333333,
+      "positive_count": 1,
+      "raw_mean_prediction": 0.688653174074,
+      "upper": 0.8
+    },
+    {
+      "bin": 4,
+      "calibrated_mean_prediction": 0.953832859006,
+      "count": 1,
+      "lower": 0.8,
+      "observed_rate": 1.0,
+      "positive_count": 1,
+      "raw_mean_prediction": 0.862365274995,
+      "upper": 1.0
+    }
+  ],
+  "schema_version": 1,
+  "slices": {
+    "body_part_name": [
+      {
+        "calibrated": {
+          "brier": 0.072805577636,
+          "log_loss": 0.267208755632,
+          "n": 228,
+          "positive_count": 18,
+          "pr_auc": 0.234700891332,
+          "prevalence": 0.078947368421,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 181,
+              "lower": 0.0,
+              "mean_prediction": 0.100845426598,
+              "observed_rate": 0.049723756906,
+              "positive_count": 9,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 42,
+              "lower": 0.2,
+              "mean_prediction": 0.268233378436,
+              "observed_rate": 0.166666666667,
+              "positive_count": 7,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 4,
+              "lower": 0.4,
+              "mean_prediction": 0.511970376348,
+              "observed_rate": 0.5,
+              "positive_count": 2,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.782010582011
+        },
+        "level": "Head",
+        "n": 228,
+        "n_matches": 50,
+        "negative_count": 210,
+        "positive_count": 18,
+        "raw": {
+          "brier": 0.069806838448,
+          "log_loss": 0.25612655191,
+          "n": 228,
+          "positive_count": 18,
+          "pr_auc": 0.234700891332,
+          "prevalence": 0.078947368421,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 199,
+              "lower": 0.0,
+              "mean_prediction": 0.096094037233,
+              "observed_rate": 0.050251256281,
+              "positive_count": 10,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 27,
+              "lower": 0.2,
+              "mean_prediction": 0.239319966249,
+              "observed_rate": 0.296296296296,
+              "positive_count": 8,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.400348684138,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 1,
+              "lower": 0.6,
+              "mean_prediction": 0.770621896205,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.782010582011
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.057596505144,
+          "log_loss": 0.222334831604,
+          "n": 393,
+          "positive_count": 27,
+          "pr_auc": 0.334849028835,
+          "prevalence": 0.068702290076,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 350,
+              "lower": 0.0,
+              "mean_prediction": 0.070928510604,
+              "observed_rate": 0.045714285714,
+              "positive_count": 16,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 31,
+              "lower": 0.2,
+              "mean_prediction": 0.271388643397,
+              "observed_rate": 0.161290322581,
+              "positive_count": 5,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 10,
+              "lower": 0.4,
+              "mean_prediction": 0.474271390647,
+              "observed_rate": 0.4,
+              "positive_count": 4,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.664346997354,
+              "observed_rate": 1.0,
+              "positive_count": 2,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.751062537948
+        },
+        "level": "Left Foot",
+        "n": 393,
+        "n_matches": 51,
+        "negative_count": 366,
+        "positive_count": 27,
+        "raw": {
+          "brier": 0.056908614851,
+          "log_loss": 0.219171534478,
+          "n": 393,
+          "positive_count": 27,
+          "pr_auc": 0.334849028835,
+          "prevalence": 0.068702290076,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 366,
+              "lower": 0.0,
+              "mean_prediction": 0.070501251912,
+              "observed_rate": 0.054644808743,
+              "positive_count": 20,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 24,
+              "lower": 0.2,
+              "mean_prediction": 0.269805378492,
+              "observed_rate": 0.166666666667,
+              "positive_count": 4,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 3,
+              "lower": 0.4,
+              "mean_prediction": 0.473254854636,
+              "observed_rate": 1.0,
+              "positive_count": 3,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.751062537948
+        },
+        "status": "supported"
+      },
+      {
+        "level": "Other",
+        "n": 7,
+        "n_matches": 7,
+        "negative_count": 6,
+        "positive_count": 1,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.068234674317,
+          "log_loss": 0.245725351298,
+          "n": 676,
+          "positive_count": 52,
+          "pr_auc": 0.198886825623,
+          "prevalence": 0.076923076923,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 617,
+              "lower": 0.0,
+              "mean_prediction": 0.059466179108,
+              "observed_rate": 0.061588330632,
+              "positive_count": 38,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 48,
+              "lower": 0.2,
+              "mean_prediction": 0.26689376067,
+              "observed_rate": 0.25,
+              "positive_count": 12,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 9,
+              "lower": 0.4,
+              "mean_prediction": 0.502140065872,
+              "observed_rate": 0.111111111111,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.782779511757,
+              "observed_rate": 0.5,
+              "positive_count": 1,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.750246548323
+        },
+        "level": "Right Foot",
+        "n": 676,
+        "n_matches": 51,
+        "negative_count": 624,
+        "positive_count": 52,
+        "raw": {
+          "brier": 0.067196031994,
+          "log_loss": 0.24431908123,
+          "n": 676,
+          "positive_count": 52,
+          "pr_auc": 0.198886825623,
+          "prevalence": 0.076923076923,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 643,
+              "lower": 0.0,
+              "mean_prediction": 0.061459765939,
+              "observed_rate": 0.068429237947,
+              "positive_count": 44,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 30,
+              "lower": 0.2,
+              "mean_prediction": 0.262145694047,
+              "observed_rate": 0.233333333333,
+              "positive_count": 7,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 2,
+              "lower": 0.4,
+              "mean_prediction": 0.507156453967,
+              "observed_rate": 0.5,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 1,
+              "lower": 0.6,
+              "mean_prediction": 0.62620670316,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.750246548323
+        },
+        "status": "supported"
+      }
+    ],
+    "distance_statsbomb_coordinate_units": [
+      {
+        "calibrated": {
+          "brier": 0.144871321487,
+          "log_loss": 0.459318524537,
+          "n": 219,
+          "positive_count": 39,
+          "pr_auc": 0.333402528598,
+          "prevalence": 0.178082191781,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 100,
+              "lower": 0.0,
+              "mean_prediction": 0.132096395809,
+              "observed_rate": 0.1,
+              "positive_count": 10,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 89,
+              "lower": 0.2,
+              "mean_prediction": 0.280778809822,
+              "observed_rate": 0.202247191011,
+              "positive_count": 18,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 25,
+              "lower": 0.4,
+              "mean_prediction": 0.493646033883,
+              "observed_rate": 0.32,
+              "positive_count": 8,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 4,
+              "lower": 0.6,
+              "mean_prediction": 0.723563254555,
+              "observed_rate": 0.75,
+              "positive_count": 3,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.675213675214
+        },
+        "level": "[0,10)",
+        "n": 219,
+        "n_matches": 51,
+        "negative_count": 180,
+        "positive_count": 39,
+        "raw": {
+          "brier": 0.138202200341,
+          "log_loss": 0.441153214503,
+          "n": 219,
+          "positive_count": 39,
+          "pr_auc": 0.333402528598,
+          "prevalence": 0.178082191781,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 132,
+              "lower": 0.0,
+              "mean_prediction": 0.127350474239,
+              "observed_rate": 0.113636363636,
+              "positive_count": 15,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 79,
+              "lower": 0.2,
+              "mean_prediction": 0.261292821525,
+              "observed_rate": 0.253164556962,
+              "positive_count": 20,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 6,
+              "lower": 0.4,
+              "mean_prediction": 0.47240435933,
+              "observed_rate": 0.666666666667,
+              "positive_count": 4,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.698414299683,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.675213675214
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.071594499955,
+          "log_loss": 0.267027059627,
+          "n": 517,
+          "positive_count": 41,
+          "pr_auc": 0.153295222132,
+          "prevalence": 0.079303675048,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 483,
+              "lower": 0.0,
+              "mean_prediction": 0.097793561013,
+              "observed_rate": 0.072463768116,
+              "positive_count": 35,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 34,
+              "lower": 0.2,
+              "mean_prediction": 0.237390740106,
+              "observed_rate": 0.176470588235,
+              "positive_count": 6,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.690715310514
+        },
+        "level": "[10,20)",
+        "n": 517,
+        "n_matches": 51,
+        "negative_count": 476,
+        "positive_count": 41,
+        "raw": {
+          "brier": 0.071083728848,
+          "log_loss": 0.264974141255,
+          "n": 517,
+          "positive_count": 41,
+          "pr_auc": 0.153295222132,
+          "prevalence": 0.079303675048,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 511,
+              "lower": 0.0,
+              "mean_prediction": 0.091336090492,
+              "observed_rate": 0.080234833659,
+              "positive_count": 41,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 6,
+              "lower": 0.2,
+              "mean_prediction": 0.221458159157,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.690715310514
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.037275670952,
+          "log_loss": 0.165002320727,
+          "n": 439,
+          "positive_count": 17,
+          "pr_auc": 0.054412737729,
+          "prevalence": 0.038724373576,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 439,
+              "lower": 0.0,
+              "mean_prediction": 0.040539155259,
+              "observed_rate": 0.038724373576,
+              "positive_count": 17,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 0,
+              "lower": 0.2,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.558544744912
+        },
+        "level": "[20,30)",
+        "n": 439,
+        "n_matches": 51,
+        "negative_count": 422,
+        "positive_count": 17,
+        "raw": {
+          "brier": 0.037248444461,
+          "log_loss": 0.164374829915,
+          "n": 439,
+          "positive_count": 17,
+          "pr_auc": 0.054412737729,
+          "prevalence": 0.038724373576,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 439,
+              "lower": 0.0,
+              "mean_prediction": 0.042768794431,
+              "observed_rate": 0.038724373576,
+              "positive_count": 17,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 0,
+              "lower": 0.2,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.558544744912
+        },
+        "status": "supported"
+      },
+      {
+        "level": "[30,+inf)",
+        "n": 129,
+        "n_matches": 48,
+        "negative_count": 128,
+        "positive_count": 1,
+        "status": "sparse"
+      }
+    ],
+    "play_pattern_name": [
+      {
+        "calibrated": {
+          "brier": 0.050100816972,
+          "log_loss": 0.201811984396,
+          "n": 224,
+          "positive_count": 15,
+          "pr_auc": 0.461028619098,
+          "prevalence": 0.066964285714,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 209,
+              "lower": 0.0,
+              "mean_prediction": 0.062219106426,
+              "observed_rate": 0.043062200957,
+              "positive_count": 9,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 10,
+              "lower": 0.2,
+              "mean_prediction": 0.306121021972,
+              "observed_rate": 0.2,
+              "positive_count": 2,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 3,
+              "lower": 0.4,
+              "mean_prediction": 0.474653832659,
+              "observed_rate": 0.666666666667,
+              "positive_count": 2,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.664346997354,
+              "observed_rate": 1.0,
+              "positive_count": 2,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.7668261563
+        },
+        "level": "From Corner",
+        "n": 224,
+        "n_matches": 51,
+        "negative_count": 209,
+        "positive_count": 15,
+        "raw": {
+          "brier": 0.051608002156,
+          "log_loss": 0.202766221827,
+          "n": 224,
+          "positive_count": 15,
+          "pr_auc": 0.461028619098,
+          "prevalence": 0.066964285714,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 212,
+              "lower": 0.0,
+              "mean_prediction": 0.06002166591,
+              "observed_rate": 0.042452830189,
+              "positive_count": 9,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 10,
+              "lower": 0.2,
+              "mean_prediction": 0.277534512108,
+              "observed_rate": 0.4,
+              "positive_count": 4,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 2,
+              "lower": 0.4,
+              "mean_prediction": 0.492575769849,
+              "observed_rate": 1.0,
+              "positive_count": 2,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.7668261563
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.092043407027,
+          "log_loss": 0.314682436141,
+          "n": 56,
+          "positive_count": 7,
+          "pr_auc": 0.57202982203,
+          "prevalence": 0.125,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 54,
+              "lower": 0.0,
+              "mean_prediction": 0.114610375871,
+              "observed_rate": 0.111111111111,
+              "positive_count": 6,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 1,
+              "lower": 0.2,
+              "mean_prediction": 0.278637196788,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.596841985098,
+              "observed_rate": 1.0,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.865889212828
+        },
+        "level": "From Counter",
+        "n": 56,
+        "n_matches": 34,
+        "negative_count": 49,
+        "positive_count": 7,
+        "raw": {
+          "brier": 0.096311599308,
+          "log_loss": 0.325509859586,
+          "n": 56,
+          "positive_count": 7,
+          "pr_auc": 0.57202982203,
+          "prevalence": 0.125,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 54,
+              "lower": 0.0,
+              "mean_prediction": 0.098511190643,
+              "observed_rate": 0.111111111111,
+              "positive_count": 6,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 1,
+              "lower": 0.2,
+              "mean_prediction": 0.208745743319,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.434613024209,
+              "observed_rate": 1.0,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.865889212828
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.055140394126,
+          "log_loss": 0.203316714145,
+          "n": 243,
+          "positive_count": 14,
+          "pr_auc": 0.238278912874,
+          "prevalence": 0.057613168724,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 203,
+              "lower": 0.0,
+              "mean_prediction": 0.065880290387,
+              "observed_rate": 0.024630541872,
+              "positive_count": 5,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 32,
+              "lower": 0.2,
+              "mean_prediction": 0.260893706885,
+              "observed_rate": 0.21875,
+              "positive_count": 7,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 5,
+              "lower": 0.4,
+              "mean_prediction": 0.496930688878,
+              "observed_rate": 0.2,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.782779511757,
+              "observed_rate": 0.5,
+              "positive_count": 1,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.844042420462
+        },
+        "level": "From Free Kick",
+        "n": 243,
+        "n_matches": 51,
+        "negative_count": 229,
+        "positive_count": 14,
+        "raw": {
+          "brier": 0.051626972706,
+          "log_loss": 0.193517583452,
+          "n": 243,
+          "positive_count": 14,
+          "pr_auc": 0.238278912874,
+          "prevalence": 0.057613168724,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 217,
+              "lower": 0.0,
+              "mean_prediction": 0.068526881082,
+              "observed_rate": 0.032258064516,
+              "positive_count": 7,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 22,
+              "lower": 0.2,
+              "mean_prediction": 0.241676769905,
+              "observed_rate": 0.272727272727,
+              "positive_count": 6,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 2,
+              "lower": 0.4,
+              "mean_prediction": 0.496815859739,
+              "observed_rate": 0.5,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.698414299683,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.844042420462
+        },
+        "status": "supported"
+      },
+      {
+        "level": "From Goal Kick",
+        "n": 60,
+        "n_matches": 33,
+        "negative_count": 56,
+        "positive_count": 4,
+        "status": "sparse"
+      },
+      {
+        "level": "From Keeper",
+        "n": 38,
+        "n_matches": 23,
+        "negative_count": 33,
+        "positive_count": 5,
+        "status": "sparse"
+      },
+      {
+        "level": "From Kick Off",
+        "n": 19,
+        "n_matches": 15,
+        "negative_count": 19,
+        "positive_count": 0,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.083088520019,
+          "log_loss": 0.279255472793,
+          "n": 231,
+          "positive_count": 24,
+          "pr_auc": 0.3335967728,
+          "prevalence": 0.103896103896,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 202,
+              "lower": 0.0,
+              "mean_prediction": 0.071280181839,
+              "observed_rate": 0.074257425743,
+              "positive_count": 15,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 23,
+              "lower": 0.2,
+              "mean_prediction": 0.260298758748,
+              "observed_rate": 0.304347826087,
+              "positive_count": 7,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 6,
+              "lower": 0.4,
+              "mean_prediction": 0.497315938161,
+              "observed_rate": 0.333333333333,
+              "positive_count": 2,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.813607085346
+        },
+        "level": "From Throw In",
+        "n": 231,
+        "n_matches": 51,
+        "negative_count": 207,
+        "positive_count": 24,
+        "raw": {
+          "brier": 0.084261392753,
+          "log_loss": 0.285120222924,
+          "n": 231,
+          "positive_count": 24,
+          "pr_auc": 0.3335967728,
+          "prevalence": 0.103896103896,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 216,
+              "lower": 0.0,
+              "mean_prediction": 0.073230595675,
+              "observed_rate": 0.083333333333,
+              "positive_count": 18,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 15,
+              "lower": 0.2,
+              "mean_prediction": 0.278478895967,
+              "observed_rate": 0.4,
+              "positive_count": 6,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.813607085346
+        },
+        "status": "supported"
+      },
+      {
+        "level": "Other",
+        "n": 3,
+        "n_matches": 2,
+        "negative_count": 2,
+        "positive_count": 1,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.067754525327,
+          "log_loss": 0.256912157604,
+          "n": 430,
+          "positive_count": 28,
+          "pr_auc": 0.091236745852,
+          "prevalence": 0.06511627907,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 378,
+              "lower": 0.0,
+              "mean_prediction": 0.069932903457,
+              "observed_rate": 0.058201058201,
+              "positive_count": 22,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 44,
+              "lower": 0.2,
+              "mean_prediction": 0.271242407417,
+              "observed_rate": 0.136363636364,
+              "positive_count": 6,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 8,
+              "lower": 0.4,
+              "mean_prediction": 0.486857194166,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.603766879886
+        },
+        "level": "Regular Play",
+        "n": 430,
+        "n_matches": 51,
+        "negative_count": 402,
+        "positive_count": 28,
+        "raw": {
+          "brier": 0.06342214569,
+          "log_loss": 0.245549457728,
+          "n": 430,
+          "positive_count": 28,
+          "pr_auc": 0.091236745852,
+          "prevalence": 0.06511627907,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 399,
+              "lower": 0.0,
+              "mean_prediction": 0.070885729583,
+              "observed_rate": 0.065162907268,
+              "positive_count": 26,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 30,
+              "lower": 0.2,
+              "mean_prediction": 0.253442087807,
+              "observed_rate": 0.066666666667,
+              "positive_count": 2,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.421029872594,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.603766879886
+        },
+        "status": "supported"
+      }
+    ],
+    "shot_type_name": [
+      {
+        "level": "Corner",
+        "n": 4,
+        "n_matches": 4,
+        "negative_count": 4,
+        "positive_count": 0,
+        "status": "sparse"
+      },
+      {
+        "level": "Free Kick",
+        "n": 43,
+        "n_matches": 29,
+        "negative_count": 43,
+        "positive_count": 0,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.068465736497,
+          "log_loss": 0.251241827389,
+          "n": 1257,
+          "positive_count": 98,
+          "pr_auc": 0.224171885288,
+          "prevalence": 0.077963404932,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 1104,
+              "lower": 0.0,
+              "mean_prediction": 0.071653588898,
+              "observed_rate": 0.057065217391,
+              "positive_count": 63,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 123,
+              "lower": 0.2,
+              "mean_prediction": 0.268785359657,
+              "observed_rate": 0.19512195122,
+              "positive_count": 24,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 25,
+              "lower": 0.4,
+              "mean_prediction": 0.493646033883,
+              "observed_rate": 0.32,
+              "positive_count": 8,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 4,
+              "lower": 0.6,
+              "mean_prediction": 0.723563254555,
+              "observed_rate": 0.75,
+              "positive_count": 3,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.73619059358
+        },
+        "level": "Open Play",
+        "n": 1257,
+        "n_matches": 51,
+        "negative_count": 1159,
+        "positive_count": 98,
+        "raw": {
+          "brier": 0.067087912475,
+          "log_loss": 0.247155237956,
+          "n": 1257,
+          "positive_count": 98,
+          "pr_auc": 0.224171885288,
+          "prevalence": 0.077963404932,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 1164,
+              "lower": 0.0,
+              "mean_prediction": 0.071742450724,
+              "observed_rate": 0.063573883162,
+              "positive_count": 74,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 85,
+              "lower": 0.2,
+              "mean_prediction": 0.258480963005,
+              "observed_rate": 0.235294117647,
+              "positive_count": 20,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 6,
+              "lower": 0.4,
+              "mean_prediction": 0.47240435933,
+              "observed_rate": 0.666666666667,
+              "positive_count": 4,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.698414299683,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.73619059358
+        },
+        "status": "supported"
+      }
+    ],
+    "technique_name": [
+      {
+        "level": "Backheel",
+        "n": 3,
+        "n_matches": 3,
+        "negative_count": 3,
+        "positive_count": 0,
+        "status": "sparse"
+      },
+      {
+        "level": "Diving Header",
+        "n": 2,
+        "n_matches": 2,
+        "negative_count": 1,
+        "positive_count": 1,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.072508862272,
+          "log_loss": 0.258467740578,
+          "n": 169,
+          "positive_count": 12,
+          "pr_auc": 0.160022732219,
+          "prevalence": 0.07100591716,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 138,
+              "lower": 0.0,
+              "mean_prediction": 0.072247620446,
+              "observed_rate": 0.036231884058,
+              "positive_count": 5,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 21,
+              "lower": 0.2,
+              "mean_prediction": 0.278794663709,
+              "observed_rate": 0.285714285714,
+              "positive_count": 6,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 10,
+              "lower": 0.4,
+              "mean_prediction": 0.482479467623,
+              "observed_rate": 0.1,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.736730360934
+        },
+        "level": "Half Volley",
+        "n": 169,
+        "n_matches": 50,
+        "negative_count": 157,
+        "positive_count": 12,
+        "raw": {
+          "brier": 0.06635098528,
+          "log_loss": 0.244589786754,
+          "n": 169,
+          "positive_count": 12,
+          "pr_auc": 0.160022732219,
+          "prevalence": 0.07100591716,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 147,
+              "lower": 0.0,
+              "mean_prediction": 0.073307240143,
+              "observed_rate": 0.061224489796,
+              "positive_count": 9,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 21,
+              "lower": 0.2,
+              "mean_prediction": 0.278318899877,
+              "observed_rate": 0.142857142857,
+              "positive_count": 3,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.421029872594,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.736730360934
+        },
+        "status": "supported"
+      },
+      {
+        "level": "Lob",
+        "n": 12,
+        "n_matches": 12,
+        "negative_count": 11,
+        "positive_count": 1,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.064381799533,
+          "log_loss": 0.239169411018,
+          "n": 1047,
+          "positive_count": 78,
+          "pr_auc": 0.232004021805,
+          "prevalence": 0.074498567335,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 946,
+              "lower": 0.0,
+              "mean_prediction": 0.069215920251,
+              "observed_rate": 0.057082452431,
+              "positive_count": 54,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 85,
+              "lower": 0.2,
+              "mean_prediction": 0.265098935884,
+              "observed_rate": 0.188235294118,
+              "positive_count": 16,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 12,
+              "lower": 0.4,
+              "mean_prediction": 0.503247766027,
+              "observed_rate": 0.5,
+              "positive_count": 6,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 3,
+              "lower": 0.6,
+              "mean_prediction": 0.708746696189,
+              "observed_rate": 0.666666666667,
+              "positive_count": 2,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.743179593025
+        },
+        "level": "Normal",
+        "n": 1047,
+        "n_matches": 51,
+        "negative_count": 969,
+        "positive_count": 78,
+        "raw": {
+          "brier": 0.063939762336,
+          "log_loss": 0.23725455979,
+          "n": 1047,
+          "positive_count": 78,
+          "pr_auc": 0.232004021805,
+          "prevalence": 0.074498567335,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 989,
+              "lower": 0.0,
+              "mean_prediction": 0.069059529291,
+              "observed_rate": 0.060667340748,
+              "positive_count": 60,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 52,
+              "lower": 0.2,
+              "mean_prediction": 0.249849684918,
+              "observed_rate": 0.288461538462,
+              "positive_count": 15,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 4,
+              "lower": 0.4,
+              "mean_prediction": 0.455028312011,
+              "observed_rate": 0.75,
+              "positive_count": 3,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.698414299683,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.743179593025
+        },
+        "status": "supported"
+      },
+      {
+        "level": "Overhead Kick",
+        "n": 6,
+        "n_matches": 6,
+        "negative_count": 5,
+        "positive_count": 1,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.071023378555,
+          "log_loss": 0.262016294973,
+          "n": 65,
+          "positive_count": 5,
+          "pr_auc": 0.328729670163,
+          "prevalence": 0.076923076923,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 51,
+              "lower": 0.0,
+              "mean_prediction": 0.075772123117,
+              "observed_rate": 0.058823529412,
+              "positive_count": 3,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 11,
+              "lower": 0.2,
+              "mean_prediction": 0.272363673201,
+              "observed_rate": 0.090909090909,
+              "positive_count": 1,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 2,
+              "lower": 0.4,
+              "mean_prediction": 0.476447071021,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 1,
+              "lower": 0.6,
+              "mean_prediction": 0.768012929654,
+              "observed_rate": 1.0,
+              "positive_count": 1,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.706666666667
+        },
+        "level": "Volley",
+        "n": 65,
+        "n_matches": 35,
+        "negative_count": 60,
+        "positive_count": 5,
+        "raw": {
+          "brier": 0.065270722007,
+          "log_loss": 0.247871807505,
+          "n": 65,
+          "positive_count": 5,
+          "pr_auc": 0.328729670163,
+          "prevalence": 0.076923076923,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 57,
+              "lower": 0.0,
+              "mean_prediction": 0.080471560252,
+              "observed_rate": 0.070175438596,
+              "positive_count": 4,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 7,
+              "lower": 0.2,
+              "mean_prediction": 0.264742754814,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 1,
+              "lower": 0.4,
+              "mean_prediction": 0.59328303534,
+              "observed_rate": 1.0,
+              "positive_count": 1,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.706666666667
+        },
+        "status": "supported"
+      }
+    ],
+    "visible_goal_angle_radians": [
+      {
+        "level": "[0,0.2)",
+        "n": 67,
+        "n_matches": 33,
+        "negative_count": 67,
+        "positive_count": 0,
+        "status": "sparse"
+      },
+      {
+        "calibrated": {
+          "brier": 0.042113015533,
+          "log_loss": 0.177395098912,
+          "n": 734,
+          "positive_count": 33,
+          "pr_auc": 0.168221935728,
+          "prevalence": 0.044959128065,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 734,
+              "lower": 0.0,
+              "mean_prediction": 0.050610582364,
+              "observed_rate": 0.044959128065,
+              "positive_count": 33,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 0,
+              "lower": 0.2,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.639605758008
+        },
+        "level": "[0.2,0.4)",
+        "n": 734,
+        "n_matches": 51,
+        "negative_count": 701,
+        "positive_count": 33,
+        "raw": {
+          "brier": 0.042183600008,
+          "log_loss": 0.177281397366,
+          "n": 734,
+          "positive_count": 33,
+          "pr_auc": 0.168221935728,
+          "prevalence": 0.044959128065,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 734,
+              "lower": 0.0,
+              "mean_prediction": 0.050337569817,
+              "observed_rate": 0.044959128065,
+              "positive_count": 33,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 0,
+              "lower": 0.2,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.639605758008
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.081168643502,
+          "log_loss": 0.293156351172,
+          "n": 223,
+          "positive_count": 20,
+          "pr_auc": 0.134001384869,
+          "prevalence": 0.089686098655,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 214,
+              "lower": 0.0,
+              "mean_prediction": 0.109614245334,
+              "observed_rate": 0.093457943925,
+              "positive_count": 20,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 9,
+              "lower": 0.2,
+              "mean_prediction": 0.244522468356,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.666748768473
+        },
+        "level": "[0.4,0.6)",
+        "n": 223,
+        "n_matches": 48,
+        "negative_count": 203,
+        "positive_count": 20,
+        "raw": {
+          "brier": 0.080335123379,
+          "log_loss": 0.291118567955,
+          "n": 223,
+          "positive_count": 20,
+          "pr_auc": 0.134001384869,
+          "prevalence": 0.089686098655,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 221,
+              "lower": 0.0,
+              "mean_prediction": 0.097553352894,
+              "observed_rate": 0.090497737557,
+              "positive_count": 20,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 2,
+              "lower": 0.2,
+              "mean_prediction": 0.233963111849,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 0,
+              "lower": 0.4,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 0,
+              "lower": 0.6,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.666748768473
+        },
+        "status": "supported"
+      },
+      {
+        "calibrated": {
+          "brier": 0.132030268263,
+          "log_loss": 0.42635727449,
+          "n": 280,
+          "positive_count": 45,
+          "pr_auc": 0.319465923091,
+          "prevalence": 0.160714285714,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 136,
+              "lower": 0.0,
+              "mean_prediction": 0.130108178217,
+              "observed_rate": 0.073529411765,
+              "positive_count": 10,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 114,
+              "lower": 0.2,
+              "mean_prediction": 0.270700851075,
+              "observed_rate": 0.210526315789,
+              "positive_count": 24,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 25,
+              "lower": 0.4,
+              "mean_prediction": 0.493646033883,
+              "observed_rate": 0.32,
+              "positive_count": 8,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 4,
+              "lower": 0.6,
+              "mean_prediction": 0.723563254555,
+              "observed_rate": 0.75,
+              "positive_count": 3,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 1,
+              "lower": 0.8,
+              "mean_prediction": 0.904238036674,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.699574468085
+        },
+        "level": "[0.6,+inf)",
+        "n": 280,
+        "n_matches": 51,
+        "negative_count": 235,
+        "positive_count": 45,
+        "raw": {
+          "brier": 0.126385734658,
+          "log_loss": 0.410217737544,
+          "n": 280,
+          "positive_count": 45,
+          "pr_auc": 0.319465923091,
+          "prevalence": 0.160714285714,
+          "reliability": [
+            {
+              "bin": 0,
+              "count": 189,
+              "lower": 0.0,
+              "mean_prediction": 0.128391951832,
+              "observed_rate": 0.111111111111,
+              "positive_count": 21,
+              "upper": 0.2
+            },
+            {
+              "bin": 1,
+              "count": 83,
+              "lower": 0.2,
+              "mean_prediction": 0.259071754599,
+              "observed_rate": 0.240963855422,
+              "positive_count": 20,
+              "upper": 0.4
+            },
+            {
+              "bin": 2,
+              "count": 6,
+              "lower": 0.4,
+              "mean_prediction": 0.47240435933,
+              "observed_rate": 0.666666666667,
+              "positive_count": 4,
+              "upper": 0.6
+            },
+            {
+              "bin": 3,
+              "count": 2,
+              "lower": 0.6,
+              "mean_prediction": 0.698414299683,
+              "observed_rate": 0.0,
+              "positive_count": 0,
+              "upper": 0.8
+            },
+            {
+              "bin": 4,
+              "count": 0,
+              "lower": 0.8,
+              "mean_prediction": null,
+              "observed_rate": null,
+              "positive_count": 0,
+              "upper": 1.0
+            }
+          ],
+          "roc_auc": 0.699574468085
+        },
+        "status": "supported"
+      }
+    ]
+  },
+  "variants": {
+    "calibrated": {
+      "brier": 0.066029980705,
+      "log_loss": 0.243112806225,
+      "n": 1304,
+      "positive_count": 98,
+      "pr_auc": 0.223985679737,
+      "prevalence": 0.075153374233,
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 1151,
+          "lower": 0.0,
+          "mean_prediction": 0.069758641267,
+          "observed_rate": 0.054735013032,
+          "positive_count": 63,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 123,
+          "lower": 0.2,
+          "mean_prediction": 0.268785359657,
+          "observed_rate": 0.19512195122,
+          "positive_count": 24,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 25,
+          "lower": 0.4,
+          "mean_prediction": 0.493646033883,
+          "observed_rate": 0.32,
+          "positive_count": 8,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 4,
+          "lower": 0.6,
+          "mean_prediction": 0.723563254555,
+          "observed_rate": 0.75,
+          "positive_count": 3,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 1,
+          "lower": 0.8,
+          "mean_prediction": 0.904238036674,
+          "observed_rate": 0.0,
+          "positive_count": 0,
+          "upper": 1.0
+        }
+      ],
+      "roc_auc": 0.744677970691
+    },
+    "raw": {
+      "brier": 0.064707399225,
+      "log_loss": 0.239307508271,
+      "n": 1304,
+      "positive_count": 98,
+      "pr_auc": 0.223985679737,
+      "prevalence": 0.075153374233,
+      "reliability": [
+        {
+          "bin": 0,
+          "count": 1211,
+          "lower": 0.0,
+          "mean_prediction": 0.070079165719,
+          "observed_rate": 0.061106523534,
+          "positive_count": 74,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 85,
+          "lower": 0.2,
+          "mean_prediction": 0.258480963005,
+          "observed_rate": 0.235294117647,
+          "positive_count": 20,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 6,
+          "lower": 0.4,
+          "mean_prediction": 0.47240435933,
+          "observed_rate": 0.666666666667,
+          "positive_count": 4,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 2,
+          "lower": 0.6,
+          "mean_prediction": 0.698414299683,
+          "observed_rate": 0.0,
+          "positive_count": 0,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 0,
+          "lower": 0.8,
+          "mean_prediction": null,
+          "observed_rate": null,
+          "positive_count": 0,
+          "upper": 1.0
+        }
+      ],
+      "roc_auc": 0.744677970691
+    }
+  }
+}

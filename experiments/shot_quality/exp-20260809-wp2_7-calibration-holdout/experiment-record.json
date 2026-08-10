@@ -1,34 +1,92 @@
 {
-  "schema_version": 1,
-  "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
-  "work_package": "WP2.7",
-  "status": "pre_registered_not_run",
-  "calibration_config": "experiments/run-configs/wp2_7-calibration.json",
-  "holdout_config": "experiments/run-configs/wp2_7-holdout.json",
+  "adopted_variant": "calibrated",
+  "aggregate_counts": {
+    "goals": 98,
+    "matches": 51,
+    "misses": 1206,
+    "rows": 1304
+  },
   "base_candidate": "full_minus_presence",
-  "base_fit_scope": "development_only",
-  "calibration_split": "WC2022",
-  "holdout_split": "Euro2024",
-  "registered_config_sha256": {
-    "calibration": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
-    "holdout": "d77187ad0bf7e5053d73c2debe0a61b8e1464885b16601d025f43d811267589b"
+  "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+  "evidence_files_sha256": {
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/evidence.md": "ab62ec172193e959e56627343199776fa12d920a5cdec250d8db00546d55d23f",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/model-card.md": "1fac69cea7a6eb198a25710c04c9aaf789ae5f9812f18dd324b8a3b58af6b274",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/reliability.svg": "c8ba75d87f33779c82c17ea2b4a05f64ab7abe508f265acefa8bb4724280ecb8",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/slices.svg": "583d5f9bd88a33ae304baea3cd75ac8de654e6c0bce75fe1f025bddfe7c4b3bf",
+    "reports/wp2.7-calibration-holdout-evidence.md": "ab62ec172193e959e56627343199776fa12d920a5cdec250d8db00546d55d23f",
+    "reports/wp2.7-model-card.md": "1fac69cea7a6eb198a25710c04c9aaf789ae5f9812f18dd324b8a3b58af6b274"
   },
-  "registered_base_sha256": {
-    "artifact": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
-    "manifest": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79"
+  "execution_provenance": {
+    "code_commit": "e8e863947b74bbe8496a9734878941e8b10e30ce",
+    "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+    "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
+    "input_config_path": "experiments/run-configs/wp2_7-holdout.json",
+    "input_config_sha256": "d77187ad0bf7e5053d73c2debe0a61b8e1464885b16601d025f43d811267589b",
+    "phase": "holdout",
+    "reproduction_commit": "e8e863947b74bbe8496a9734878941e8b10e30ce",
+    "runtime_fingerprint": {
+      "machine": "AMD64",
+      "numpy_version": "2.5.1",
+      "omp_num_threads": null,
+      "os": "Windows",
+      "os_release": "11",
+      "python_implementation": "CPython",
+      "python_version": "3.12.11",
+      "scikit_learn_version": "1.9.0",
+      "scipy_version": "1.18.0",
+      "threadpool_info": [
+        {
+          "architecture": "Haswell",
+          "internal_api": "openblas",
+          "num_threads": 12,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.31.dev"
+        },
+        {
+          "architecture": "Haswell",
+          "internal_api": "openblas",
+          "num_threads": 12,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.33.112.0"
+        },
+        {
+          "internal_api": "openmp",
+          "num_threads": 12,
+          "prefix": "vcomp",
+          "user_api": "openmp",
+          "version": null
+        }
+      ],
+      "threadpool_num_threads": [
+        12
+      ],
+      "threadpoolctl_version": "3.6.0"
+    },
+    "source_bundle_sha256": "710ec99da792c946ff53d5730f0235bb03df41fcfc7dd74d1acfd6a574a2c4fa",
+    "source_files_sha256": {
+      "backend/src/touchline/features/geometry.py": "c46d5df289c482213da1c784e711372533de94b4d081c01c2f623d3967fb41bd",
+      "backend/src/touchline/modeling/artifact.py": "a91564bae6e0361d82d66e60b1e14d0b116ea3f269962a58102e7a1795a2a909",
+      "backend/src/touchline/modeling/calibration.py": "7e96c4223ac8744efa5f11257757f3d51ec37e98ca3de7517aaa54d826a96f49",
+      "backend/src/touchline/modeling/dataset.py": "5c524f2dc508e09288aada0f56434a74fdfa1638ba7c470adb6622dd1c941459",
+      "backend/src/touchline/modeling/experiment.py": "748708a9e227187a615aa880ceeedd65212ef724fc74b7d0c7cf9259cb7dd442",
+      "backend/src/touchline/modeling/holdout.py": "8bd7fe950a65d33d5c63fd512cd16cffb69c60a64d55bf12437808b3afba03fe",
+      "backend/src/touchline/modeling/metrics.py": "d0e14814ee74260892ee95e73c80be1fb4473c1ba891eac40541879498036744",
+      "backend/src/touchline/modeling/preprocessing.py": "35b286c42c624adff3cc283c7faafd5df9b71484e185c8bfd4c6331e563587da",
+      "backend/src/touchline/modeling/protocol.py": "d9cd6f50e095809b47245ce496c1a85603b3ba60b2ab39d83e526c129c0aad97",
+      "backend/src/touchline/modeling/wp2_7.py": "9dd65aed1809b38aa9370de0ff5891c4c36819ca78b12d65ff42a871f15f3b0e"
+    },
+    "uv_lock_sha256": "1a8a7ee20e7df7703e043118c50be16eb59e9d73ac56ce502a95e09677cde5d3"
   },
-  "identity_serialization": "exact_binary64_round_trip",
-  "holdout_bootstrap": {"replicates": 2000, "seed": 0, "interval": "95_percentile"},
-  "audit_schema_version": 2,
-  "required_outputs": [
-    "calibration-decision.json",
-    "holdout-metrics.json",
-    "holdout-access-audit.json",
-    "evidence.md",
-    "model-card.md",
-    "plots/reliability.svg",
-    "plots/slices.svg"
-  ],
-  "real_rows_accessed_in_this_recording": false,
-  "note": "This pre-registration records no calibration or holdout metrics. The two supervised phase commands populate the declared outputs later."
+  "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
+  "holdout_membership_sha256": "6a4b02d6bfb9d3c4619239772c089a65455a5cb0299956912d2d520ca639b729",
+  "real_rows_accessed_in_this_recording": true,
+  "review_status": "pending_independent_sol_reviewer",
+  "schema_version": 2,
+  "status": "holdout_complete_pending_independent_review",
+  "work_package": "WP2.7"
 }

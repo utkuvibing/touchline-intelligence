@@ -1,0 +1,34 @@
+{
+  "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+  "evidence_files_sha256": {
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/evidence.md": "ab62ec172193e959e56627343199776fa12d920a5cdec250d8db00546d55d23f",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json": "6c3ede22ac846d59360676a32f4b16f0fbf0e31c832e5d962ca8a741cffbb40a",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/model-card.md": "1fac69cea7a6eb198a25710c04c9aaf789ae5f9812f18dd324b8a3b58af6b274",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/reliability.svg": "c8ba75d87f33779c82c17ea2b4a05f64ab7abe508f265acefa8bb4724280ecb8",
+    "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/slices.svg": "583d5f9bd88a33ae304baea3cd75ac8de654e6c0bce75fe1f025bddfe7c4b3bf",
+    "reports/wp2.7-calibration-holdout-evidence.md": "ab62ec172193e959e56627343199776fa12d920a5cdec250d8db00546d55d23f",
+    "reports/wp2.7-model-card.md": "1fac69cea7a6eb198a25710c04c9aaf789ae5f9812f18dd324b8a3b58af6b274"
+  },
+  "execution_provenance_sha256": "648d92dc99c34214505249dbe3e1533142b9bf79a7f817776dfbc2a8ba3c04ed",
+  "holdout_open_count": 1,
+  "membership_sha256": "6a4b02d6bfb9d3c4619239772c089a65455a5cb0299956912d2d520ca639b729",
+  "n_goals": 98,
+  "n_matches": 51,
+  "n_misses": 1206,
+  "n_rows": 1304,
+  "phase": "wp2-7-holdout",
+  "run_id": "wp2-7-20260809T230052Z",
+  "schema_version": 2,
+  "stages": [
+    "holdout_open",
+    "membership_asserted",
+    "scored",
+    "bootstrap",
+    "slices",
+    "evidence_written",
+    "holdout_closed",
+    "experiment_record_written",
+    "audit_finalized"
+  ]
+}

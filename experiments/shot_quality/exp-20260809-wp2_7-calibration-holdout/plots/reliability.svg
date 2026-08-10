@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+<rect width="100%" height="100%" fill="white"/>
+<line x1="70" y1="50" x2="670" y2="50" stroke="black"/>
+<line x1="70" y1="50" x2="70" y2="370" stroke="black"/>
+<line x1="70" y1="370" x2="670" y2="50" stroke="#bbb" stroke-dasharray="4 4"/>
+<text x="70" y="25" font-family="sans-serif" font-size="16">WP2.7 holdout reliability</text>
+<text x="280" y="410" font-family="sans-serif" font-size="12">mean prediction</text>
+<text x="10" y="220" transform="rotate(-90 10 220)" font-family="sans-serif" font-size="12">observed rate</text>
+<polyline points="112.047,350.446 225.089,294.706 353.443,156.667 489.049,370.000" fill="none" stroke="#1f77b4" stroke-width="3"/>
+<polyline points="111.855,352.485 231.271,307.561 366.188,267.600 504.138,130.000 612.543,370.000" fill="none" stroke="#d62728" stroke-width="3"/>
+</svg>
