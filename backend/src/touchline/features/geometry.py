@@ -132,7 +132,7 @@ def effective_location(location_x: float, location_y: float) -> tuple[float, flo
 
 
 def distance_to_goal(location_x: float, location_y: float) -> float:
-    """Euclidean distance in metres-as-yards from the shot to the goal centre (120, 40).
+    """Euclidean distance in StatsBomb coordinate units to the goal centre (120, 40).
 
     `math.hypot` rather than ``sqrt(dx*dx + dy*dy)``: it is the stdlib's correctly-rounded
     implementation and avoids the intermediate overflow/underflow that squaring introduces.

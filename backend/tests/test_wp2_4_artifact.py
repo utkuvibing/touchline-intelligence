@@ -28,6 +28,7 @@ from touchline.modeling.artifact import (
     ArtifactCompatibilityError,
     artifact_schema_version,
     infer,
+    infer_logit,
     load_bundle,
 )
 from touchline.modeling.logistic import fit_logistic
@@ -116,6 +117,15 @@ def test_load_bundle_round_trip_and_infer_scores_raw_rows(tmp_path: Path) -> Non
     full, _ = encode_rows(query, loaded.vocabulary, loaded.scaler)
     expected = loaded.estimator.predict_proba(full[:, list(loaded.selected_indices)])[:, 1]
     assert np.array_equal(probabilities, expected)
+
+
+def test_frozen_artifact_exposes_raw_logit_without_refitting() -> None:
+    bundle, rows, _ = _make_bundle()
+    query = rows[:6]
+    logits = infer_logit(bundle, query)
+    full, _ = encode_rows(query, bundle.vocabulary, bundle.scaler)
+    expected = bundle.estimator.decision_function(full[:, list(bundle.selected_indices)])
+    assert np.array_equal(logits, np.asarray(expected, dtype=np.float64))
 
 
 def test_load_bundle_rejects_a_non_bundle_pickle(tmp_path: Path) -> None:
