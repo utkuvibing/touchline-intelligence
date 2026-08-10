@@ -271,6 +271,7 @@ WP26_DEPENDENCY_TESTS = "uv run pytest backend/tests/test_wp2_6_dependency_bound
 WP26_QUALIFICATION_TESTS = "uv run pytest backend/tests/test_wp2_6_qualification.py -q"
 WP27_CALIBRATION_TESTS = "uv run pytest backend/tests/test_wp2_7_calibration.py -q"
 WP27_DATASET_TESTS = "uv run pytest backend/tests/test_wp2_4_dataset.py -q"
+WP28_TESTS = "uv run pytest backend/tests/test_wp2_8_release.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -2588,6 +2589,155 @@ BREAKS: list[Break] = [
         ),
         replacement=("    # DELIBERATE BREAK: final experiment-record hash omitted\n"),
         command=WP27_CALIBRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 persisted paths reject backslashes and non-POSIX separators",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='    if "\\\\" in value:\n',
+        replacement="    if False:  # DELIBERATE BREAK: Windows separator admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 persisted paths reject absolute path grammars",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    if posix.is_absolute() or windows.is_absolute() "
+            "or windows.drive or windows.root:\n"
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: absolute path grammar admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 release refuses an origin/main that is not the merged WP2.7 commit",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if origin_main != required_base:\n",
+        replacement="    if False:  # DELIBERATE BREAK: wrong origin/main admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 presentation-only WP2.7 files are non-blocking",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return PurePosixPath(relative_path).suffix.lower() in _PRESENTATION_SUFFIXES\n",
+        replacement=(
+            "    return False  # DELIBERATE BREAK: presentation files made integrity-critical\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 reproduction rejects a calibration or holdout match before preprocessing",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if observed & forbidden:\n",
+        replacement="    if False:  # DELIBERATE BREAK: forbidden split IDs admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical reproduction refuses inherited routing overrides",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    inherited = [name for name in _HISTORICAL_OVERRIDE_ENV_VARS if parent.get(name)]\n"
+        ),
+        replacement="    inherited = []  # DELIBERATE BREAK: inherited routing override admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 environment mismatch cannot claim exact reproduction",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return all(expected[key] == actual[key] for key in required)\n",
+        replacement="    return False  # DELIBERATE BREAK: all environments marked non-exact\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 exact environment requires byte-identical model artifact",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if regenerated_model_sha256 != canonical_model_sha256:\n",
+        replacement="        if False:  # DELIBERATE BREAK: exact artifact gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 measured authoritative files must match their recorded hashes",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if actual != digest:\n",
+        replacement="    if False:  # DELIBERATE BREAK: authoritative file hash gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 reproduction comparison uses the registered numeric tolerance",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "        if not math.isclose(\n"
+            "            float(cast(Real, expected)),\n"
+            "            float(cast(Real, actual)),\n"
+            "            rel_tol=0.0,\n"
+            "            abs_tol=tolerance,\n"
+            "        ):\n"
+        ),
+        replacement="        if True:  # DELIBERATE BREAK: numeric tolerance gate inverted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 comparison packet records every passing comparison row",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='            "comparison_table": [dict(row) for row in self.comparison_table],\n',
+        replacement=(
+            '            "comparison_table": [],  # DELIBERATE BREAK: comparison rows omitted\n'
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 manifest verification checks authoritative measured inputs",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    _verify_authoritative_manifest_inputs(root, cast(Mapping[str, Any], payload))\n"
+        ),
+        replacement="    pass  # DELIBERATE BREAK: authoritative manifest inputs not verified\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 release manifest digest protects manifest contents",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    if expected != actual:\n"
+            '        raise ReleaseContractError("WP2.8 release manifest '
+            'content digest is invalid")\n'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK: release manifest digest ignored\n"
+            '        raise ReleaseContractError("WP2.8 release manifest '
+            'content digest is invalid")\n'
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 existing packet is never overwritten",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=("def _ensure_packet_absent(final: Path) -> None:\n    if final.exists():\n"),
+        replacement=(
+            "def _ensure_packet_absent(final: Path) -> None:\n"
+            "    if False:  # DELIBERATE BREAK: existing packet overwrite allowed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 failed publication removes temporary staging",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if staging.exists():\n",
+        replacement="        if False:  # DELIBERATE BREAK: staging cleanup removed\n",
+        command=WP28_TESTS,
         cwd=ROOT,
     ),
 ]

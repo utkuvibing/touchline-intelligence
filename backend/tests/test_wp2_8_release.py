@@ -1,0 +1,431 @@
+"""Hermetic WP2.8 contract tests.
+
+These tests use recorded JSON and temporary packet fixtures only.  They never open PostgreSQL,
+create a historical checkout, or invoke the WP2.4 training command; that is the separate
+acceptance/evidence run.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import tempfile
+from dataclasses import replace
+from hashlib import sha256
+from pathlib import Path
+
+import pytest
+
+import touchline.modeling.wp2_8 as wp2_8
+from touchline.modeling.calibration import exact_json_bytes
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _sha(path: Path) -> str:
+    return sha256(path.read_bytes()).hexdigest()
+
+
+def _fixture_reproduction() -> wp2_8.ReproductionResult:
+    comparison = wp2_8.ComparisonResult(
+        comparison_mode="exact",
+        canonical_json_equal=True,
+        artifact_byte_identical=True,
+        feature_contract_equal=True,
+        metrics_within_tolerance=True,
+        metadata_within_tolerance=True,
+        comparison_table=(
+            {
+                "field": "fixture",
+                "canonical": 1,
+                "regenerated": 1,
+                "delta": 0.0,
+                "tolerance": 0.0,
+                "outcome": "pass",
+            },
+        ),
+    )
+    return wp2_8.ReproductionResult(
+        environment_fingerprint={
+            "os": "Windows",
+            "architecture": "AMD64",
+            "python_implementation": "CPython",
+            "python_version": "3.12.11",
+            "uv_version": "0.11.25",
+            "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902",
+            "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+            "config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+        },
+        exact_environment_match=True,
+        development_shots=2872,
+        development_matches=115,
+        development_fold_sizes={"0": 570, "1": 552, "2": 602, "3": 576, "4": 572},
+        metrics_sha256="d" * 64,
+        artifact_manifest_sha256="e" * 64,
+        model_sha256="f" * 64,
+        comparison=comparison,
+    )
+
+
+def _synthetic_packet_inputs(
+    tmp_path: Path,
+) -> tuple[wp2_8.ReleaseConfig, wp2_8.WP24Evidence, wp2_8.WP27Evidence]:
+    registered = wp2_8.load_release_config()
+    payload = json.loads(json.dumps(registered.payload))
+    payload["output_dir"] = "packet"
+    config_path = tmp_path / "registered-config.json"
+    config_path.write_bytes(exact_json_bytes(payload))
+    config = wp2_8.ReleaseConfig(config_path, payload, _sha(config_path))
+
+    def write_fixture(relative: str, content: bytes) -> str:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return _sha(path)
+
+    wp24_config_sha = write_fixture("experiments/wp24-config.json", b"wp24 config\n")
+    wp24_resolved_sha = write_fixture("experiments/wp24-resolved-config.json", b"wp24 resolved\n")
+    wp24_metrics_sha = write_fixture("experiments/wp24-metrics.json", b"wp24 metrics\n")
+    wp24_manifest_sha = write_fixture("experiments/wp24-manifest.json", b"wp24 manifest\n")
+    wp24_model_sha = write_fixture("artifacts/wp24/model.pkl", b"wp24 model\n")
+    wp24 = wp2_8.WP24Evidence(
+        config={},
+        metrics={},
+        artifact_manifest={},
+        config_path="experiments/wp24-config.json",
+        config_sha256=wp24_config_sha,
+        resolved_config_path="experiments/wp24-resolved-config.json",
+        resolved_config_sha256=wp24_resolved_sha,
+        metrics_path="experiments/wp24-metrics.json",
+        metrics_sha256=wp24_metrics_sha,
+        artifact_manifest_path="experiments/wp24-manifest.json",
+        artifact_manifest_sha256=wp24_manifest_sha,
+        model_path="artifacts/wp24/model.pkl",
+        model_sha256=wp24_model_sha,
+    )
+    wp27_decision_sha = write_fixture(
+        "experiments/wp27/calibration-decision.json", b"wp27 decision\n"
+    )
+    wp27_audit_sha = write_fixture("experiments/wp27/holdout-access-audit.json", b"wp27 audit\n")
+    wp27_metrics_sha = write_fixture("experiments/wp27/holdout-metrics.json", b"wp27 metrics\n")
+    wp27_record_sha = write_fixture("experiments/wp27/experiment-record.json", b"wp27 record\n")
+    wp27 = wp2_8.WP27Evidence(
+        decision={},
+        audit={},
+        metrics={},
+        record={},
+        decision_path="experiments/wp27/calibration-decision.json",
+        audit_path="experiments/wp27/holdout-access-audit.json",
+        metrics_path="experiments/wp27/holdout-metrics.json",
+        record_path="experiments/wp27/experiment-record.json",
+        decision_file_sha256=wp27_decision_sha,
+        audit_file_sha256=wp27_audit_sha,
+        metrics_file_sha256=wp27_metrics_sha,
+        record_file_sha256=wp27_record_sha,
+        decision_sha256="2" * 64,
+        holdout_membership_sha256="3" * 64,
+        execution_provenance_sha256="4" * 64,
+        measured_evidence_sha256={
+            "experiments/wp27/holdout-metrics.json": wp27_metrics_sha,
+            "experiments/wp27/experiment-record.json": wp27_record_sha,
+        },
+    )
+    return config, wp24, wp27
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "C:/repo/file.json",
+        "\\\\server\\share\\file.json",
+        "/repo/file.json",
+        "~/file.json",
+        "../file.json",
+        "a\\b.json",
+        "a//b.json",
+        "a/./b.json",
+    ],
+)
+def test_persisted_paths_reject_machine_local_and_noncanonical_forms(value: str) -> None:
+    with pytest.raises(wp2_8.PathContractError):
+        wp2_8.validate_repo_relative_path(value)
+
+
+def test_persisted_paths_accept_only_canonical_repository_relative_posix() -> None:
+    assert (
+        wp2_8.validate_repo_relative_path("experiments/shot_quality/release.json")
+        == "experiments/shot_quality/release.json"
+    )
+
+
+def test_registered_config_rejects_an_absolute_persisted_path(tmp_path: Path) -> None:
+    registered = wp2_8.load_release_config()
+    payload = json.loads(json.dumps(registered.payload))
+    payload["output_dir"] = "C:/machine-local/release"
+    path = tmp_path / "bad-config.json"
+    path.write_bytes(exact_json_bytes(payload))
+    with pytest.raises(wp2_8.PathContractError):
+        wp2_8.load_release_config(path, enforce_registered=False)
+
+
+def test_wrong_wp27_base_is_a_stop_condition() -> None:
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_wp27_base(
+            current_head="4fa8f201580f750281142b7a7f791a7ee815df57",
+            origin_main=wp2_8.REQUIRED_WP27_BASE_COMMIT,
+            current_is_descendant=False,
+        )
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_wp27_base(
+            current_head=wp2_8.REQUIRED_WP27_BASE_COMMIT,
+            origin_main="4fa8f201580f750281142b7a7f791a7ee815df57",
+        )
+
+
+def test_environment_fingerprint_requires_all_registered_fields_and_distinguishes_modes() -> None:
+    expected = {
+        "os": "Windows",
+        "architecture": "AMD64",
+        "python_implementation": "CPython",
+        "python_version": "3.12.11",
+        "uv_version": "0.11.25",
+        "uv_lock_sha256": "a" * 64,
+        "reproduction_commit": "b" * 40,
+        "config_sha256": "c" * 64,
+    }
+    assert wp2_8.verify_environment_fingerprint(expected, dict(expected)) is True
+    mismatch = dict(expected)
+    mismatch["architecture"] = "ARM64"
+    assert wp2_8.verify_environment_fingerprint(expected, mismatch) is False
+    with pytest.raises(wp2_8.EnvironmentFingerprintError):
+        wp2_8.verify_environment_fingerprint(expected, {"os": "Windows"})
+
+
+def test_historical_environment_rejects_training_overrides_and_fallback_database() -> None:
+    parent = {
+        "TOUCHLINE_FULL_COHORT_DB_URL": "postgresql://registered",
+        "TOUCHLINE_DB_URL": "postgresql://fallback",
+        "TOUCHLINE_TRAIN_SCHEMA": "test_override",
+    }
+    with pytest.raises(wp2_8.ReproductionMismatchError):
+        wp2_8.build_historical_reproduction_environment(parent, "TOUCHLINE_FULL_COHORT_DB_URL")
+    environment = wp2_8.build_historical_reproduction_environment(
+        {"TOUCHLINE_FULL_COHORT_DB_URL": "postgresql://registered", "TOUCHLINE_DB_URL": "fallback"},
+        "TOUCHLINE_FULL_COHORT_DB_URL",
+    )
+    assert "TOUCHLINE_DB_URL" not in environment
+    assert environment["TOUCHLINE_WP28_REPRODUCTION_SCOPE"] == "development_only"
+
+
+def test_historical_fingerprint_parser_uses_the_child_process_values() -> None:
+    python_output = json.dumps(
+        {
+            "os": "Linux",
+            "architecture": "x86_64",
+            "python_implementation": "CPython",
+            "python_version": "3.12.12",
+        }
+    )
+    observed = wp2_8.parse_historical_environment_fingerprint(python_output, "uv 0.11.25 (test)")
+    assert observed == {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "python_implementation": "CPython",
+        "python_version": "3.12.12",
+        "uv_version": "0.11.25",
+    }
+
+
+def test_development_only_guard_rejects_calibration_and_holdout_before_preprocessing() -> None:
+    assignments = {"development": {1, 2}, "calibration": {3}, "holdout": {4}}
+    wp2_8.assert_development_only_match_ids({1, 2}, assignments)
+    with pytest.raises(wp2_8.DevelopmentOnlyError):
+        wp2_8.assert_development_only_match_ids({3}, assignments)
+    with pytest.raises(wp2_8.DevelopmentOnlyError):
+        wp2_8.assert_development_only_match_ids({99}, assignments)
+    overlapping = {"development": {3}, "calibration": {3}, "holdout": {4}}
+    with pytest.raises(wp2_8.DevelopmentOnlyError):
+        wp2_8.assert_development_only_match_ids({3}, overlapping)
+
+
+def test_development_only_row_guard_rejects_forbidden_rows_before_preprocessing() -> None:
+    assignments = {"development": {1}, "calibration": {2}, "holdout": {3}}
+    rows = [{"match_id": 1, "location": [10.0, 20.0]}]
+    wp2_8.assert_development_only_rows(rows, assignments)
+    with pytest.raises(wp2_8.DevelopmentOnlyError):
+        wp2_8.assert_development_only_rows([{"match_id": 2, "location": [10.0, 20.0]}], assignments)
+
+
+def test_reproduction_tolerance_has_a_strict_boundary() -> None:
+    canonical: dict[str, dict[str, object]] = {
+        "metrics": {
+            "score": 0.25,
+            "shipped_candidate": "full_minus_presence",
+            "shipped_feature_set": "geometry+categoricals",
+            "shipped_feature_columns": ["x"],
+        },
+        "config": {"expected": 2872},
+        "artifact_manifest": {"best_c": 0.1},
+    }
+    regenerated: dict[str, dict[str, object]] = {
+        "metrics": {
+            "score": 0.2500000000005,
+            "shipped_candidate": "full_minus_presence",
+            "shipped_feature_set": "geometry+categoricals",
+            "shipped_feature_columns": ["x"],
+        },
+        "config": {"expected": 2872},
+        "artifact_manifest": {"best_c": 0.1000000000005},
+    }
+    result = wp2_8.compare_reproduction(
+        canonical,
+        regenerated,
+        canonical_model_sha256="a" * 64,
+        regenerated_model_sha256="b" * 64,
+        exact_environment_match=False,
+        numeric_tolerance=1e-12,
+    )
+    assert result.comparison_mode == "numeric_tolerance"
+    assert result.canonical_json_equal is False
+    regenerated["metrics"]["score"] = 0.250000000002
+    with pytest.raises(wp2_8.ReproductionMismatchError):
+        wp2_8.compare_reproduction(
+            canonical,
+            regenerated,
+            canonical_model_sha256="a" * 64,
+            regenerated_model_sha256="b" * 64,
+            exact_environment_match=False,
+            numeric_tolerance=1e-12,
+        )
+
+
+def test_exact_reproduction_requires_byte_equal_model_artifact() -> None:
+    payload = {
+        "metrics": {"shipped_candidate": "full_minus_presence"},
+        "config": {},
+        "artifact_manifest": {},
+    }
+    with pytest.raises(wp2_8.ReproductionMismatchError):
+        wp2_8.compare_reproduction(
+            payload,
+            payload,
+            canonical_model_sha256="a" * 64,
+            regenerated_model_sha256="b" * 64,
+            exact_environment_match=True,
+            numeric_tolerance=1e-12,
+        )
+
+
+def test_wp27_measured_chain_ignores_editorial_presentation_changes(tmp_path: Path) -> None:
+    for relative in (
+        "experiments/run-configs/wp2_7-calibration.json",
+        "experiments/run-configs/wp2_7-holdout.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/calibration-decision.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-access-audit.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json",
+    ):
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    registered = wp2_8.load_release_config()
+    config = replace(registered, path=tmp_path / "release.json")
+    (tmp_path / "release.json").write_bytes(registered.path.read_bytes())
+    presentation = (
+        tmp_path / "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/evidence.md"
+    )
+    # Presentation content is intentionally not needed for the measured chain.
+    presentation.parent.mkdir(parents=True, exist_ok=True)
+    presentation.write_text("editorial revision\n", encoding="utf-8")
+    evidence = wp2_8.verify_wp27_measured_chain(config, root=tmp_path)
+    assert (
+        evidence.decision_sha256
+        == "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89"
+    )
+
+
+def test_wp27_machine_artifact_change_is_blocking(tmp_path: Path) -> None:
+    for relative in (
+        "experiments/run-configs/wp2_7-calibration.json",
+        "experiments/run-configs/wp2_7-holdout.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/calibration-decision.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-access-audit.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json",
+        "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json",
+    ):
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    registered = wp2_8.load_release_config()
+    config = replace(registered, path=tmp_path / "release.json")
+    (tmp_path / "release.json").write_bytes(registered.path.read_bytes())
+    path = tmp_path / config.section("wp27")["metrics_path"]
+    path.write_bytes(path.read_bytes() + b"\n")
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_wp27_measured_chain(config, root=tmp_path)
+
+
+def test_wp24_partial_or_stale_artifact_is_blocking(tmp_path: Path) -> None:
+    registered = wp2_8.load_release_config()
+    for relative in (
+        "experiments/run-configs/wp2_4-baselines.json",
+        "experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json",
+        "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
+        "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
+        "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
+    ):
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    config = replace(registered, path=tmp_path / "release.json")
+    (tmp_path / "release.json").write_bytes(registered.path.read_bytes())
+    stale_metrics = tmp_path / config.section("wp24")["metrics_path"]
+    stale_metrics.write_bytes(stale_metrics.read_bytes() + b"\n")
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_wp24_evidence(config, root=tmp_path)
+
+
+def test_atomic_packet_publication_and_existing_packet_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, wp24, wp27 = _synthetic_packet_inputs(tmp_path)
+    first = wp2_8.publish_release_packet(config, wp24, wp27, _fixture_reproduction(), root=tmp_path)
+    assert (first / "release-manifest.json").is_file()
+    manifest = wp2_8.verify_release_manifest(first / "release-manifest.json", root=tmp_path)
+    assert manifest["release_status"] == "m2_qualified"
+    assert manifest["serving_status"] == "not_served"
+    assert manifest["reproduction_scope"] == "development_only"
+    assert manifest["new_holdout_access"] is False
+    (first / "notes.md").write_text("editorial note change\n", encoding="utf-8")
+    wp2_8.verify_release_manifest(first / "release-manifest.json", root=tmp_path)
+    authoritative = tmp_path / "experiments/wp24-metrics.json"
+    authoritative_bytes = authoritative.read_bytes()
+    authoritative.write_bytes(authoritative_bytes + b"stale\n")
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_release_manifest(first / "release-manifest.json", root=tmp_path)
+    authoritative.write_bytes(authoritative_bytes)
+    manifest_path = first / "release-manifest.json"
+    envelope = json.loads(manifest_path.read_text(encoding="utf-8"))
+    envelope["manifest"]["release_id"] = "tampered"
+    manifest_path.write_bytes(exact_json_bytes(envelope))
+    with pytest.raises(wp2_8.ReleaseContractError):
+        wp2_8.verify_release_manifest(manifest_path, root=tmp_path)
+    monkeypatch.setattr(
+        tempfile,
+        "mkdtemp",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("staging must not start")),
+    )
+    with pytest.raises(wp2_8.ReleasePublicationError):
+        wp2_8.publish_release_packet(config, wp24, wp27, _fixture_reproduction(), root=tmp_path)
+    assert not list(tmp_path.glob(".packet.staging-*"))
+
+
+def test_failed_staging_is_cleaned_and_publishes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, wp24, wp27 = _synthetic_packet_inputs(tmp_path)
+    monkeypatch.setattr(wp2_8, "_notes", lambda *_args: 42)
+    with pytest.raises(TypeError):
+        wp2_8.publish_release_packet(config, wp24, wp27, _fixture_reproduction(), root=tmp_path)
+    assert not (tmp_path / "packet").exists()
+    assert not list(tmp_path.glob(".packet.staging-*"))
