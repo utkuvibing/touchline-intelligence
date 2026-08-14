@@ -70,6 +70,11 @@ Exact artifact and canonical JSON equality is claimed only when every registered
 matches. A different environment uses the preregistered numeric tolerance and must not claim
 byte-identical reproduction.
 
+The registered historical `uv.lock` is an explicitly byte-pinned input. Before `uv sync --locked`,
+the runner reads its raw Git blob at the registered reproduction commit, verifies the SHA-256
+against the canonical WP2.4 and WP2.8 registration, and writes those exact bytes into the
+historical checkout. It does not normalize arbitrary historical files.
+
 ## Publication transaction
 
 The packet is built in a temporary sibling staging directory. Every staged file and measured hash is

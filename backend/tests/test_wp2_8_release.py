@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import tempfile
 from dataclasses import replace
 from hashlib import sha256
@@ -234,6 +235,144 @@ def test_historical_fingerprint_parser_uses_the_child_process_values() -> None:
         "python_version": "3.12.12",
         "uv_version": "0.11.25",
     }
+
+
+def test_historical_byte_pin_replaces_crlf_checkout_with_raw_git_blob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw_blob = b"lock-content\nsecond-line\n"
+    crlf_checkout = raw_blob.replace(b"\n", b"\r\n")
+    target = tmp_path / "uv.lock"
+    target.write_bytes(crlf_checkout)
+    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args: raw_blob)
+
+    observed = wp2_8._materialize_byte_pinned_historical_input(
+        tmp_path,
+        tmp_path,
+        revision="historical-commit",
+        relative_path="uv.lock",
+        expected_sha256=sha256(raw_blob).hexdigest(),
+        label="historical uv.lock",
+    )
+
+    assert observed == sha256(raw_blob).hexdigest()
+    assert target.read_bytes() == raw_blob
+
+
+def test_raw_git_blob_reader_ignores_simulated_crlf_historical_checkout(tmp_path: Path) -> None:
+    repository = tmp_path / "historical-repository"
+    repository.mkdir()
+    subprocess.run(
+        ["git", "-C", str(repository), "init", "--quiet"],
+        check=True,
+        capture_output=True,
+    )
+    raw_blob = b"lock-content\nsecond-line\n"
+    lock_path = repository / "uv.lock"
+    lock_path.write_bytes(raw_blob)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.autocrlf=false",
+            "-C",
+            str(repository),
+            "add",
+            "--",
+            "uv.lock",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=WP2.8 fixture",
+            "-c",
+            "user.email=wp2.8-fixture@example.invalid",
+            "-C",
+            str(repository),
+            "commit",
+            "--quiet",
+            "-m",
+            "raw blob fixture",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    revision = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    lock_path.write_bytes(raw_blob.replace(b"\n", b"\r\n"))
+    assert lock_path.read_bytes() != raw_blob
+    assert wp2_8._read_git_blob_bytes(repository, revision, "uv.lock") == raw_blob
+
+
+@pytest.mark.parametrize(
+    ("blob", "expected"),
+    [
+        (b"wrong-blob\n", sha256(b"registered-blob\n").hexdigest()),
+        (b"registered-blob\n", "0" * 64),
+    ],
+)
+def test_historical_byte_pin_rejects_incorrect_blob_or_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, blob: bytes, expected: str
+) -> None:
+    target = tmp_path / "uv.lock"
+    original_checkout = b"existing\r\n"
+    target.write_bytes(original_checkout)
+    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args: blob)
+
+    with pytest.raises(wp2_8.ReproductionMismatchError):
+        wp2_8._materialize_byte_pinned_historical_input(
+            tmp_path,
+            tmp_path,
+            revision="historical-commit",
+            relative_path="uv.lock",
+            expected_sha256=expected,
+            label="historical uv.lock",
+        )
+    assert target.read_bytes() == original_checkout
+
+
+def test_historical_reproduction_rejects_canonical_registered_lock_mismatch_before_sync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, canonical, _ = _synthetic_packet_inputs(tmp_path)
+    payload = json.loads(json.dumps(config.payload))
+    payload["reproduction"]["exact_environment_fingerprint"]["uv_lock_sha256"] = "b" * 64
+    config = replace(config, payload=payload)
+    canonical = replace(canonical, config={"uv_lock_sha256": "a" * 64})
+    checked_commands: list[list[str]] = []
+
+    def record_command(command: list[str], **_: object) -> None:
+        checked_commands.append(command)
+
+    def unexpected_materialization(*_: object, **__: object) -> str:
+        raise AssertionError(
+            "byte-pinned historical input was materialized after a digest mismatch"
+        )
+
+    monkeypatch.setattr(wp2_8, "_run_checked", record_command)
+    monkeypatch.setattr(
+        wp2_8,
+        "_materialize_byte_pinned_historical_input",
+        unexpected_materialization,
+    )
+
+    with pytest.raises(
+        wp2_8.ReproductionMismatchError,
+        match=r"canonical and WP2\.8 registered uv\.lock digests disagree",
+    ):
+        wp2_8.run_historical_reproduction(config, canonical, root=tmp_path)
+
+    assert len(checked_commands) == 1
+    assert checked_commands[0][:5] == ["git", "-C", str(tmp_path), "worktree", "add"]
 
 
 def test_development_only_guard_rejects_calibration_and_holdout_before_preprocessing() -> None:

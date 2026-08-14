@@ -1137,6 +1137,59 @@ def _run_checked(
         raise ReproductionMismatchError(f"command failed ({' '.join(command)}): {detail}")
 
 
+def _read_git_blob_bytes(repository_root: Path, revision: str, relative_path: str) -> bytes:
+    """Read one historical Git blob without applying checkout filters or text decoding."""
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository_root),
+            "cat-file",
+            "blob",
+            f"{revision}:{relative_path}",
+        ],
+        cwd=repository_root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise ReproductionMismatchError(
+            f"cannot read raw Git blob {revision}:{relative_path}: {detail}"
+        )
+    return result.stdout
+
+
+def _materialize_byte_pinned_historical_input(
+    repository_root: Path,
+    worktree: Path,
+    *,
+    revision: str,
+    relative_path: object,
+    expected_sha256: object,
+    label: str,
+) -> str:
+    """Materialize an explicitly byte-pinned historical input from its raw Git blob."""
+    path_name = validate_repo_relative_path(relative_path, f"{label} path")
+    expected = _digest(expected_sha256, f"{label} digest")
+    blob_bytes = _read_git_blob_bytes(repository_root, revision, path_name)
+    blob_sha256 = sha256_bytes(blob_bytes)
+    if blob_sha256 != expected:
+        raise ReproductionMismatchError(
+            f"{label} raw Git blob hash mismatch: {blob_sha256} != {expected}"
+        )
+
+    target = _repo_path(worktree, path_name, f"{label} path")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(blob_bytes)
+    materialized_sha256 = sha256_bytes(target.read_bytes())
+    if materialized_sha256 != expected:
+        raise ReproductionMismatchError(
+            f"{label} materialized hash mismatch: {materialized_sha256} != {expected}"
+        )
+    return materialized_sha256
+
+
 def _assert_historical_development_loader(worktree: Path, config: ReleaseConfig) -> None:
     train_source = (worktree / "backend/src/touchline/modeling/train.py").read_text(
         encoding="utf-8"
@@ -1214,6 +1267,24 @@ def run_historical_reproduction(
                 reproduction_commit,
             ],
             cwd=root,
+        )
+        canonical_uv_lock_sha = _digest(
+            canonical.config.get("uv_lock_sha256"), "WP2.4 canonical uv.lock digest"
+        )
+        registered_uv_lock_sha = _digest(
+            expected["uv_lock_sha256"], "registered uv.lock fingerprint"
+        )
+        if canonical_uv_lock_sha != registered_uv_lock_sha:
+            raise ReproductionMismatchError(
+                "WP2.4 canonical and WP2.8 registered uv.lock digests disagree"
+            )
+        _materialize_byte_pinned_historical_input(
+            root,
+            worktree,
+            revision=reproduction_commit,
+            relative_path="uv.lock",
+            expected_sha256=canonical_uv_lock_sha,
+            label="historical uv.lock",
         )
         _assert_historical_development_loader(worktree, config)
         _run_checked(["uv", "sync", "--locked"], cwd=worktree)

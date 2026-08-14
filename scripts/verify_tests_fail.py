@@ -2663,6 +2663,45 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP2.8 historical byte-pinned blob must match its registered digest",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if blob_sha256 != expected:\n",
+        replacement="    if False:  # DELIBERATE BREAK: raw historical blob hash gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical byte-pinned blob replaces host-transformed checkout bytes",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    target.write_bytes(blob_bytes)\n",
+        replacement=(
+            "    target.write_bytes(target.read_bytes())  # DELIBERATE BREAK: CRLF retained\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 raw Git blob reader must bypass checkout transformations",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return result.stdout\n",
+        replacement=(
+            "    return result.stdout.replace(b'\\n', b'\\r\\n')  "
+            "# DELIBERATE BREAK: raw blob is host-transformed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 canonical and registered uv.lock digests must agree before sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if canonical_uv_lock_sha != registered_uv_lock_sha:\n",
+        replacement=(
+            "        if False:  # DELIBERATE BREAK: canonical/registered digest gate removed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.8 measured authoritative files must match their recorded hashes",
         path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
         anchor="    if actual != digest:\n",
