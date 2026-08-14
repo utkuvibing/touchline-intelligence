@@ -2702,6 +2702,84 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP2.8 historical checkout disables host line-ending conversion",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='            "GIT_CONFIG_VALUE_0": "false",\n',
+        replacement=(
+            '            "GIT_CONFIG_VALUE_0": "true",  '
+            "# DELIBERATE BREAK: host conversion retained\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical worktree creation",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "            cwd=root,\n"
+            "            env=historical_env,\n"
+            "        )\n"
+            "        canonical_uv_lock_sha = _digest(\n"
+        ),
+        replacement=(
+            "            cwd=root,\n"
+            "        )  # DELIBERATE BREAK: worktree inherits host Git config\n"
+            "        canonical_uv_lock_sha = _digest(\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 matching historical byte pin does not rewrite tracked uv.lock",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if target.read_bytes() != blob_bytes:\n",
+        replacement="    if True:  # DELIBERATE BREAK: matching tracked uv.lock is rewritten\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical tracked-tree clean gate runs before sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        require_clean_tracked_tree(worktree, env=historical_env)\n",
+        replacement="        pass  # DELIBERATE BREAK: historical tracked-tree gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical uv sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            '        _run_checked(["uv", "sync", "--locked"], cwd=worktree, env=historical_env)\n'
+        ),
+        replacement=(
+            '        _run_checked(["uv", "sync", "--locked"], cwd=worktree)  '
+            "# DELIBERATE BREAK: sync loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical training provenance",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        _run_checked(command, cwd=worktree, env=historical_env)\n",
+        replacement=(
+            "        _run_checked(command, cwd=worktree)  "
+            "# DELIBERATE BREAK: training loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical clean-tree check uses its scoped Git environment",
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor="        env=env,\n",
+        replacement=(
+            "        env=None,  # DELIBERATE BREAK: clean-tree check loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.8 measured authoritative files must match their recorded hashes",
         path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
         anchor="    if actual != digest:\n",

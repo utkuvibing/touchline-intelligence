@@ -29,8 +29,12 @@ explicitly forbidden. Exact equality is recorded only for the fully matching env
 (OS/architecture, Python implementation/version, uv version, lock SHA, reproduction commit, and
 config SHA); other environments use the registered numeric tolerance without a byte-identity claim.
 The registered historical `uv.lock` is materialized from the raw Git blob at that commit before
-`uv sync --locked`, and its bytes must match the canonical registered SHA-256; no arbitrary
-historical file normalization is performed.
+`uv sync --locked`, and its bytes must match the canonical registered SHA-256. The temporary
+checkout and all Git commands in the historical `uv sync` and training process receive a
+process-scoped `core.autocrlf=false` configuration; no user, global, or repository Git
+configuration is changed. The runner verifies the materialized lock SHA and clean tracked
+worktree before synchronization, and does not rewrite the tracked file when checkout bytes already
+match. No arbitrary historical file normalization is performed.
 
 The packet is staged beside its final repository-relative destination, verified, and atomically
 renamed. An existing packet is a hard failure. The manifest is content-hashed and records

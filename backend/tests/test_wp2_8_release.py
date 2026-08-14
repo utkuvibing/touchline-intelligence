@@ -8,9 +8,11 @@ acceptance/evidence run.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Mapping
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
@@ -19,12 +21,64 @@ import pytest
 
 import touchline.modeling.wp2_8 as wp2_8
 from touchline.modeling.calibration import exact_json_bytes
+from touchline.modeling.experiment import ProvenanceError, require_clean_tracked_tree
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _sha(path: Path) -> str:
     return sha256(path.read_bytes()).hexdigest()
+
+
+def _raw_git_fixture(tmp_path: Path) -> tuple[Path, str, bytes]:
+    repository = tmp_path / "historical-repository"
+    repository.mkdir()
+    subprocess.run(
+        ["git", "-C", str(repository), "init", "--quiet"],
+        check=True,
+        capture_output=True,
+    )
+    raw_blob = b"lock-content\nsecond-line\n"
+    lock_path = repository / "uv.lock"
+    lock_path.write_bytes(raw_blob)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.autocrlf=false",
+            "-C",
+            str(repository),
+            "add",
+            "--",
+            "uv.lock",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=WP2.8 fixture",
+            "-c",
+            "user.email=wp2.8-fixture@example.invalid",
+            "-C",
+            str(repository),
+            "commit",
+            "--quiet",
+            "-m",
+            "raw blob fixture",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    revision = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return repository, revision, raw_blob
 
 
 def _fixture_reproduction() -> wp2_8.ReproductionResult:
@@ -244,7 +298,7 @@ def test_historical_byte_pin_replaces_crlf_checkout_with_raw_git_blob(
     crlf_checkout = raw_blob.replace(b"\n", b"\r\n")
     target = tmp_path / "uv.lock"
     target.write_bytes(crlf_checkout)
-    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args: raw_blob)
+    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args, **_kwargs: raw_blob)
 
     observed = wp2_8._materialize_byte_pinned_historical_input(
         tmp_path,
@@ -259,58 +313,257 @@ def test_historical_byte_pin_replaces_crlf_checkout_with_raw_git_blob(
     assert target.read_bytes() == raw_blob
 
 
+def test_historical_byte_pin_does_not_rewrite_matching_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw_blob = b"lock-content\n"
+    target = tmp_path / "uv.lock"
+    target.write_bytes(raw_blob)
+    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args, **_kwargs: raw_blob)
+
+    def unexpected_write(self: Path, data: bytes) -> int:
+        del self, data
+        raise AssertionError("matching historical byte pin was rewritten")
+
+    monkeypatch.setattr(Path, "write_bytes", unexpected_write)
+    assert (
+        wp2_8._materialize_byte_pinned_historical_input(
+            tmp_path,
+            tmp_path,
+            revision="historical-commit",
+            relative_path="uv.lock",
+            expected_sha256=sha256(raw_blob).hexdigest(),
+            label="historical uv.lock",
+        )
+        == sha256(raw_blob).hexdigest()
+    )
+
+
 def test_raw_git_blob_reader_ignores_simulated_crlf_historical_checkout(tmp_path: Path) -> None:
-    repository = tmp_path / "historical-repository"
-    repository.mkdir()
-    subprocess.run(
-        ["git", "-C", str(repository), "init", "--quiet"],
-        check=True,
-        capture_output=True,
-    )
-    raw_blob = b"lock-content\nsecond-line\n"
+    repository, revision, raw_blob = _raw_git_fixture(tmp_path)
     lock_path = repository / "uv.lock"
-    lock_path.write_bytes(raw_blob)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "core.autocrlf=false",
-            "-C",
-            str(repository),
-            "add",
-            "--",
-            "uv.lock",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=WP2.8 fixture",
-            "-c",
-            "user.email=wp2.8-fixture@example.invalid",
-            "-C",
-            str(repository),
-            "commit",
-            "--quiet",
-            "-m",
-            "raw blob fixture",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    revision = subprocess.run(
-        ["git", "-C", str(repository), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
 
     lock_path.write_bytes(raw_blob.replace(b"\n", b"\r\n"))
     assert lock_path.read_bytes() != raw_blob
     assert wp2_8._read_git_blob_bytes(repository, revision, "uv.lock") == raw_blob
+
+
+def test_clean_tracked_tree_forwards_the_scoped_git_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scoped_environment = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_VALUE_0": "false"}
+    observed: list[Mapping[str, str] | None] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.append(kwargs.get("env"))  # type: ignore[arg-type]
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    require_clean_tracked_tree(tmp_path, env=scoped_environment)
+    assert observed == [scoped_environment]
+
+
+def test_scoped_git_checkout_is_raw_and_clean_under_host_autocrlf_true(
+    tmp_path: Path,
+) -> None:
+    repository, revision, raw_blob = _raw_git_fixture(tmp_path)
+    global_config = tmp_path / "host-global.gitconfig"
+    subprocess.run(
+        ["git", "config", "--file", str(global_config), "core.autocrlf", "true"],
+        check=True,
+        capture_output=True,
+    )
+    global_before = global_config.read_bytes()
+    host_environment = dict(os.environ)
+    for key in list(host_environment):
+        if (
+            key == "GIT_CONFIG_COUNT"
+            or key.startswith("GIT_CONFIG_KEY_")
+            or key.startswith("GIT_CONFIG_VALUE_")
+        ):
+            host_environment.pop(key)
+    host_environment["GIT_CONFIG_GLOBAL"] = str(global_config)
+    environment_before = dict(host_environment)
+
+    host_checkout = tmp_path / "host-checkout"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "worktree",
+            "add",
+            "--detach",
+            str(host_checkout),
+            revision,
+        ],
+        check=True,
+        capture_output=True,
+        env=host_environment,
+    )
+    try:
+        assert (host_checkout / "uv.lock").read_bytes() == raw_blob.replace(b"\n", b"\r\n")
+        (host_checkout / "uv.lock").write_bytes(raw_blob)
+        with pytest.raises(ProvenanceError, match="dirty tracked working tree"):
+            require_clean_tracked_tree(host_checkout, env=host_environment)
+    finally:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "worktree",
+                "remove",
+                "--force",
+                str(host_checkout),
+            ],
+            check=True,
+            capture_output=True,
+            env=host_environment,
+        )
+
+    scoped_environment = wp2_8._historical_git_environment(host_environment)
+    assert host_environment == environment_before
+    assert scoped_environment["GIT_CONFIG_COUNT"] == "1"
+    assert scoped_environment["GIT_CONFIG_KEY_0"] == "core.autocrlf"
+    assert scoped_environment["GIT_CONFIG_VALUE_0"] == "false"
+
+    scoped_checkout = tmp_path / "scoped-checkout"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "worktree",
+            "add",
+            "--detach",
+            str(scoped_checkout),
+            revision,
+        ],
+        check=True,
+        capture_output=True,
+        env=scoped_environment,
+    )
+    try:
+        observed = wp2_8._materialize_byte_pinned_historical_input(
+            repository,
+            scoped_checkout,
+            revision=revision,
+            relative_path="uv.lock",
+            expected_sha256=sha256(raw_blob).hexdigest(),
+            label="historical uv.lock",
+        )
+        assert observed == sha256(raw_blob).hexdigest()
+        assert (scoped_checkout / "uv.lock").read_bytes() == raw_blob
+        require_clean_tracked_tree(scoped_checkout, env=scoped_environment)
+    finally:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "worktree",
+                "remove",
+                "--force",
+                str(scoped_checkout),
+            ],
+            check=True,
+            capture_output=True,
+            env=scoped_environment,
+        )
+    assert global_config.read_bytes() == global_before
+
+
+def test_historical_clean_tree_gate_rejects_a_genuine_tracked_mutation(tmp_path: Path) -> None:
+    repository, revision, raw_blob = _raw_git_fixture(tmp_path)
+    scoped_environment = wp2_8._historical_git_environment(dict(os.environ))
+    checkout = tmp_path / "checkout"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "worktree",
+            "add",
+            "--detach",
+            str(checkout),
+            revision,
+        ],
+        check=True,
+        capture_output=True,
+        env=scoped_environment,
+    )
+    try:
+        (checkout / "uv.lock").write_bytes(raw_blob + b"genuine mutation\n")
+        with pytest.raises(ProvenanceError, match="dirty tracked working tree"):
+            require_clean_tracked_tree(checkout, env=scoped_environment)
+    finally:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "worktree",
+                "remove",
+                "--force",
+                str(checkout),
+            ],
+            check=True,
+            capture_output=True,
+            env=scoped_environment,
+        )
+
+
+def test_historical_reproduction_scopes_git_config_through_sync_and_training(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config, canonical, _ = _synthetic_packet_inputs(tmp_path)
+    registered_sha = str(
+        config.section("reproduction")["exact_environment_fingerprint"]["uv_lock_sha256"]
+    )
+    canonical = replace(canonical, config={"uv_lock_sha256": registered_sha})
+    monkeypatch.setenv("TOUCHLINE_FULL_COHORT_DB_URL", "postgresql://registered")
+    events: list[str] = []
+    checked: list[tuple[list[str], Mapping[str, str] | None]] = []
+    clean_environments: list[Mapping[str, str] | None] = []
+
+    def record_command(
+        command: list[str], *, cwd: Path, env: Mapping[str, str] | None = None
+    ) -> None:
+        del cwd
+        checked.append((command, env))
+        if command[:2] == ["git", "-C"]:
+            events.append("worktree")
+        elif command[:2] == ["uv", "sync"]:
+            events.append("sync")
+        else:
+            events.append("training")
+            raise wp2_8.ReproductionMismatchError("stop after scoped environment assertion")
+
+    def record_clean(root: Path, *, env: Mapping[str, str] | None = None) -> None:
+        del root
+        clean_environments.append(env)
+        events.append("clean")
+
+    monkeypatch.setattr(wp2_8, "_run_checked", record_command)
+    monkeypatch.setattr(
+        wp2_8, "_materialize_byte_pinned_historical_input", lambda *args, **kwargs: registered_sha
+    )
+    monkeypatch.setattr(
+        wp2_8, "_assert_historical_development_loader", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(wp2_8, "require_clean_tracked_tree", record_clean)
+
+    with pytest.raises(wp2_8.ReproductionMismatchError, match="stop after scoped"):
+        wp2_8.run_historical_reproduction(config, canonical, root=tmp_path)
+
+    assert events == ["worktree", "clean", "sync", "training"]
+    assert len(clean_environments) == 1
+    for _, environment in checked:
+        assert environment is not None
+        assert environment["GIT_CONFIG_KEY_0"] == "core.autocrlf"
+        assert environment["GIT_CONFIG_VALUE_0"] == "false"
+    assert clean_environments[0] is checked[0][1]
 
 
 @pytest.mark.parametrize(
@@ -326,7 +579,7 @@ def test_historical_byte_pin_rejects_incorrect_blob_or_digest(
     target = tmp_path / "uv.lock"
     original_checkout = b"existing\r\n"
     target.write_bytes(original_checkout)
-    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args: blob)
+    monkeypatch.setattr(wp2_8, "_read_git_blob_bytes", lambda *_args, **_kwargs: blob)
 
     with pytest.raises(wp2_8.ReproductionMismatchError):
         wp2_8._materialize_byte_pinned_historical_input(

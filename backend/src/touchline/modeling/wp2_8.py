@@ -815,6 +815,19 @@ def build_historical_reproduction_environment(
     return environment
 
 
+def _historical_git_environment(parent: Mapping[str, str]) -> dict[str, str]:
+    """Add process-scoped Git config for the temporary historical reproduction only."""
+    environment = dict(parent)
+    environment.update(
+        {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.autocrlf",
+            "GIT_CONFIG_VALUE_0": "false",
+        }
+    )
+    return environment
+
+
 def parse_historical_environment_fingerprint(python_output: str, uv_output: str) -> dict[str, str]:
     try:
         payload = json.loads(python_output)
@@ -1137,7 +1150,13 @@ def _run_checked(
         raise ReproductionMismatchError(f"command failed ({' '.join(command)}): {detail}")
 
 
-def _read_git_blob_bytes(repository_root: Path, revision: str, relative_path: str) -> bytes:
+def _read_git_blob_bytes(
+    repository_root: Path,
+    revision: str,
+    relative_path: str,
+    *,
+    env: Mapping[str, str] | None = None,
+) -> bytes:
     """Read one historical Git blob without applying checkout filters or text decoding."""
     result = subprocess.run(
         [
@@ -1149,6 +1168,7 @@ def _read_git_blob_bytes(repository_root: Path, revision: str, relative_path: st
             f"{revision}:{relative_path}",
         ],
         cwd=repository_root,
+        env=env,
         capture_output=True,
         check=False,
     )
@@ -1168,11 +1188,12 @@ def _materialize_byte_pinned_historical_input(
     relative_path: object,
     expected_sha256: object,
     label: str,
+    env: Mapping[str, str] | None = None,
 ) -> str:
     """Materialize an explicitly byte-pinned historical input from its raw Git blob."""
     path_name = validate_repo_relative_path(relative_path, f"{label} path")
     expected = _digest(expected_sha256, f"{label} digest")
-    blob_bytes = _read_git_blob_bytes(repository_root, revision, path_name)
+    blob_bytes = _read_git_blob_bytes(repository_root, revision, path_name, env=env)
     blob_sha256 = sha256_bytes(blob_bytes)
     if blob_sha256 != expected:
         raise ReproductionMismatchError(
@@ -1180,8 +1201,10 @@ def _materialize_byte_pinned_historical_input(
         )
 
     target = _repo_path(worktree, path_name, f"{label} path")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(blob_bytes)
+    if not target.is_file():
+        raise ReproductionMismatchError(f"{label} is missing from the historical checkout")
+    if target.read_bytes() != blob_bytes:
+        target.write_bytes(blob_bytes)
     materialized_sha256 = sha256_bytes(target.read_bytes())
     if materialized_sha256 != expected:
         raise ReproductionMismatchError(
@@ -1250,6 +1273,8 @@ def run_historical_reproduction(
     wp24 = config.section("wp24")
     expected = _expected_fingerprint(config)
     reproduction_commit = str(expected["reproduction_commit"])
+    historical_env = _historical_git_environment(dict(os.environ))
+    db_env = str(wp24["db_url_env"])
     worktree: Path | None = None
     temp_root: Path | None = None
     try:
@@ -1267,6 +1292,7 @@ def run_historical_reproduction(
                 reproduction_commit,
             ],
             cwd=root,
+            env=historical_env,
         )
         canonical_uv_lock_sha = _digest(
             canonical.config.get("uv_lock_sha256"), "WP2.4 canonical uv.lock digest"
@@ -1278,17 +1304,23 @@ def run_historical_reproduction(
             raise ReproductionMismatchError(
                 "WP2.4 canonical and WP2.8 registered uv.lock digests disagree"
             )
-        _materialize_byte_pinned_historical_input(
+        materialized_uv_lock_sha = _materialize_byte_pinned_historical_input(
             root,
             worktree,
             revision=reproduction_commit,
             relative_path="uv.lock",
             expected_sha256=canonical_uv_lock_sha,
             label="historical uv.lock",
+            env=historical_env,
         )
+        if materialized_uv_lock_sha != canonical_uv_lock_sha:
+            raise ReproductionMismatchError(
+                "historical uv.lock materialized hash differs from the canonical WP2.4 digest"
+            )
+        require_clean_tracked_tree(worktree, env=historical_env)
+        historical_env = build_historical_reproduction_environment(historical_env, db_env)
         _assert_historical_development_loader(worktree, config)
-        _run_checked(["uv", "sync", "--locked"], cwd=worktree)
-        db_env = str(wp24["db_url_env"])
+        _run_checked(["uv", "sync", "--locked"], cwd=worktree, env=historical_env)
         command = [
             "uv",
             "run",
@@ -1298,8 +1330,7 @@ def run_historical_reproduction(
             "--config",
             str(wp24["config_path"]),
         ]
-        env = build_historical_reproduction_environment(dict(os.environ), db_env)
-        _run_checked(command, cwd=worktree, env=env)
+        _run_checked(command, cwd=worktree, env=historical_env)
 
         generated_metrics_path = _repo_path(worktree, wp24["metrics_path"], "wp24.metrics_path")
         generated_config_path = _repo_path(
@@ -1315,7 +1346,9 @@ def run_historical_reproduction(
             generated_manifest_path, "reproduced WP2.4 artifact manifest"
         )
         generated_model_sha = sha256_bytes(generated_model_path.read_bytes())
-        actual_fingerprint = _collect_historical_environment_fingerprint(worktree, env=env)
+        actual_fingerprint = _collect_historical_environment_fingerprint(
+            worktree, env=historical_env
+        )
         actual_fingerprint.update(
             {
                 "uv_lock_sha256": sha256_bytes((worktree / "uv.lock").read_bytes()),
@@ -1370,6 +1403,7 @@ def run_historical_reproduction(
                 capture_output=True,
                 text=True,
                 check=False,
+                env=historical_env,
             )
         if temp_root is not None and temp_root.exists():
             shutil.rmtree(temp_root, ignore_errors=True)

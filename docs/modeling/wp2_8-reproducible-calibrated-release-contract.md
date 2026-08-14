@@ -73,7 +73,11 @@ byte-identical reproduction.
 The registered historical `uv.lock` is an explicitly byte-pinned input. Before `uv sync --locked`,
 the runner reads its raw Git blob at the registered reproduction commit, verifies the SHA-256
 against the canonical WP2.4 and WP2.8 registration, and writes those exact bytes into the
-historical checkout. It does not normalize arbitrary historical files.
+historical checkout. The temporary checkout and every Git command in the historical `uv sync` and
+training process receive a process-scoped `core.autocrlf=false` configuration; no user, global, or
+repository Git configuration is changed. The runner verifies the materialized lock SHA and clean
+tracked worktree before synchronization. If checkout bytes already match the raw blob, the
+verification does not rewrite the tracked file. It does not normalize arbitrary historical files.
 
 ## Publication transaction
 
