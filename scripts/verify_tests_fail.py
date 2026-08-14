@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -2448,10 +2449,8 @@ BREAKS: list[Break] = [
         ),
         path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
         anchor=(
-            "    return {\n"
-            "        path: historical_git_blob_sha256(ROOT, code_commit, path) "
-            "for path in WP27_SOURCE_PATHS\n"
-            "    }\n"
+            "    return {path: historical_git_blob_sha256(ROOT, code_commit, path) "
+            "for path in WP27_SOURCE_PATHS}\n"
         ),
         replacement=(
             "    return {\n"
@@ -2894,6 +2893,54 @@ def _invalidate_bytecode(path: Path) -> None:
         pyc.unlink()
 
 
+RESTORE_ATTEMPTS = 3
+RESTORE_BACKOFF_SECONDS = 0.05
+
+
+class MutationRestoreError(RuntimeError):
+    """A deliberate mutation could not be restored byte-for-byte."""
+
+
+def _restore_exact_bytes(
+    path: Path,
+    original_bytes: bytes,
+    *,
+    attempts: int = RESTORE_ATTEMPTS,
+    backoff_seconds: float = RESTORE_BACKOFF_SECONDS,
+) -> None:
+    """Restore exact bytes, retrying only transient OS-level write/read failures."""
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
+    if backoff_seconds < 0.0:
+        raise ValueError("backoff_seconds must not be negative")
+
+    last_error: BaseException | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            path.write_bytes(original_bytes)
+            if path.read_bytes() != original_bytes:
+                raise MutationRestoreError(
+                    f"mutation restore produced non-identical bytes on attempt {attempt}: {path}"
+                )
+            return
+        except OSError as exc:
+            last_error = exc
+        except MutationRestoreError as exc:
+            last_error = exc
+
+        if attempt < attempts and backoff_seconds:
+            time.sleep(backoff_seconds * attempt)
+
+    assert last_error is not None
+    if isinstance(last_error, OSError):
+        detail = f"errno={last_error.errno}, winerror={getattr(last_error, 'winerror', None)}"
+    else:
+        detail = str(last_error)
+    raise MutationRestoreError(
+        f"failed to restore {path} byte-exactly after {attempts} attempts ({detail})"
+    ) from last_error
+
+
 def check(defect: Break) -> bool:
     """Apply one break, run its tests, restore the file. True when the break was caught."""
     original_bytes = defect.path.read_bytes()
@@ -2923,7 +2970,7 @@ def check(defect: Break) -> bool:
     try:
         caught = _tests_fail(defect.command, defect.cwd)
     finally:
-        defect.path.write_bytes(original_bytes)
+        _restore_exact_bytes(defect.path, original_bytes)
         if defect.path.suffix == ".py":
             _invalidate_bytecode(defect.path)
 

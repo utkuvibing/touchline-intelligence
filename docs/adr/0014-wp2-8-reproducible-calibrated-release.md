@@ -1,7 +1,7 @@
 # ADR 0014: WP2.8 reproducible calibrated-model release
 
-**Status:** accepted as the WP2.8 implementation decision; real-data acceptance and the independent
-WP2.8 review remain open.
+**Status:** accepted; real-data acceptance passed and the independent WP2.8 review returned
+`PASS` from GPT-5.6 Sol.
 
 **Date:** 2026-08-10
 

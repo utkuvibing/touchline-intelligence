@@ -1,0 +1,98 @@
+{
+  "artifact_byte_identical": true,
+  "canonical_json_equal": true,
+  "comparison_mode": "exact",
+  "comparison_table": [
+    {
+      "canonical": 2872,
+      "delta": 0.0,
+      "field": "metrics.n_rows",
+      "outcome": "pass",
+      "regenerated": 2872,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 115,
+      "delta": 0.0,
+      "field": "metrics.n_matches",
+      "outcome": "pass",
+      "regenerated": 115,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.1,
+      "delta": 0.0,
+      "field": "metrics.shipped_best_c",
+      "outcome": "pass",
+      "regenerated": 0.1,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.263358428847,
+      "delta": 0.0,
+      "field": "metrics.candidate.mean_log_loss",
+      "outcome": "pass",
+      "regenerated": 0.263358428847,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.262971881592,
+      "delta": 0.0,
+      "field": "metrics.candidate.pooled_oof.log_loss",
+      "outcome": "pass",
+      "regenerated": 0.262971881592,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.07304423249,
+      "delta": 0.0,
+      "field": "metrics.candidate.pooled_oof.brier",
+      "outcome": "pass",
+      "regenerated": 0.07304423249,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.752955487274,
+      "delta": 0.0,
+      "field": "metrics.candidate.pooled_oof.roc_auc",
+      "outcome": "pass",
+      "regenerated": 0.752955487274,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 2872,
+      "delta": 0.0,
+      "field": "config.expected_shots",
+      "outcome": "pass",
+      "regenerated": 2872,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 115,
+      "delta": 0.0,
+      "field": "config.expected_matches",
+      "outcome": "pass",
+      "regenerated": 115,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 1,
+      "delta": 0.0,
+      "field": "artifact_manifest.artifact_schema_version",
+      "outcome": "pass",
+      "regenerated": 1,
+      "tolerance": 0.0
+    },
+    {
+      "canonical": 0.1,
+      "delta": 0.0,
+      "field": "artifact_manifest.shipped_best_c",
+      "outcome": "pass",
+      "regenerated": 0.1,
+      "tolerance": 0.0
+    }
+  ],
+  "feature_contract_equal": true,
+  "metadata_within_tolerance": true,
+  "metrics_within_tolerance": true
+}

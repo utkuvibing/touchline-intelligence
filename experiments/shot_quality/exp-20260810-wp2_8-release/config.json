@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "work_package": "WP2.8",
+  "release_id": "exp-20260810-wp2_8-release",
+  "release_status": "m2_qualified",
+  "serving_status": "not_served",
+  "base_commit": "f48a1032f88afab968562c3ba3600618a2ed580a",
+  "output_dir": "experiments/shot_quality/exp-20260810-wp2_8-release",
+  "wp24": {
+    "experiment_id": "exp-20260805-wp2_4-baselines",
+    "config_path": "experiments/run-configs/wp2_4-baselines.json",
+    "config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+    "resolved_config_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json",
+    "resolved_config_sha256": "b4e68bb0d2850770a9661fe19839a66695b328aafc9a9e58e40f5baab88eb394",
+    "metrics_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
+    "metrics_sha256": "00b8785b25c03758a93416b0edf461adf1584fc06b20be1f75ba702019a67e5c",
+    "artifact_manifest_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
+    "artifact_manifest_sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79",
+    "model_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
+    "model_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+    "assignments_path": "data/model/wp2_3_match_assignments.csv",
+    "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+    "db_url_env": "TOUCHLINE_FULL_COHORT_DB_URL",
+    "expected_shots": 2872,
+    "expected_matches": 115,
+    "expected_fold_sizes": {
+      "0": 570,
+      "1": 552,
+      "2": 602,
+      "3": 576,
+      "4": 572
+    }
+  },
+  "wp27": {
+    "calibration_config_path": "experiments/run-configs/wp2_7-calibration.json",
+    "calibration_config_sha256": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
+    "holdout_config_path": "experiments/run-configs/wp2_7-holdout.json",
+    "holdout_config_sha256": "d77187ad0bf7e5053d73c2debe0a61b8e1464885b16601d025f43d811267589b",
+    "decision_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/calibration-decision.json",
+    "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+    "decision_file_sha256": "a88255ca56b478372ec76bc9dddb3295d9073a7f180d5dc8f0d9fa34bfd65d87",
+    "audit_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-access-audit.json",
+    "audit_sha256": "830d53c29b8d6bb5521995c5deab8d9f9cffa7997c2f2584ecfc3631f65c4939",
+    "metrics_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json",
+    "metrics_sha256": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674",
+    "record_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json",
+    "record_sha256": "6c3ede22ac846d59360676a32f4b16f0fbf0e31c832e5d962ca8a741cffbb40a",
+    "presentation_paths": [
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/evidence.md",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/model-card.md",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/reliability.svg",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/slices.svg",
+      "reports/wp2.7-calibration-holdout-evidence.md",
+      "reports/wp2.7-model-card.md"
+    ]
+  },
+  "reproduction": {
+    "scope": "development_only",
+    "new_holdout_access": false,
+    "forbidden_tournaments": ["WC2022", "Euro2024"],
+    "forbidden_split_names": ["calibration", "holdout"],
+    "development_loader": "touchline.modeling.dataset.load_development_cohort",
+    "sync_command": "uv sync --locked",
+    "command": "uv run python -m touchline.modeling.train --config experiments/run-configs/wp2_4-baselines.json",
+    "numeric_tolerance": 0.000000000001,
+    "exact_environment_fingerprint": {
+      "os": "Windows",
+      "architecture": "AMD64",
+      "python_implementation": "CPython",
+      "python_version": "3.12.11",
+      "uv_version": "0.11.25",
+      "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902",
+      "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+      "config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e"
+    }
+  }
+}
