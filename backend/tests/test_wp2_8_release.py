@@ -759,18 +759,35 @@ def test_wp27_machine_artifact_change_is_blocking(tmp_path: Path) -> None:
 
 def test_wp24_partial_or_stale_artifact_is_blocking(tmp_path: Path) -> None:
     registered = wp2_8.load_release_config()
+    payload = json.loads(json.dumps(registered.payload))
+    wp24 = payload["wp24"]
     for relative in (
         "experiments/run-configs/wp2_4-baselines.json",
         "experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json",
         "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
         "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
-        "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
     ):
         destination = tmp_path / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / relative, destination)
-    config = replace(registered, path=tmp_path / "release.json")
-    (tmp_path / "release.json").write_bytes(registered.path.read_bytes())
+
+    # The production pickle is intentionally local/ignored.  This test only needs a
+    # byte-addressable artifact fixture so the stale recorded metrics are the failure.
+    model_path = tmp_path / wp24["model_path"]
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    model_path.write_bytes(b"synthetic WP2.4 model fixture\n")
+    model_sha = _sha(model_path)
+    wp24["model_sha256"] = model_sha
+
+    manifest_path = tmp_path / wp24["artifact_manifest_path"]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["model_pickle_sha256"] = model_sha
+    manifest_path.write_bytes(exact_json_bytes(manifest))
+    wp24["artifact_manifest_sha256"] = _sha(manifest_path)
+
+    config_path = tmp_path / "release.json"
+    config_path.write_bytes(exact_json_bytes(payload))
+    config = wp2_8.ReleaseConfig(config_path, payload, _sha(config_path))
     stale_metrics = tmp_path / config.section("wp24")["metrics_path"]
     stale_metrics.write_bytes(stale_metrics.read_bytes() + b"\n")
     with pytest.raises(wp2_8.ReleaseContractError):
