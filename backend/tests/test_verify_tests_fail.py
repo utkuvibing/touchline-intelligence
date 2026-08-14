@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER = ROOT / "scripts" / "verify_tests_fail.py"
 _MODULE_NAME = "verify_tests_fail_under_test"
@@ -69,3 +71,47 @@ def test_invalidate_bytecode_removes_every_interpreter_tag_for_the_module(
 def test_invalidate_bytecode_tolerates_a_missing_cache_dir(tmp_path: Path) -> None:
     invalidate = _load_runner()._invalidate_bytecode
     invalidate(tmp_path / "splits.py")  # must not raise
+
+
+def test_restore_exact_bytes_retries_a_transient_os_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = _load_runner()
+    target = tmp_path / "quality.py"
+    original = b"original\r\n"
+    target.write_bytes(b"mutated\r\n")
+    real_write_bytes = Path.write_bytes
+    calls = 0
+
+    def fail_once(path: Path, data: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if path == target and calls == 1:
+            raise OSError(22, "Invalid argument", str(path))
+        return real_write_bytes(path, data)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_once)
+    runner._restore_exact_bytes(target, original, attempts=3, backoff_seconds=0.0)
+
+    assert calls == 2
+    assert target.read_bytes() == original
+
+
+def test_restore_exact_bytes_fails_loudly_after_permanent_os_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = _load_runner()
+    target = tmp_path / "quality.py"
+    original = b"original\r\n"
+    mutated = b"mutated\r\n"
+    target.write_bytes(mutated)
+
+    def always_fail(path: Path, data: bytes) -> int:
+        del data
+        raise OSError(22, "Invalid argument", str(path))
+
+    monkeypatch.setattr(Path, "write_bytes", always_fail)
+    with pytest.raises(runner.MutationRestoreError, match="after 3 attempts"):
+        runner._restore_exact_bytes(target, original, attempts=3, backoff_seconds=0.0)
+
+    assert target.read_bytes() == mutated

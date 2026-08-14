@@ -125,13 +125,17 @@ def pickle_sha(model: object) -> str:
     return hashlib.sha256(pickle.dumps(model, protocol=5)).hexdigest()
 
 
-def git(root: Path, *args: str) -> str:
+def git(root: Path, *args: str, env: Mapping[str, str] | None = None) -> str:
     """Run git read-only inside ``root``; raises ProvenanceError on failure.
 
     Kept as a module function so tests can inject a deterministic revision seam.
     """
     result = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
     )
     if result.returncode != 0:
         raise ProvenanceError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
@@ -220,14 +224,17 @@ def runtime_fingerprint() -> dict[str, object]:
     }
 
 
-def require_clean_tracked_tree(root: Path) -> None:
+def require_clean_tracked_tree(root: Path, *, env: Mapping[str, str] | None = None) -> None:
     """Refuse to generate evidence while tracked files have uncommitted changes.
 
     Untracked and ignored files (e.g. ``IDEA.md`` or the git-ignored ``model.pkl``) are not
     tracked changes and are allowed; a modified tracked file makes the evidence unreproducible
     from any single commit.
     """
-    status = git(root, "status", "--porcelain")
+    if env is None:
+        status = git(root, "status", "--porcelain")
+    else:
+        status = git(root, "status", "--porcelain", env=env)
     dirty = [line for line in status.splitlines() if line.strip() and not line.startswith("??")]
     if dirty:
         raise ProvenanceError(

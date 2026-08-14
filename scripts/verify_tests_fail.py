@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -271,6 +272,7 @@ WP26_DEPENDENCY_TESTS = "uv run pytest backend/tests/test_wp2_6_dependency_bound
 WP26_QUALIFICATION_TESTS = "uv run pytest backend/tests/test_wp2_6_qualification.py -q"
 WP27_CALIBRATION_TESTS = "uv run pytest backend/tests/test_wp2_7_calibration.py -q"
 WP27_DATASET_TESTS = "uv run pytest backend/tests/test_wp2_4_dataset.py -q"
+WP28_TESTS = "uv run pytest backend/tests/test_wp2_8_release.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -2447,10 +2449,8 @@ BREAKS: list[Break] = [
         ),
         path=ROOT / "backend/src/touchline/modeling/wp2_7.py",
         anchor=(
-            "    return {\n"
-            "        path: historical_git_blob_sha256(ROOT, code_commit, path) "
-            "for path in WP27_SOURCE_PATHS\n"
-            "    }\n"
+            "    return {path: historical_git_blob_sha256(ROOT, code_commit, path) "
+            "for path in WP27_SOURCE_PATHS}\n"
         ),
         replacement=(
             "    return {\n"
@@ -2590,6 +2590,272 @@ BREAKS: list[Break] = [
         command=WP27_CALIBRATION_TESTS,
         cwd=ROOT,
     ),
+    Break(
+        contract="WP2.8 persisted paths reject backslashes and non-POSIX separators",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='    if "\\\\" in value:\n',
+        replacement="    if False:  # DELIBERATE BREAK: Windows separator admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 persisted paths reject absolute path grammars",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    if posix.is_absolute() or windows.is_absolute() "
+            "or windows.drive or windows.root:\n"
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: absolute path grammar admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 release refuses an origin/main that is not the merged WP2.7 commit",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if origin_main != required_base:\n",
+        replacement="    if False:  # DELIBERATE BREAK: wrong origin/main admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 presentation-only WP2.7 files are non-blocking",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return PurePosixPath(relative_path).suffix.lower() in _PRESENTATION_SUFFIXES\n",
+        replacement=(
+            "    return False  # DELIBERATE BREAK: presentation files made integrity-critical\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 reproduction rejects a calibration or holdout match before preprocessing",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if observed & forbidden:\n",
+        replacement="    if False:  # DELIBERATE BREAK: forbidden split IDs admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical reproduction refuses inherited routing overrides",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    inherited = [name for name in _HISTORICAL_OVERRIDE_ENV_VARS if parent.get(name)]\n"
+        ),
+        replacement="    inherited = []  # DELIBERATE BREAK: inherited routing override admitted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 environment mismatch cannot claim exact reproduction",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return all(expected[key] == actual[key] for key in required)\n",
+        replacement="    return False  # DELIBERATE BREAK: all environments marked non-exact\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 exact environment requires byte-identical model artifact",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if regenerated_model_sha256 != canonical_model_sha256:\n",
+        replacement="        if False:  # DELIBERATE BREAK: exact artifact gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical byte-pinned blob must match its registered digest",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if blob_sha256 != expected:\n",
+        replacement="    if False:  # DELIBERATE BREAK: raw historical blob hash gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical byte-pinned blob replaces host-transformed checkout bytes",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    target.write_bytes(blob_bytes)\n",
+        replacement=(
+            "    target.write_bytes(target.read_bytes())  # DELIBERATE BREAK: CRLF retained\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 raw Git blob reader must bypass checkout transformations",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    return result.stdout\n",
+        replacement=(
+            "    return result.stdout.replace(b'\\n', b'\\r\\n')  "
+            "# DELIBERATE BREAK: raw blob is host-transformed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 canonical and registered uv.lock digests must agree before sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if canonical_uv_lock_sha != registered_uv_lock_sha:\n",
+        replacement=(
+            "        if False:  # DELIBERATE BREAK: canonical/registered digest gate removed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical checkout disables host line-ending conversion",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='            "GIT_CONFIG_VALUE_0": "false",\n',
+        replacement=(
+            '            "GIT_CONFIG_VALUE_0": "true",  '
+            "# DELIBERATE BREAK: host conversion retained\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical worktree creation",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "            cwd=root,\n"
+            "            env=historical_env,\n"
+            "        )\n"
+            "        canonical_uv_lock_sha = _digest(\n"
+        ),
+        replacement=(
+            "            cwd=root,\n"
+            "        )  # DELIBERATE BREAK: worktree inherits host Git config\n"
+            "        canonical_uv_lock_sha = _digest(\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 matching historical byte pin does not rewrite tracked uv.lock",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if target.read_bytes() != blob_bytes:\n",
+        replacement="    if True:  # DELIBERATE BREAK: matching tracked uv.lock is rewritten\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical tracked-tree clean gate runs before sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        require_clean_tracked_tree(worktree, env=historical_env)\n",
+        replacement="        pass  # DELIBERATE BREAK: historical tracked-tree gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical uv sync",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            '        _run_checked(["uv", "sync", "--locked"], cwd=worktree, env=historical_env)\n'
+        ),
+        replacement=(
+            '        _run_checked(["uv", "sync", "--locked"], cwd=worktree)  '
+            "# DELIBERATE BREAK: sync loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 scoped Git environment reaches historical training provenance",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        _run_checked(command, cwd=worktree, env=historical_env)\n",
+        replacement=(
+            "        _run_checked(command, cwd=worktree)  "
+            "# DELIBERATE BREAK: training loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 historical clean-tree check uses its scoped Git environment",
+        path=ROOT / "backend/src/touchline/modeling/experiment.py",
+        anchor="        env=env,\n",
+        replacement=(
+            "        env=None,  # DELIBERATE BREAK: clean-tree check loses scoped Git config\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 measured authoritative files must match their recorded hashes",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="    if actual != digest:\n",
+        replacement="    if False:  # DELIBERATE BREAK: authoritative file hash gate removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 reproduction comparison uses the registered numeric tolerance",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "        if not math.isclose(\n"
+            "            float(cast(Real, expected)),\n"
+            "            float(cast(Real, actual)),\n"
+            "            rel_tol=0.0,\n"
+            "            abs_tol=tolerance,\n"
+            "        ):\n"
+        ),
+        replacement="        if True:  # DELIBERATE BREAK: numeric tolerance gate inverted\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 comparison packet records every passing comparison row",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor='            "comparison_table": [dict(row) for row in self.comparison_table],\n',
+        replacement=(
+            '            "comparison_table": [],  # DELIBERATE BREAK: comparison rows omitted\n'
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 manifest verification checks authoritative measured inputs",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    _verify_authoritative_manifest_inputs(root, cast(Mapping[str, Any], payload))\n"
+        ),
+        replacement="    pass  # DELIBERATE BREAK: authoritative manifest inputs not verified\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 release manifest digest protects manifest contents",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=(
+            "    if expected != actual:\n"
+            '        raise ReleaseContractError("WP2.8 release manifest '
+            'content digest is invalid")\n'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK: release manifest digest ignored\n"
+            '        raise ReleaseContractError("WP2.8 release manifest '
+            'content digest is invalid")\n'
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 existing packet is never overwritten",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor=("def _ensure_packet_absent(final: Path) -> None:\n    if final.exists():\n"),
+        replacement=(
+            "def _ensure_packet_absent(final: Path) -> None:\n"
+            "    if False:  # DELIBERATE BREAK: existing packet overwrite allowed\n"
+        ),
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP2.8 failed publication removes temporary staging",
+        path=ROOT / "backend/src/touchline/modeling/wp2_8.py",
+        anchor="        if staging.exists():\n",
+        replacement="        if False:  # DELIBERATE BREAK: staging cleanup removed\n",
+        command=WP28_TESTS,
+        cwd=ROOT,
+    ),
 ]
 
 
@@ -2627,6 +2893,54 @@ def _invalidate_bytecode(path: Path) -> None:
         pyc.unlink()
 
 
+RESTORE_ATTEMPTS = 3
+RESTORE_BACKOFF_SECONDS = 0.05
+
+
+class MutationRestoreError(RuntimeError):
+    """A deliberate mutation could not be restored byte-for-byte."""
+
+
+def _restore_exact_bytes(
+    path: Path,
+    original_bytes: bytes,
+    *,
+    attempts: int = RESTORE_ATTEMPTS,
+    backoff_seconds: float = RESTORE_BACKOFF_SECONDS,
+) -> None:
+    """Restore exact bytes, retrying only transient OS-level write/read failures."""
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
+    if backoff_seconds < 0.0:
+        raise ValueError("backoff_seconds must not be negative")
+
+    last_error: BaseException | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            path.write_bytes(original_bytes)
+            if path.read_bytes() != original_bytes:
+                raise MutationRestoreError(
+                    f"mutation restore produced non-identical bytes on attempt {attempt}: {path}"
+                )
+            return
+        except OSError as exc:
+            last_error = exc
+        except MutationRestoreError as exc:
+            last_error = exc
+
+        if attempt < attempts and backoff_seconds:
+            time.sleep(backoff_seconds * attempt)
+
+    assert last_error is not None
+    if isinstance(last_error, OSError):
+        detail = f"errno={last_error.errno}, winerror={getattr(last_error, 'winerror', None)}"
+    else:
+        detail = str(last_error)
+    raise MutationRestoreError(
+        f"failed to restore {path} byte-exactly after {attempts} attempts ({detail})"
+    ) from last_error
+
+
 def check(defect: Break) -> bool:
     """Apply one break, run its tests, restore the file. True when the break was caught."""
     original_bytes = defect.path.read_bytes()
@@ -2656,7 +2970,7 @@ def check(defect: Break) -> bool:
     try:
         caught = _tests_fail(defect.command, defect.cwd)
     finally:
-        defect.path.write_bytes(original_bytes)
+        _restore_exact_bytes(defect.path, original_bytes)
         if defect.path.suffix == ".py":
             _invalidate_bytecode(defect.path)
 
