@@ -1,6 +1,6 @@
 # WP3.2 analyst interface evidence
 
-**Status:** implementation present; the exhaustive local mutation gate is **PASS**, but WP3.2 local acceptance remains **NOT CLOSED** because responsive/manual inspection is outstanding. No overall or independent-review `PASS` is claimed.
+**Status:** WP3.2 local acceptance is **CLOSED / PASS**. The exhaustive mutation gate and responsive/manual browser inspection both passed. No independent-review `PASS` is claimed.
 **Branch:** `codex/wp3-2-analyst-interface`
 **Scope:** local frontend implementation over the frozen WP3.1 contract.
 **Historical publication:** **NOT CLEARED**.
@@ -13,8 +13,8 @@ deployed model serving, browser smoke evidence, or an independent review that di
 
 | Status | Result | Evidence boundary |
 |---|---|---|
-| Local WP3.2 implementation | Implemented in the working tree and rebased onto current `origin/main` | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
-| Local WP3.2 acceptance | **NOT CLOSED** | Focused checks and the exhaustive `uv run python` mutation run passed; responsive/manual inspection remains outstanding |
+| Local WP3.2 implementation | Complete on the branch rebased onto current `origin/main` | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
+| Local WP3.2 acceptance | **CLOSED / PASS** | Focused checks, exhaustive mutation verification, and responsive/manual browser inspection passed |
 | Historical publication permission | **NOT CLEARED** | `/model/shots` remains closed by default; no StatsBomb/Hudl written direction was obtained or inferred |
 | Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3–WP3.4 own it |
 | Independent review | **NOT RUN** | No independent Sol review or `PASS` was manufactured |
@@ -59,7 +59,7 @@ deployed model serving, browser smoke evidence, or an independent review that di
 
 | Check | Result | Actual observation |
 |---|---|---|
-| `npm --prefix frontend test` | PASS | 4 files, 27 tests passed |
+| `npm --prefix frontend test` | PASS | 4 files, 28 tests passed |
 | `npm --prefix frontend run lint` | PASS | ESLint completed with no findings |
 | `npm --prefix frontend run typecheck` | PASS | TypeScript completed with no errors |
 | `npm --prefix frontend run build` | PASS | Next production build completed; `/` remained dynamic |
@@ -68,6 +68,7 @@ deployed model serving, browser smoke evidence, or an independent review that di
 | WP3.2 full mutation verification (final homogeneous run) | PASS | Repository-pinned Python 3.12.11, four sequential shards, `288 CAUGHT, 0 MISSED, 0 SKIP`; every `BREAKS` index executed exactly once |
 | Gate-closed local API/SSR check | PASS | `/model` 200, `/model/metrics` 200, `/model/shots` 403; rendered HTML contained the analyst heading, holdout heading, `publication_gate_closed`, and attribution |
 | `git diff --check` | PASS | No whitespace errors in the final closeout diff |
+| Responsive/manual browser inspection | PASS | Local Chrome inspection at 1440px, 1024px, and 390px in gate-closed and controlled local gate-open states; no final UI defects remained |
 
 ## Full mutation verification and local environment
 
@@ -109,10 +110,71 @@ wrapper asserting `executed == list(range(start, end))`: executed indices are ex
 unique executed index count is `288`, duplicate count is `0`, and missing count is `0`. The
 previous system-Python attempt is not included in any total.
 
-Responsive/manual browser inspection remains outstanding. Historical gate-open full-cohort UI
-inspection was not run; the public/default gate-closed state was inspected through local API and
-server-rendered HTML only. Historical publication remains **NOT CLEARED**, and production
-deployment/smoke remains **WP3.3–WP3.4**.
+## Responsive/manual browser inspection
+
+**Result: PASS.** The current branch was inspected in local Chrome through the normal Next.js dev
+server at representative viewport widths of **1440px**, **1024px**, and **390px**. The backend
+used only the local Docker PostgreSQL target. No remote publication gate or production variable was
+changed.
+
+### Gate-closed production-like state
+
+With `TOUCHLINE_HISTORICAL_MODEL_SHOTS_ENABLED=false`, `/model` and `/model/metrics` returned 200
+and `/model/shots` returned the structured 403 `publication_gate_closed`. At all three widths, the
+metadata identity, aggregate metrics, Euro2024 holdout reliability view, limitations, and visible
+StatsBomb attribution remained usable. The page clearly showed `publication_gate_closed`, `NOT
+CLEARED`, and the historical publication explanation; it did not show a zero-shot state. API logs
+showed only `/model`, `/model/metrics`, and the gated `/model/shots` request—no legacy `/shots`
+fallback and no `/model/predict` reconstruction.
+
+### Controlled local gate-open state
+
+A second local API process used the same Docker DSN with
+`TOUCHLINE_HISTORICAL_MODEL_SHOTS_ENABLED=true`; this was never applied remotely. The two returned
+pages were:
+
+```text
+limit=1000 offset=0:    total=1430, rows=1000
+limit=1000 offset=1000: total=1430, rows=430
+unique shot IDs: 1430
+```
+
+At each width the interface rendered `showing 1430 of 1430`, 1,430 markers, and the selected shot
+workspace. Exact AND filtering was exercised with `team=Ecuador` and
+`player=Romario Andrés Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
+combination (`team=Ecuador` and `player=Abdelkarim Hassan Al Haj Fadlalla`) showed the explicit
+“No shots match the current exact filters” state, disabled the selector, removed the markers, and
+showed the empty detail state. Reset restored all 1,430 rows. Selecting a shot and then filtering
+out its team repaired selection to the first remaining shot; the keyboard selector's `ArrowDown`
+path moved selection, the map ring followed it, and the detail panel matched the selected shot's
+player, outcome, probability, and caveat.
+
+### Map, reliability, claims, and responsive result
+
+The rendered map contained 152 filled goal markers and 1,278 hollow non-goal markers. Every marker's
+`cx`/`cy` matched the API coordinates without jitter; the attacking-half viewBox was `60 0 60 80`
+(the 60:80 StatsBomb coordinate-space ratio), and every rendered radius matched
+`r(p) = sqrt(0.45² + p × (2.40² − 0.45²))`. The observed low/high radii increased from
+`0.452875...` to `2.345938...`; one independent outer selection ring was present. The dense
+central overlap area remained interpretable through the hollow/filled outcome encoding, opacity,
+individual titles, and selection ring. The probability/outcome legend was readable.
+
+The reliability view showed all five bins and both count columns, explicitly identified `n=4` and
+`n=1`, rendered five unconnected points with zero connecting paths, reported the signed
+`calibrated − raw` comparison, and kept the WC2022 calibration/adoption section separate from the
+Euro2024 one-time tournament holdout. The historical calibration-data caveat remained beside the
+workspace and selected-shot probability. “Data provided by StatsBomb”, “not StatsBomb's
+proprietary xG model”, “Event data is not tracking”, and “No causal recommendation” were visible.
+
+After the first inspection found two bounded defects, they were fixed and rechecked: reliability
+content now permits a mobile-width internal table scroll without page-level horizontal overflow,
+and SVG reliability tooltip text is a single node so hydration remains stable. The regression
+assertion is in `frontend/components/HomeView.test.tsx`. Final browser runs reported no hydration
+or page errors and no horizontal overflow at any requested width; controls, map, detail panel,
+reliability table/chart, limitations, and attribution remained readable/usable.
+
+Historical publication remains **NOT CLEARED**, and production deployment/smoke remains
+**WP3.3–WP3.4**.
 
 ## Durable artifacts
 

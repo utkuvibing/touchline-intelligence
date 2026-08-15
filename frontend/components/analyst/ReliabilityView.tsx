@@ -61,9 +61,7 @@ function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
               stroke="var(--background)"
               strokeWidth={1.5}
             >
-              <title>
-                Bin {row.bin}: predicted {percent(row.mean_prediction)}, observed {percent(row.observed_rate)}, n={row.count}
-              </title>
+              <title>{`Bin ${row.bin}: predicted ${percent(row.mean_prediction)}, observed ${percent(row.observed_rate)}, n=${row.count}`}</title>
             </circle>
           );
         })}

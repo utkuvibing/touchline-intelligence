@@ -205,6 +205,14 @@ describe("WP3.2 analyst view", () => {
     expect(screen.getByText(/sparse bins are visible/i)).toBeInTheDocument();
   });
 
+  it("keeps reliability SVG tooltips as single text nodes for hydration", () => {
+    const { container } = render(<AnalystView {...baseProps()} />);
+
+    const titles = container.querySelectorAll(".reliability-chart title");
+    expect(titles).toHaveLength(reliability.length);
+    titles.forEach((title) => expect(title.childNodes).toHaveLength(1));
+  });
+
   it("filters the gated historical workspace with AND semantics and keeps keyboard selection available", async () => {
     const historical = {
       ...baseProps().historical,
