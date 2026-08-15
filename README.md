@@ -36,9 +36,11 @@ shot-conversion model, calibration and one-time tournament-holdout evidence, a r
 packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inference API.
 
 > **Current product boundary:** WP3.1 model serving is implemented and Docker-verified in the
-> repository but is not yet deployed. The live API and UI still show recorded, descriptive
-> outcomes—not model predictions—and the UI remains the M0 descriptive view. Historical row-level
-> model predictions are publication-gated off by default.
+> repository but is not yet deployed. The repository frontend now contains the WP3.2 model-aware
+> analyst view: qualified metadata, holdout evidence, limitations, attribution, and a historical
+> workspace that remains publication-gated. The live API and UI remain the earlier descriptive
+> deployment until WP3.3–WP3.4 hardening and smoke evidence are complete. Historical row-level model
+> predictions remain gated off by default.
 
 ## Model at a glance
 
@@ -220,10 +222,13 @@ Implemented in the repository but not live yet:
 - fail-fast loading of the minimal qualified serving bundle;
 - versioned model metadata, curated metrics, and validated calibrated prediction endpoints;
 - independent WP2-to-WP3 golden feature/parity evidence;
+- the WP3.2 model-aware analyst view with qualified metrics, reliability, limitations, and a
+  publication-gated historical workspace;
 - WC2022 historical calibrated predictions, publication-gated off by default.
 
-The live UI remains descriptive and exposes no model probability. M3.2–M3.4 still own the
-model-aware analyst view, deployment hardening, deployed smoke tests, and rebuild/rollback evidence.
+The deployed live UI remains descriptive and exposes no model probability. The repository
+WP3.2 analyst view is implemented locally but is not a deployment claim; M3.3–M3.4 still own
+production hardening, deployed smoke tests, and rebuild/rollback evidence.
 
 ## Roadmap
 
@@ -232,7 +237,7 @@ model-aware analyst view, deployment hardening, deployed smoke tests, and rebuil
 | **M0** Walking skeleton | Data → PostgreSQL → descriptive API → recorded-shot UI → deployment | ✅ Complete |
 | **M1** Data foundation | Relational schema, idempotent ingestion, quality audit, SQL pack, and reproducible clean rebuild | ✅ Complete |
 | **M2** Shot quality engine | Fixed cohort and features; locked splits; logistic selection; boosting and PyTorch challengers; calibration; one-time Euro2024 holdout; reproducible release; canonical Model Card | ✅ Complete |
-| **M3** Analyst interface and serving | WP3.1 versioned serving and feature parity implemented; model-aware UI, deployment hardening, smoke tests, and rollback documentation remain | **In progress** |
+| **M3** Analyst interface and serving | WP3.1 serving and WP3.2 model-aware UI implemented locally; deployment hardening, smoke tests, and rollback documentation remain | **In progress** |
 | **M4** Release and communication | Technical write-up, stakeholder summary, demo video and screenshots, attribution audit, and application materials | Planned |
 
 The detailed work-package sequence remains in [`docs/PLAN.md`](docs/PLAN.md); the milestone states

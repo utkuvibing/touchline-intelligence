@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Touchline Intelligence Platform",
+  title: "Touchline Intelligence · Shot quality",
   description:
-    "Recorded shots from StatsBomb Open Data. An early build: no shot-quality model yet, and no " +
-    "performance claim here has been evaluated.",
+    "A model-aware football analyst interface over a pinned StatsBomb Open Data cohort. " +
+    "Independent from StatsBomb's proprietary xG model.",
 };
 
 export default function RootLayout({
