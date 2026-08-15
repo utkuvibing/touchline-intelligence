@@ -1,0 +1,201 @@
+{
+  "manifest": {
+    "authoritative_inputs": {
+      "wp24": {
+        "artifact_manifest_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
+        "artifact_manifest_sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79",
+        "config_path": "experiments/run-configs/wp2_4-baselines.json",
+        "config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+        "metrics_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/metrics.json",
+        "metrics_sha256": "00b8785b25c03758a93416b0edf461adf1584fc06b20be1f75ba702019a67e5c",
+        "model_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
+        "model_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+        "resolved_config_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/config.json",
+        "resolved_config_sha256": "b4e68bb0d2850770a9661fe19839a66695b328aafc9a9e58e40f5baab88eb394"
+      },
+      "wp27": {
+        "audit_file_sha256": "830d53c29b8d6bb5521995c5deab8d9f9cffa7997c2f2584ecfc3631f65c4939",
+        "audit_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-access-audit.json",
+        "decision_file_sha256": "a88255ca56b478372ec76bc9dddb3295d9073a7f180d5dc8f0d9fa34bfd65d87",
+        "decision_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/calibration-decision.json",
+        "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+        "execution_provenance_sha256": "648d92dc99c34214505249dbe3e1533142b9bf79a7f817776dfbc2a8ba3c04ed",
+        "holdout_membership_sha256": "6a4b02d6bfb9d3c4619239772c089a65455a5cb0299956912d2d520ca639b729",
+        "measured_evidence_sha256": {
+          "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json": "6c3ede22ac846d59360676a32f4b16f0fbf0e31c832e5d962ca8a741cffbb40a",
+          "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674"
+        },
+        "metrics_file_sha256": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674",
+        "metrics_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/holdout-metrics.json",
+        "record_file_sha256": "6c3ede22ac846d59360676a32f4b16f0fbf0e31c832e5d962ca8a741cffbb40a",
+        "record_path": "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/experiment-record.json"
+      }
+    },
+    "base_commit": "f48a1032f88afab968562c3ba3600618a2ed580a",
+    "holdout_rows_loaded": false,
+    "new_holdout_access": false,
+    "packet_files": {
+      "experiments/shot_quality/exp-20260810-wp2_8-release/comparison.json": {
+        "role": "measured",
+        "sha256": "e7f9779cacd628e3cd622b0e2ac69963f373094ca1d6d8b386d2e99e9939850e"
+      },
+      "experiments/shot_quality/exp-20260810-wp2_8-release/config.json": {
+        "role": "measured",
+        "sha256": "09df31924f4b95fdb5ad4072c842e8c633ffc38aefc80e68a3f79f5f7368dd7c"
+      },
+      "experiments/shot_quality/exp-20260810-wp2_8-release/notes.md": {
+        "role": "presentation",
+        "sha256": "05d4fe1541e18be4d60f7347177b777459db3175af0c76e41cc47cec8d6b3d22"
+      },
+      "experiments/shot_quality/exp-20260810-wp2_8-release/reproduction.json": {
+        "role": "measured",
+        "sha256": "b390d9c2cc7d4df865eb07517a84caf67a70c8b180751fc5607c045376c71fae"
+      }
+    },
+    "presentation_references": [
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/evidence.md",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/model-card.md",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/reliability.svg",
+      "experiments/shot_quality/exp-20260809-wp2_7-calibration-holdout/plots/slices.svg",
+      "reports/wp2.7-calibration-holdout-evidence.md",
+      "reports/wp2.7-model-card.md"
+    ],
+    "release_id": "exp-20260810-wp2_8-release",
+    "release_manifest_path": "experiments/shot_quality/exp-20260810-wp2_8-release/release-manifest.json",
+    "release_status": "m2_qualified",
+    "reproduction": {
+      "artifact_manifest_sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79",
+      "byte_identical_reproduction_claim": true,
+      "comparison": {
+        "artifact_byte_identical": true,
+        "canonical_json_equal": true,
+        "comparison_mode": "exact",
+        "comparison_table": [
+          {
+            "canonical": 2872,
+            "delta": 0.0,
+            "field": "metrics.n_rows",
+            "outcome": "pass",
+            "regenerated": 2872,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 115,
+            "delta": 0.0,
+            "field": "metrics.n_matches",
+            "outcome": "pass",
+            "regenerated": 115,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.1,
+            "delta": 0.0,
+            "field": "metrics.shipped_best_c",
+            "outcome": "pass",
+            "regenerated": 0.1,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.263358428847,
+            "delta": 0.0,
+            "field": "metrics.candidate.mean_log_loss",
+            "outcome": "pass",
+            "regenerated": 0.263358428847,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.262971881592,
+            "delta": 0.0,
+            "field": "metrics.candidate.pooled_oof.log_loss",
+            "outcome": "pass",
+            "regenerated": 0.262971881592,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.07304423249,
+            "delta": 0.0,
+            "field": "metrics.candidate.pooled_oof.brier",
+            "outcome": "pass",
+            "regenerated": 0.07304423249,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.752955487274,
+            "delta": 0.0,
+            "field": "metrics.candidate.pooled_oof.roc_auc",
+            "outcome": "pass",
+            "regenerated": 0.752955487274,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 2872,
+            "delta": 0.0,
+            "field": "config.expected_shots",
+            "outcome": "pass",
+            "regenerated": 2872,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 115,
+            "delta": 0.0,
+            "field": "config.expected_matches",
+            "outcome": "pass",
+            "regenerated": 115,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 1,
+            "delta": 0.0,
+            "field": "artifact_manifest.artifact_schema_version",
+            "outcome": "pass",
+            "regenerated": 1,
+            "tolerance": 0.0
+          },
+          {
+            "canonical": 0.1,
+            "delta": 0.0,
+            "field": "artifact_manifest.shipped_best_c",
+            "outcome": "pass",
+            "regenerated": 0.1,
+            "tolerance": 0.0
+          }
+        ],
+        "feature_contract_equal": true,
+        "metadata_within_tolerance": true,
+        "metrics_within_tolerance": true
+      },
+      "development_anchors": {
+        "fold_sizes": {
+          "0": 570,
+          "1": 552,
+          "2": 602,
+          "3": 576,
+          "4": 572
+        },
+        "matches": 115,
+        "shots": 2872
+      },
+      "environment_fingerprint": {
+        "architecture": "AMD64",
+        "config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+        "os": "Windows",
+        "python_implementation": "CPython",
+        "python_version": "3.12.11",
+        "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+        "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902",
+        "uv_version": "0.11.25"
+      },
+      "exact_environment_match": true,
+      "holdout_rows_loaded": false,
+      "metrics_sha256": "00b8785b25c03758a93416b0edf461adf1584fc06b20be1f75ba702019a67e5c",
+      "model_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+      "new_holdout_access": false,
+      "scope": "development_only"
+    },
+    "reproduction_scope": "development_only",
+    "schema_version": 1,
+    "serving_status": "not_served",
+    "work_package": "WP2.8"
+  },
+  "release_manifest_sha256": "bad64e5972938335e62b98d694f24961117e5f46034518f38b61209e2c3ca87d"
+}

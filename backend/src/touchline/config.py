@@ -43,6 +43,13 @@ class Settings(BaseSettings):
             "local development only; a deployment must set its real frontend origin."
         ),
     )
+    historical_model_shots_enabled: bool = Field(
+        default=False,
+        description=(
+            "Publication gate for row-level WC2022 model probabilities. Defaults closed and must "
+            "not be enabled publicly until the documented StatsBomb/Hudl question is resolved."
+        ),
+    )
 
     @property
     def allowed_origins(self) -> list[str]:

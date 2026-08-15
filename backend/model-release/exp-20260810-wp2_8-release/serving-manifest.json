@@ -1,0 +1,32 @@
+{
+  "serving_bundle": {
+    "bundle_id": "exp-20260810-wp2_8-release",
+    "files": {
+      "artifact_manifest": {
+        "path": "artifact-manifest.json",
+        "sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79"
+      },
+      "calibration_decision": {
+        "path": "calibration-decision.json",
+        "sha256": "a88255ca56b478372ec76bc9dddb3295d9073a7f180d5dc8f0d9fa34bfd65d87"
+      },
+      "holdout_metrics": {
+        "path": "holdout-metrics.json",
+        "sha256": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674"
+      },
+      "model": {
+        "path": "model.pkl",
+        "sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca"
+      },
+      "release_manifest": {
+        "path": "wp2_8-release-manifest.json",
+        "sha256": "5c2e4016291c6ebe99ba69b37884f38791b4b6b1440c81107ed2a44db95645d4"
+      }
+    },
+    "schema_version": 1,
+    "source_release_id": "exp-20260810-wp2_8-release",
+    "source_release_manifest_file_sha256": "5c2e4016291c6ebe99ba69b37884f38791b4b6b1440c81107ed2a44db95645d4",
+    "source_release_manifest_sha256": "bad64e5972938335e62b98d694f24961117e5f46034518f38b61209e2c3ca87d"
+  },
+  "serving_manifest_sha256": "68cee3ab4f06c280421f848de36d59b3db39d8c3ea7ece7765a4ba29e3a7ae5c"
+}

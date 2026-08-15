@@ -1,0 +1,442 @@
+{
+  "decision": {
+    "adopted_variant": "calibrated",
+    "adoption": {
+      "adopted_variant": "calibrated",
+      "bin_edges": [
+        0.0,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "calibrated_brier": 0.08204252640613116,
+      "calibrated_log_loss": 0.2839359330006713,
+      "calibrated_max_abs_deviation_supported": 0.004302015683183724,
+      "calibrated_variant_reliability": [
+        {
+          "bin": 0,
+          "count": 1256,
+          "lower": 0.0,
+          "mean_prediction": 0.0714473613301593,
+          "observed_rate": 0.07006369426751592,
+          "positive_count": 88,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 122,
+          "lower": 0.2,
+          "mean_prediction": 0.27026987716124196,
+          "observed_rate": 0.29508196721311475,
+          "positive_count": 36,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 34,
+          "lower": 0.4,
+          "mean_prediction": 0.4729789731135034,
+          "observed_rate": 0.47058823529411764,
+          "positive_count": 16,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 14,
+          "lower": 0.6,
+          "mean_prediction": 0.6935563220420768,
+          "observed_rate": 0.7142857142857143,
+          "positive_count": 10,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 4,
+          "lower": 0.8,
+          "mean_prediction": 0.8745288902913487,
+          "observed_rate": 0.5,
+          "positive_count": 2,
+          "upper": 1.0
+        }
+      ],
+      "min_support": 100,
+      "platt_intercept": 0.7228009741380947,
+      "platt_slope": 1.256307409023587,
+      "raw_anchor_reliability": [
+        {
+          "bin": 0,
+          "calibrated_mean_prediction": 0.07953484232285857,
+          "count": 1324,
+          "lower": 0.0,
+          "observed_rate": 0.08383685800604229,
+          "positive_count": 111,
+          "raw_mean_prediction": 0.07158908861237566,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "calibrated_mean_prediction": 0.370930124495372,
+          "count": 84,
+          "lower": 0.2,
+          "observed_rate": 0.32142857142857145,
+          "positive_count": 27,
+          "raw_mean_prediction": 0.2707363079266444,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "calibrated_mean_prediction": 0.6688679303179884,
+          "count": 18,
+          "lower": 0.4,
+          "observed_rate": 0.6666666666666666,
+          "positive_count": 12,
+          "raw_mean_prediction": 0.4986862919388754,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "calibrated_mean_prediction": 0.8480942340530411,
+          "count": 3,
+          "lower": 0.6,
+          "observed_rate": 0.3333333333333333,
+          "positive_count": 1,
+          "raw_mean_prediction": 0.6886531740738474,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "calibrated_mean_prediction": 0.9538328590062717,
+          "count": 1,
+          "lower": 0.8,
+          "observed_rate": 1.0,
+          "positive_count": 1,
+          "raw_mean_prediction": 0.862365274994754,
+          "upper": 1.0
+        }
+      ],
+      "raw_brier": 0.08321574985457875,
+      "raw_log_loss": 0.2874904814912322,
+      "raw_max_abs_deviation_supported": 0.012247769393666633,
+      "raw_variant_reliability": [
+        {
+          "bin": 0,
+          "count": 1324,
+          "lower": 0.0,
+          "mean_prediction": 0.07158908861237566,
+          "observed_rate": 0.08383685800604229,
+          "positive_count": 111,
+          "upper": 0.2
+        },
+        {
+          "bin": 1,
+          "count": 84,
+          "lower": 0.2,
+          "mean_prediction": 0.2707363079266444,
+          "observed_rate": 0.32142857142857145,
+          "positive_count": 27,
+          "upper": 0.4
+        },
+        {
+          "bin": 2,
+          "count": 18,
+          "lower": 0.4,
+          "mean_prediction": 0.4986862919388754,
+          "observed_rate": 0.6666666666666666,
+          "positive_count": 12,
+          "upper": 0.6
+        },
+        {
+          "bin": 3,
+          "count": 3,
+          "lower": 0.6,
+          "mean_prediction": 0.6886531740738474,
+          "observed_rate": 0.3333333333333333,
+          "positive_count": 1,
+          "upper": 0.8
+        },
+        {
+          "bin": 4,
+          "count": 1,
+          "lower": 0.8,
+          "mean_prediction": 0.862365274994754,
+          "observed_rate": 1.0,
+          "positive_count": 1,
+          "upper": 1.0
+        }
+      ],
+      "rejection_reasons": [],
+      "rule_version": "wp2.7-calibration-adoption-v1",
+      "supported_bins": 1
+    },
+    "base_identity": {
+      "artifact_manifest_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
+      "artifact_manifest_sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79",
+      "artifact_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
+      "artifact_schema_version": 1,
+      "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+      "base_fit_scope": "development_only",
+      "candidate": "full_minus_presence",
+      "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+      "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+      "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+      "estimator_state_sha256": "ab5aae68ee36a4c55c482c1bf205114732e82408d5199f845a2898defcb8714b",
+      "experiment_id": "exp-20260805-wp2_4-baselines",
+      "feature_contract_sha256": "01138f8ea986fece04e27d8f6c649a54e4e8dae29ca1f3293c08f892cb5bb54f",
+      "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+      "model_pickle_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+      "preprocessing_fit_scope": "development_only",
+      "preprocessing_sha256": "627ae1e190ebf83d726b226ff0498b778a493a7e82f073ff07f7d94a985e60fc",
+      "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+      "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902"
+    },
+    "calibrated_variant_reliability": [
+      {
+        "bin": 0,
+        "count": 1256,
+        "lower": 0.0,
+        "mean_prediction": 0.0714473613301593,
+        "observed_rate": 0.07006369426751592,
+        "positive_count": 88,
+        "upper": 0.2
+      },
+      {
+        "bin": 1,
+        "count": 122,
+        "lower": 0.2,
+        "mean_prediction": 0.27026987716124196,
+        "observed_rate": 0.29508196721311475,
+        "positive_count": 36,
+        "upper": 0.4
+      },
+      {
+        "bin": 2,
+        "count": 34,
+        "lower": 0.4,
+        "mean_prediction": 0.4729789731135034,
+        "observed_rate": 0.47058823529411764,
+        "positive_count": 16,
+        "upper": 0.6
+      },
+      {
+        "bin": 3,
+        "count": 14,
+        "lower": 0.6,
+        "mean_prediction": 0.6935563220420768,
+        "observed_rate": 0.7142857142857143,
+        "positive_count": 10,
+        "upper": 0.8
+      },
+      {
+        "bin": 4,
+        "count": 4,
+        "lower": 0.8,
+        "mean_prediction": 0.8745288902913487,
+        "observed_rate": 0.5,
+        "positive_count": 2,
+        "upper": 1.0
+      }
+    ],
+    "calibration_config_path": "experiments/run-configs/wp2_7-calibration.json",
+    "calibration_config_sha256": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
+    "calibration_fit_scope": "WC2022_only",
+    "calibration_membership": {
+      "membership_sha256": "0c418f70cfb9c8713f5023c4bbc3894b56b7f673c42b897950cd6463f065f4bb",
+      "n_matches": 64,
+      "n_rows": 1430
+    },
+    "calibration_split": "WC2022",
+    "calibrator": "platt_sigmoid",
+    "execution_provenance": {
+      "code_commit": "e8e863947b74bbe8496a9734878941e8b10e30ce",
+      "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+      "experiment_id": "exp-20260809-wp2_7-calibration-holdout",
+      "input_config_path": "experiments/run-configs/wp2_7-calibration.json",
+      "input_config_sha256": "ca3a4a1fe380338837bc718ffdb313324639e28e9b16d6b171467aee07214cb5",
+      "phase": "calibration",
+      "reproduction_commit": "e8e863947b74bbe8496a9734878941e8b10e30ce",
+      "runtime_fingerprint": {
+        "machine": "AMD64",
+        "numpy_version": "2.5.1",
+        "omp_num_threads": null,
+        "os": "Windows",
+        "os_release": "11",
+        "python_implementation": "CPython",
+        "python_version": "3.12.11",
+        "scikit_learn_version": "1.9.0",
+        "scipy_version": "1.18.0",
+        "threadpool_info": [
+          {
+            "architecture": "Haswell",
+            "internal_api": "openblas",
+            "num_threads": 12,
+            "prefix": "libscipy_openblas",
+            "threading_layer": "pthreads",
+            "user_api": "blas",
+            "version": "0.3.31.dev"
+          },
+          {
+            "architecture": "Haswell",
+            "internal_api": "openblas",
+            "num_threads": 12,
+            "prefix": "libscipy_openblas",
+            "threading_layer": "pthreads",
+            "user_api": "blas",
+            "version": "0.3.33.112.0"
+          },
+          {
+            "internal_api": "openmp",
+            "num_threads": 12,
+            "prefix": "vcomp",
+            "user_api": "openmp",
+            "version": null
+          }
+        ],
+        "threadpool_num_threads": [
+          12
+        ],
+        "threadpoolctl_version": "3.6.0"
+      },
+      "source_bundle_sha256": "710ec99da792c946ff53d5730f0235bb03df41fcfc7dd74d1acfd6a574a2c4fa",
+      "source_files_sha256": {
+        "backend/src/touchline/features/geometry.py": "c46d5df289c482213da1c784e711372533de94b4d081c01c2f623d3967fb41bd",
+        "backend/src/touchline/modeling/artifact.py": "a91564bae6e0361d82d66e60b1e14d0b116ea3f269962a58102e7a1795a2a909",
+        "backend/src/touchline/modeling/calibration.py": "7e96c4223ac8744efa5f11257757f3d51ec37e98ca3de7517aaa54d826a96f49",
+        "backend/src/touchline/modeling/dataset.py": "5c524f2dc508e09288aada0f56434a74fdfa1638ba7c470adb6622dd1c941459",
+        "backend/src/touchline/modeling/experiment.py": "748708a9e227187a615aa880ceeedd65212ef724fc74b7d0c7cf9259cb7dd442",
+        "backend/src/touchline/modeling/holdout.py": "8bd7fe950a65d33d5c63fd512cd16cffb69c60a64d55bf12437808b3afba03fe",
+        "backend/src/touchline/modeling/metrics.py": "d0e14814ee74260892ee95e73c80be1fb4473c1ba891eac40541879498036744",
+        "backend/src/touchline/modeling/preprocessing.py": "35b286c42c624adff3cc283c7faafd5df9b71484e185c8bfd4c6331e563587da",
+        "backend/src/touchline/modeling/protocol.py": "d9cd6f50e095809b47245ce496c1a85603b3ba60b2ab39d83e526c129c0aad97",
+        "backend/src/touchline/modeling/wp2_7.py": "9dd65aed1809b38aa9370de0ff5891c4c36819ca78b12d65ff42a871f15f3b0e"
+      },
+      "uv_lock_sha256": "1a8a7ee20e7df7703e043118c50be16eb59e9d73ac56ce502a95e09677cde5d3"
+    },
+    "execution_provenance_sha256": "cab610f3fac9071c3a5fb300d1c924056d704db481bd09b95dc20a2fdce801a2",
+    "holdout_accessed": false,
+    "platt_intercept": 0.7228009741380947,
+    "platt_parameter_sha256": "991b5dcea260190f83db98e135268ea8f755d841a63a09326bc177e507ecd908",
+    "platt_slope": 1.256307409023587,
+    "raw_anchor_reliability": [
+      {
+        "bin": 0,
+        "calibrated_mean_prediction": 0.07953484232285857,
+        "count": 1324,
+        "lower": 0.0,
+        "observed_rate": 0.08383685800604229,
+        "positive_count": 111,
+        "raw_mean_prediction": 0.07158908861237566,
+        "upper": 0.2
+      },
+      {
+        "bin": 1,
+        "calibrated_mean_prediction": 0.370930124495372,
+        "count": 84,
+        "lower": 0.2,
+        "observed_rate": 0.32142857142857145,
+        "positive_count": 27,
+        "raw_mean_prediction": 0.2707363079266444,
+        "upper": 0.4
+      },
+      {
+        "bin": 2,
+        "calibrated_mean_prediction": 0.6688679303179884,
+        "count": 18,
+        "lower": 0.4,
+        "observed_rate": 0.6666666666666666,
+        "positive_count": 12,
+        "raw_mean_prediction": 0.4986862919388754,
+        "upper": 0.6
+      },
+      {
+        "bin": 3,
+        "calibrated_mean_prediction": 0.8480942340530411,
+        "count": 3,
+        "lower": 0.6,
+        "observed_rate": 0.3333333333333333,
+        "positive_count": 1,
+        "raw_mean_prediction": 0.6886531740738474,
+        "upper": 0.8
+      },
+      {
+        "bin": 4,
+        "calibrated_mean_prediction": 0.9538328590062717,
+        "count": 1,
+        "lower": 0.8,
+        "observed_rate": 1.0,
+        "positive_count": 1,
+        "raw_mean_prediction": 0.862365274994754,
+        "upper": 1.0
+      }
+    ],
+    "raw_variant_reliability": [
+      {
+        "bin": 0,
+        "count": 1324,
+        "lower": 0.0,
+        "mean_prediction": 0.07158908861237566,
+        "observed_rate": 0.08383685800604229,
+        "positive_count": 111,
+        "upper": 0.2
+      },
+      {
+        "bin": 1,
+        "count": 84,
+        "lower": 0.2,
+        "mean_prediction": 0.2707363079266444,
+        "observed_rate": 0.32142857142857145,
+        "positive_count": 27,
+        "upper": 0.4
+      },
+      {
+        "bin": 2,
+        "count": 18,
+        "lower": 0.4,
+        "mean_prediction": 0.4986862919388754,
+        "observed_rate": 0.6666666666666666,
+        "positive_count": 12,
+        "upper": 0.6
+      },
+      {
+        "bin": 3,
+        "count": 3,
+        "lower": 0.6,
+        "mean_prediction": 0.6886531740738474,
+        "observed_rate": 0.3333333333333333,
+        "positive_count": 1,
+        "upper": 0.8
+      },
+      {
+        "bin": 4,
+        "count": 1,
+        "lower": 0.8,
+        "mean_prediction": 0.862365274994754,
+        "observed_rate": 1.0,
+        "positive_count": 1,
+        "upper": 1.0
+      }
+    ],
+    "registered_base": {
+      "artifact_manifest_path": "experiments/shot_quality/exp-20260805-wp2_4-baselines/artifact-manifest.json",
+      "artifact_manifest_sha256": "62cade6c3db5d741039de8f1ad53010319f422dcb942c96f16f1db8a498e8e79",
+      "artifact_path": "artifacts/models/exp-20260805-wp2_4-baselines/model.pkl",
+      "artifact_schema_version": 1,
+      "assignments_sha256": "e2d5517d96aa81d2229e1ef00a3c692f44f280630c3e75b7f6735e7cdc1787d8",
+      "best_c": 0.1,
+      "candidate": "full_minus_presence",
+      "code_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+      "cohort_sql_sha256": "301d8a620b60d8da6011c7c4d12ef8108c658df4d923f612c3e3bf9e0427978e",
+      "data_source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+      "experiment_id": "exp-20260805-wp2_4-baselines",
+      "input_config_sha256": "30d34981d957f2b7c3832b2fe347f10986a6f14e58cca98a4abba673a56b0b0e",
+      "model_pickle_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+      "reproduction_commit": "81d4a56395985cb427fbcd13f38a0eb8c42e8be6",
+      "shipped_feature_set": "geometry+categoricals",
+      "uv_lock_sha256": "58c4b2b39cf78d217284784ada544633ea7c145a9a5a0a6c4eb6312eb7ea3902"
+    },
+    "rule_version": "wp2.7-calibration-adoption-v1",
+    "schema_version": 1
+  },
+  "decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89"
+}

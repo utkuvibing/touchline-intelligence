@@ -10,22 +10,45 @@ is the right thing to publish first.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, Literal
 
 import psycopg
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from touchline import baseline, schema_state, shots
+from touchline import baseline, model_shots, schema_state, shots
 from touchline.config import Settings, get_settings
+from touchline.model_api import (
+    ModelDataUnavailableError,
+    PublicationGateClosedError,
+    RuntimeNotReadyError,
+)
+from touchline.model_api import (
+    router as model_router,
+)
+from touchline.serving import ModelRuntime, ServingInputError
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """Load and verify the one qualified release before this worker accepts traffic."""
+    application.state.model_runtime = ModelRuntime.load()
+    yield
+    del application.state.model_runtime
+
 
 app = FastAPI(
     title="Touchline Intelligence Platform",
     version="0.1.0",
     summary="Football research and decision-support on StatsBomb Open Data.",
+    lifespan=lifespan,
 )
 
 # Restricted to named origins, never `*`. The deployed frontend is one known origin, so allowing
@@ -35,7 +58,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -46,6 +69,86 @@ class Health(BaseModel):
     status: Literal["ok"]
     environment: str
     version: str
+
+
+class ErrorDetail(BaseModel):
+    field: str | None
+    code: str
+    message: str
+
+
+class ErrorBody(BaseModel):
+    code: str
+    message: str
+    details: list[ErrorDetail]
+
+
+class ErrorResponse(BaseModel):
+    error: ErrorBody
+
+
+def _error(*, status_code: int, code: str, message: str, field: str | None = None) -> JSONResponse:
+    payload = ErrorResponse(
+        error=ErrorBody(
+            code=code,
+            message=message,
+            details=[] if field is None else [ErrorDetail(field=field, code=code, message=message)],
+        )
+    )
+    return JSONResponse(status_code=status_code, content=payload.model_dump())
+
+
+@app.exception_handler(RequestValidationError)
+def request_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    query_error = any(error.get("loc", [None])[0] == "query" for error in exc.errors())
+    code = "invalid_filter" if query_error else "request_validation_error"
+    details = [
+        ErrorDetail(
+            field=".".join(str(item) for item in error.get("loc", [])[1:]) or None,
+            code=code,
+            message=str(error.get("msg", "request validation failed")),
+        )
+        for error in exc.errors()
+    ]
+    payload = ErrorResponse(
+        error=ErrorBody(code=code, message="Request validation failed.", details=details)
+    )
+    return JSONResponse(status_code=422, content=payload.model_dump())
+
+
+@app.exception_handler(ServingInputError)
+def serving_input_error(request: Request, exc: ServingInputError) -> JSONResponse:
+    del request
+    return _error(status_code=422, code=exc.code, message=str(exc), field=exc.field)
+
+
+@app.exception_handler(model_shots.HistoricalFilterError)
+def historical_filter_error(
+    request: Request, exc: model_shots.HistoricalFilterError
+) -> JSONResponse:
+    del request
+    return _error(status_code=422, code="invalid_filter", message=str(exc), field=exc.field)
+
+
+@app.exception_handler(PublicationGateClosedError)
+def publication_gate_error(request: Request, exc: PublicationGateClosedError) -> JSONResponse:
+    del request
+    return _error(status_code=403, code="publication_gate_closed", message=str(exc))
+
+
+@app.exception_handler(RuntimeNotReadyError)
+def runtime_not_ready_error(request: Request, exc: RuntimeNotReadyError) -> JSONResponse:
+    del request
+    return _error(status_code=503, code="runtime_not_ready", message=str(exc))
+
+
+@app.exception_handler(ModelDataUnavailableError)
+def model_data_unavailable_error(request: Request, exc: ModelDataUnavailableError) -> JSONResponse:
+    del request
+    return _error(status_code=503, code="data_unavailable", message=str(exc))
+
+
+app.include_router(model_router)
 
 
 class Readiness(BaseModel):
@@ -64,6 +167,8 @@ class Readiness(BaseModel):
     status: Literal["ready", "degraded"]
     database: Literal["reachable", "unreachable"]
     database_schema: Literal["current", "behind", "unknown"] = "unknown"
+    model_runtime: Literal["ready", "not_ready"]
+    model_version: str | None
     detail: str | None = None
 
 
@@ -114,20 +219,34 @@ def health() -> Health:
 
 
 @app.get("/ready", response_model=Readiness, tags=["ops"])
-def ready() -> Readiness:
+def ready(request: Request, response: Response) -> Readiness:
     """Readiness probe. Touches the database, because an instance that cannot query is not
     ready to serve even though it is alive."""
     settings = get_settings()
     state = _check_database(settings)
+    runtime = getattr(request.app.state, "model_runtime", None)
+    if isinstance(runtime, ModelRuntime):
+        model_ready = True
+        model_version = runtime.provenance()["model_version"]
+    else:
+        model_ready = False
+        model_version = None
+    is_ready = state.reachable and state.schema_current and model_ready
+    if not is_ready:
+        response.status_code = 503
+    detail = state.detail
+    if state.reachable and state.schema_current and not model_ready:
+        detail = "model_runtime_not_ready"
     return Readiness(
-        # Ready requires both: an instance whose queries all raise UndefinedTable is not ready,
-        # however cheerfully it can run SELECT 1.
-        status="ready" if state.reachable and state.schema_current else "degraded",
+        # Ready requires all three: database, queried schema and the startup-validated model.
+        status="ready" if is_ready else "degraded",
         database="reachable" if state.reachable else "unreachable",
         database_schema=(
             "unknown" if not state.reachable else "current" if state.schema_current else "behind"
         ),
-        detail=state.detail,
+        model_runtime="ready" if model_ready else "not_ready",
+        model_version=model_version,
+        detail=detail,
     )
 
 
