@@ -10,11 +10,14 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+import touchline.serving as serving
+from touchline.modeling.artifact import load_bundle
 from touchline.serving import ModelRuntime, ServingBundleError
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,6 +71,17 @@ def test_committed_bundle_is_minimal_and_loads_as_the_qualified_release() -> Non
     assert metadata["calibration_decision_sha256"] == (
         "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89"
     )
+
+
+def test_incompatible_selected_column_order_aborts_loading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    qualified = load_bundle(BUNDLE / "model.pkl")
+    incompatible = replace(qualified, selected_indices=tuple(reversed(qualified.selected_indices)))
+    monkeypatch.setattr(serving, "load_bundle", lambda path: incompatible)
+
+    with pytest.raises(ServingBundleError, match="preprocessing_contract_invalid"):
+        ModelRuntime.load(BUNDLE)
 
 
 def test_missing_bundle_member_aborts_loading(tmp_path: Path) -> None:

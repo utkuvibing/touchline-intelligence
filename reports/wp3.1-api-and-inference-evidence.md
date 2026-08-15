@@ -63,9 +63,11 @@ request-controlled model path.
 
 FastAPI lifespan constructs this runtime before startup completes. Missing, corrupt, unexpected, or
 unsupported material raises a typed startup error and does not produce a degraded running model.
-Controlled source-tree and Docker corruption tests cover missing and corrupt model members,
-self-inconsistent serving manifests, unsupported serving schema, unexpected files/directories, and
-a self-consistent serving member that disagrees with the qualified WP2.8 release.
+Controlled source-tree tests cover missing and corrupt model members, self-inconsistent serving
+manifests, unsupported serving schema, unexpected files/directories, incompatible selected-column
+ordering, and a self-consistent serving member that disagrees with the qualified WP2.8 release. The
+actual Linux production image separately proves missing, corrupt, and unsupported-schema bundles all
+fail runtime initialization.
 
 ## Runtime and HTTP surface
 
@@ -87,9 +89,12 @@ Every successful model-aware response includes `model_version`, `release_id`,
 `calibration_decision_sha256`. Public prediction output contains only the calibrated probability
 and provenance; raw probability, logit, feature vectors, coefficients, and debug state are absent.
 
-Structured errors distinguish body validation, input compatibility, query filters, the publication
-gate, runtime readiness, and database availability. Deterministic bundle corruption remains a
-startup exception rather than an HTTP error.
+Structured errors distinguish model body validation, input compatibility, query filters, the
+publication gate, runtime readiness, and database availability. Request validation is scoped to
+`/model` routes; legacy `/shots` retains FastAPI's pre-WP3.1 `{"detail": ...}` validation shape.
+Deterministic bundle corruption remains a startup exception rather than an HTTP error. Model-aware
+requests reuse the lifespan singleton, and a regression test makes any per-request artifact reload
+fail visibly.
 
 ADR 0015's intentional readiness change is implemented: `/ready` returns HTTP 200 only when the
 model runtime, database, and required schema are ready; a genuine degraded runtime dependency
@@ -106,7 +111,8 @@ The API keeps the three roles explicit:
 | Euro2024 | one-time tournament holdout |
 
 `GET /model/metrics` curates existing immutable files and performs no database evidence query or
-metric recomputation. Its WC2022 adoption section comes from `calibration-decision.json`. Its
+metric recomputation; a focused test makes any PostgreSQL connection from that endpoint fail. Its
+WC2022 adoption section comes from `calibration-decision.json`. Its
 Euro2024 scores and reliability come from `holdout-metrics.json`. The legacy top-level
 `raw_anchor_reliability` is correctly treated as 1,430-row WC2022 calibration provenance; actual
 Euro2024 reliability comes from the 1,304-row `variants.calibrated.reliability` table.
@@ -148,9 +154,11 @@ page queries execute in one read-only transaction under the total order:
 match_date, match_id, period, minute, second, event_index, shot_id
 ```
 
-The fixture integration proof catches removal of WC2022 scope, penalty exclusion, and read-only
-enforcement. It also proves filtered totals and one batch-inference call for the page, with no
-outcome field in inference inputs.
+The fixture integration proof catches removal of WC2022 scope, penalty exclusion, deterministic
+ordering including the final shot-ID tie-breaker, and read-only enforcement. It also proves filtered
+totals and one batch-inference call for the page, with no outcome field in inference inputs. Unknown
+query keys—including `sort`, `fields`, and arbitrary names—fail against the exact allow-list with
+structured HTTP 422 `invalid_filter` responses.
 
 `TOUCHLINE_HISTORICAL_MODEL_SHOTS_ENABLED` defaults to `false`. A closed gate returns structured
 HTTP 403 without querying PostgreSQL. This implementation does not clear the existing StatsBomb/Hudl
@@ -163,12 +171,13 @@ Commands were run after stabilization:
 | Check | Result |
 |---|---|
 | Focused WP3.1 unit/API/ops tests | PASS |
-| WP3.1 PostgreSQL fixture integration | 5 passed |
-| `uv run poe check` | 923 passed, 302 skipped; format, lint and strict mypy passed |
-| Full mutation verification | 276 CAUGHT, 0 MISSED, 0 SKIP; all files restored |
-| WP3.1 mutation additions | 12 CAUGHT |
+| WP3.1 PostgreSQL fixture integration | 6 passed |
+| `uv run poe check` | 932 passed, 303 skipped; format, lint and strict mypy passed |
+| Full mutation verification | 284 CAUGHT, 0 MISSED, 0 SKIP; all files restored |
+| WP3.1 mutation additions | 20 CAUGHT |
 | `uv run python scripts/verify_wp3_1_docker.py` | PASS |
-| Docker missing/corrupt bundle probes | expected startup failure observed |
+| Linux-image canonical golden prediction | matched `0.3912322351084872` at absolute tolerance `1e-12` |
+| Docker missing/corrupt/unsupported-schema probes | expected initialization failures observed |
 | `git diff --check` | PASS |
 
 The 302 ordinary-suite skips are declared environment-specific full-source/full-cohort and CUDA
@@ -177,7 +186,8 @@ the local 230-match cohort, so none of its protected contracts skipped.
 
 ## Limitations and open gates
 
-- No deployed URL was changed or smoke-tested in WP3.1 evidence.
+- No deployed URL was changed or smoke-tested in WP3.1 evidence; README distinguishes the
+  implemented repository API from the still-descriptive live API and UI.
 - Historical row-level probabilities remain publication-disabled by default.
 - Offset order is deterministic for one database state. Cross-request page stability assumes the
   pinned, idempotently loaded snapshot remains unchanged; it is not claimed across source revisions,

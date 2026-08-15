@@ -164,6 +164,40 @@ def test_filters_change_both_rows_and_total(client: TestClient) -> None:
     assert absent["shots"] == []
 
 
+def test_final_shot_id_tie_breaker_stabilizes_equal_recorded_order_fields(
+    loaded_conn: psycopg.Connection, client: TestClient
+) -> None:
+    with loaded_conn.cursor() as cursor:
+        # Source ingestion normally enforces unique (match_id, event_index). Drop that fixture-only
+        # guard to exercise the endpoint's declared final UUID tie-breaker directly.
+        cursor.execute("ALTER TABLE events DROP CONSTRAINT events_match_index_unique")
+        cursor.execute(
+            "INSERT INTO events (event_id, match_id, event_index, period, minute, second, team_id, "
+            "player_id, event_type_id, event_type_name, location_x, location_y, "
+            "play_pattern_name) VALUES "
+            "('aaaaaaaa-0000-0000-0000-000000000009', 900001, 8, 1, 50, 0, 7001, 8002, "
+            "16, 'Shot', 110, 40, 'Regular Play'), "
+            "('aaaaaaaa-0000-0000-0000-000000000008', 900001, 8, 1, 50, 0, 7001, 8002, "
+            "16, 'Shot', 110, 40, 'Regular Play')"
+        )
+        cursor.execute(
+            "INSERT INTO shots (event_id, outcome_name, shot_type_name, body_part_name, "
+            "technique_name) VALUES "
+            "('aaaaaaaa-0000-0000-0000-000000000009', 'Off T', 'Open Play', "
+            "'Right Foot', 'Normal'), "
+            "('aaaaaaaa-0000-0000-0000-000000000008', 'Off T', 'Open Play', "
+            "'Right Foot', 'Normal')"
+        )
+    loaded_conn.commit()
+
+    body = client.get("/model/shots").json()
+    tied = [shot["shot_id"] for shot in body["shots"] if shot["minute"] == 50]
+    assert tied == [
+        "aaaaaaaa-0000-0000-0000-000000000008",
+        "aaaaaaaa-0000-0000-0000-000000000009",
+    ]
+
+
 def test_query_establishes_its_own_read_only_transaction(
     loaded_conn: psycopg.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:

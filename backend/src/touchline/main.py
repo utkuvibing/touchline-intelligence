@@ -1,11 +1,10 @@
 """FastAPI application entry point.
 
-M0 scope: prove the application starts, reads typed configuration, reaches PostgreSQL, and serves
-the descriptive conversion prevalence computed from the loaded data.
-
-**No model is served here and no performance claim is made.** `/baseline` reports one full-cohort
-summary; `/shots` returns recorded facts with no prediction. See `touchline.baseline` for why that
-is the right thing to publish first.
+The M0 descriptive endpoints remain intact: `/baseline` reports observed prevalence and `/shots`
+returns recorded facts without model output. WP3.1 additionally loads the qualified WP2.8 release
+at startup and exposes versioned model metadata, immutable metrics, and calibrated hypothetical-shot
+inference under `/model`. Historical row-level model predictions remain publication-gated off by
+default, and this repository implementation is not itself a deployed-serving claim.
 """
 
 from __future__ import annotations
@@ -18,6 +17,7 @@ from typing import Annotated, Literal
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -100,6 +100,9 @@ def _error(*, status_code: int, code: str, message: str, field: str | None = Non
 
 @app.exception_handler(RequestValidationError)
 def request_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    if request.url.path != "/model" and not request.url.path.startswith("/model/"):
+        # Preserve FastAPI's pre-WP3.1 validation contract for legacy endpoints such as /shots.
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
     query_error = any(error.get("loc", [None])[0] == "query" for error in exc.errors())
     code = "invalid_filter" if query_error else "request_validation_error"
     details = [

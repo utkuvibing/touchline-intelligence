@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
@@ -126,6 +127,60 @@ def test_repeated_historical_filter_is_a_structured_query_error(client: TestClie
     response = client.get("/model/shots?team=A&team=B")
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_filter"
+
+
+@pytest.mark.parametrize("parameter", ["sort", "fields", "arbitrary"])
+def test_unknown_historical_filter_is_rejected_by_the_exact_allowlist(
+    client: TestClient, parameter: str
+) -> None:
+    response = client.get("/model/shots", params={parameter: "value"})
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "invalid_filter"
+    assert body["error"]["details"][0]["field"] == parameter
+
+
+def test_legacy_shots_keeps_fastapi_validation_shape(client: TestClient) -> None:
+    response = client.get("/shots", params={"limit": 0})
+    assert response.status_code == 422
+    assert "detail" in response.json()
+    assert "error" not in response.json()
+
+
+def test_model_requests_reuse_startup_runtime_without_reloading_artifact(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_reload(cls: type[ModelRuntime]) -> ModelRuntime:
+        del cls
+        raise AssertionError("model-aware requests must not reload the serving bundle")
+
+    monkeypatch.setattr(ModelRuntime, "load", classmethod(unexpected_reload))
+    assert client.get("/model").status_code == 200
+    assert client.get("/model/metrics").status_code == 200
+    assert (
+        client.post(
+            "/model/predict",
+            json={
+                "location_x": 112.0,
+                "location_y": 40.0,
+                "body_part": "Right Foot",
+                "technique": "Normal",
+                "play_pattern": "Regular Play",
+            },
+        ).status_code
+        == 200
+    )
+
+
+def test_metrics_endpoint_never_connects_to_database(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_connect(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise AssertionError("qualified metrics must not be recomputed from PostgreSQL")
+
+    monkeypatch.setattr(psycopg, "connect", unexpected_connect)
+    assert client.get("/model/metrics").status_code == 200
 
 
 def test_deterministic_bundle_corruption_aborts_startup(

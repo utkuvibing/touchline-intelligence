@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_BUNDLE = ROOT / "backend/model-release/exp-20260810-wp2_8-release"
@@ -28,6 +31,36 @@ def _mount(path: Path) -> str:
     return f"{path.resolve()}:{CONTAINER_BUNDLE}:ro"
 
 
+def _canonical(payload: dict[str, Any]) -> bytes:
+    return (
+        json.dumps(payload, sort_keys=True, indent=2, separators=(",", ": "), ensure_ascii=True)
+        + "\n"
+    ).encode("utf-8")
+
+
+def _assert_container_failure(image: str, bundle: Path, expected_code: str, label: str) -> None:
+    result = _run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--entrypoint",
+            "python",
+            "-v",
+            _mount(bundle),
+            image,
+            "-c",
+            "from touchline.serving import ModelRuntime; ModelRuntime.load()",
+        ],
+        expect_success=False,
+    )
+    if result.returncode == 0 or expected_code not in result.stderr:
+        raise RuntimeError(
+            f"{label} packaged bundle did not fail closed with {expected_code}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", default=DEFAULT_IMAGE)
@@ -37,8 +70,15 @@ def main() -> None:
         _run(["docker", "build", "-t", args.image, "."])
 
     probe = """
+import json
+import math
 from pathlib import Path
-from touchline.serving import EXPECTED_FILES, ModelRuntime, SERVING_BUNDLE_DIR
+from touchline.serving import (
+    EXPECTED_FILES,
+    ModelRuntime,
+    PredictionInput,
+    SERVING_BUNDLE_DIR,
+)
 actual = {path.name for path in SERVING_BUNDLE_DIR.iterdir() if path.is_file()}
 assert actual == set(EXPECTED_FILES), (actual, EXPECTED_FILES)
 assert not Path('/app/artifacts').exists()
@@ -50,6 +90,26 @@ assert runtime.provenance()['artifact_sha256'] == (
 assert runtime.provenance()['serving_manifest_sha256'] == (
     '68cee3ab4f06c280421f848de36d59b3db39d8c3ea7ece7765a4ba29e3a7ae5c'
 )
+oracle = json.loads(
+    Path('/app/backend/tests/fixtures/wp3_1_golden_cases.json').read_text(encoding='utf-8')
+)
+case = next(item for item in oracle['cases'] if item['name'] == 'reference_levels')
+request = case['request']
+actual_probability = runtime.predict(
+    PredictionInput(
+        location_x=request['location_x'],
+        location_y=request['location_y'],
+        body_part=request['body_part'],
+        technique=request['technique'],
+        play_pattern=request['play_pattern'],
+    )
+)
+assert math.isclose(
+    actual_probability,
+    case['expected']['calibrated_probability'],
+    rel_tol=0.0,
+    abs_tol=oracle['absolute_tolerance'],
+), (actual_probability, case['expected']['calibrated_probability'])
 """
     _run(["docker", "run", "--rm", "--entrypoint", "python", args.image, "-c", probe])
 
@@ -65,26 +125,21 @@ assert runtime.provenance()['serving_manifest_sha256'] == (
                 target.unlink()
             else:
                 target.write_bytes(b"deliberately corrupt packaged model")
-            result = _run(
-                [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "--entrypoint",
-                    "python",
-                    "-v",
-                    _mount(bundle),
-                    args.image,
-                    "-c",
-                    "from touchline.serving import ModelRuntime; ModelRuntime.load()",
-                ],
-                expect_success=False,
-            )
-            if result.returncode == 0 or expected_code not in result.stderr:
-                raise RuntimeError(
-                    f"{failure} packaged bundle did not fail closed with {expected_code}\n"
-                    f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-                )
+            _assert_container_failure(args.image, bundle, expected_code, failure)
+
+    with tempfile.TemporaryDirectory(prefix="wp31-schema-") as temporary:
+        bundle = Path(temporary) / "bundle"
+        shutil.copytree(SOURCE_BUNDLE, bundle)
+        manifest_path = bundle / "serving-manifest.json"
+        envelope = json.loads(manifest_path.read_text(encoding="utf-8"))
+        envelope["serving_bundle"]["schema_version"] = 999
+        envelope["serving_manifest_sha256"] = hashlib.sha256(
+            _canonical(envelope["serving_bundle"])
+        ).hexdigest()
+        manifest_path.write_bytes(_canonical(envelope))
+        _assert_container_failure(
+            args.image, bundle, "release_schema_unsupported", "unsupported-schema"
+        )
 
     print("WP3.1 Docker acceptance PASS")
 

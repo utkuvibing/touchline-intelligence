@@ -2897,6 +2897,14 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP3.1 startup validates the persisted selected-column ordering",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="        _validate_artifact(artifact, artifact_manifest)\n",
+        replacement="        pass  # DELIBERATE BREAK: feature ordering validation omitted\n",
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP3.1 public probability applies the adopted Platt transform",
         path=ROOT / "backend/src/touchline/serving.py",
         anchor="        probability = float(self._calibrator.predict(logit)[0])\n",
@@ -2904,6 +2912,28 @@ BREAKS: list[Break] = [
             "        probability = float(self._bundle.predict_proba([row])[0])  "
             "# DELIBERATE BREAK: raw base probability served\n"
         ),
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 hypothetical inference rejects out-of-bounds probabilities",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor=("        if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:\n"),
+        replacement="        if False:  # DELIBERATE BREAK: probability bounds ignored\n",
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical inference rejects out-of-bounds probabilities",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor=(
+            "        if (\n"
+            "            not np.isfinite(probabilities).all()\n"
+            "            or np.any(probabilities < 0.0)\n"
+            "            or np.any(probabilities > 1.0)\n"
+            "        ):\n"
+        ),
+        replacement="        if False:  # DELIBERATE BREAK: batch probability bounds ignored\n",
         command=WP31_RUNTIME_TESTS,
         cwd=ROOT,
     ),
@@ -2923,6 +2953,51 @@ BREAKS: list[Break] = [
             "    application.state.model_runtime = None  "
             "# DELIBERATE BREAK: startup validation omitted\n"
         ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 requests reuse the startup singleton without artifact reload",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor='    runtime = getattr(request.app.state, "model_runtime", None)\n',
+        replacement=(
+            "    runtime = ModelRuntime.load()  "
+            "# DELIBERATE BREAK: serving bundle reloaded per request\n"
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 qualified metrics remain immutable and database-independent",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor=(
+            "def model_metrics(request: Request) -> ModelMetricsResponse:\n"
+            "    runtime = get_runtime(request)\n"
+        ),
+        replacement=(
+            "def model_metrics(request: Request) -> ModelMetricsResponse:\n"
+            "    psycopg.connect(get_settings().db_url_str)  "
+            "# DELIBERATE BREAK: metrics query runtime database\n"
+            "    runtime = get_runtime(request)\n"
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical filter surface rejects unknown query parameters",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor="        if key not in HISTORICAL_QUERY_PARAMETERS:\n",
+        replacement="        if False:  # DELIBERATE BREAK: arbitrary query keys accepted\n",
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 structured validation does not replace legacy endpoint errors",
+        path=ROOT / "backend/src/touchline/main.py",
+        anchor=(
+            '    if request.url.path != "/model" and not request.url.path.startswith("/model/"):\n'
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: legacy validation globally replaced\n",
         command=WP31_API_TESTS,
         cwd=ROOT,
     ),
@@ -2955,6 +3030,14 @@ BREAKS: list[Break] = [
         path=ROOT / "backend/src/touchline/model_shots.py",
         anchor="      AND s.shot_type_name <> 'Penalty'\n",
         replacement="      AND true -- DELIBERATE BREAK: penalties admitted\n",
+        command=WP31_SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical ordering retains the final shot-id tie-breaker",
+        path=ROOT / "backend/src/touchline/model_shots.py",
+        anchor="        s.event_id ASC\n",
+        replacement="        s.event_id DESC  -- DELIBERATE BREAK: tie-breaker reversed\n",
         command=WP31_SHOTS_TESTS,
         cwd=ROOT,
     ),

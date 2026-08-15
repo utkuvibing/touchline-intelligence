@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import numpy as np
+import numpy.typing as npt
 import pytest
 
-from touchline.serving import ModelRuntime, PredictionInput, ServingInputError
+from touchline.modeling.calibration import PlattCalibrator
+from touchline.serving import (
+    HistoricalPredictionInput,
+    ModelRuntime,
+    PredictionInput,
+    ServingBundleError,
+    ServingInputError,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 BUNDLE = ROOT / "backend/model-release/exp-20260810-wp2_8-release"
@@ -85,6 +95,41 @@ def test_exact_goalposts_are_rejected(runtime: ModelRuntime, y: float) -> None:
 def test_blank_category_is_rejected_without_normalization(runtime: ModelRuntime) -> None:
     with pytest.raises(ServingInputError, match="non-empty"):
         runtime.predict(PredictionInput(100.0, 40.0, " ", "Normal", "Regular Play"))
+
+
+def test_runtime_rejects_an_out_of_bounds_calibrated_probability(
+    runtime: ModelRuntime,
+) -> None:
+    class OutOfBoundsCalibrator:
+        def predict(self, logits: object) -> npt.NDArray[np.float64]:
+            del logits
+            return np.asarray([1.1], dtype=np.float64)
+
+    broken = replace(runtime, _calibrator=cast(PlattCalibrator, OutOfBoundsCalibrator()))
+    with pytest.raises(ServingBundleError, match="invalid calibrated probability"):
+        broken.predict(PredictionInput(112.0, 40.0, "Right Foot", "Normal", "Regular Play"))
+
+
+def test_historical_runtime_rejects_out_of_bounds_calibrated_probabilities(
+    runtime: ModelRuntime,
+) -> None:
+    class OutOfBoundsCalibrator:
+        def predict(self, logits: object) -> npt.NDArray[np.float64]:
+            del logits
+            return np.asarray([1.1], dtype=np.float64)
+
+    broken = replace(runtime, _calibrator=cast(PlattCalibrator, OutOfBoundsCalibrator()))
+    row = HistoricalPredictionInput(
+        shot_id="historical",
+        match_id=1,
+        location_x=112.0,
+        location_y=40.0,
+        body_part="Right Foot",
+        technique="Normal",
+        play_pattern="Regular Play",
+    )
+    with pytest.raises(ServingBundleError, match="invalid calibrated probabilities"):
+        broken.predict_historical([row])
 
 
 def test_metrics_use_euro2024_reliability_not_the_legacy_wc2022_field(

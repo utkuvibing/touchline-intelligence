@@ -278,8 +278,25 @@ def get_runtime(request: Request) -> ModelRuntime:
     return runtime
 
 
-def _reject_repeated_query_parameters(request: Request) -> None:
+HISTORICAL_QUERY_PARAMETERS = frozenset(
+    {
+        "match_id",
+        "team",
+        "player",
+        "outcome",
+        "body_part",
+        "technique",
+        "play_pattern",
+        "limit",
+        "offset",
+    }
+)
+
+
+def _validate_query_parameters(request: Request) -> None:
     for key in request.query_params:
+        if key not in HISTORICAL_QUERY_PARAMETERS:
+            raise model_shots.HistoricalFilterError(key, f"unsupported query parameter: {key}")
         if len(request.query_params.getlist(key)) > 1:
             raise model_shots.HistoricalFilterError(key, f"{key} may be supplied only once")
 
@@ -325,7 +342,7 @@ def historical_model_shots(
     limit: Annotated[int, Query(ge=1, le=model_shots.MAX_LIMIT)] = model_shots.DEFAULT_LIMIT,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> HistoricalShotsResponse:
-    _reject_repeated_query_parameters(request)
+    _validate_query_parameters(request)
     settings = get_settings()
     if not settings.historical_model_shots_enabled:
         raise PublicationGateClosedError("public historical model shots are not enabled")
