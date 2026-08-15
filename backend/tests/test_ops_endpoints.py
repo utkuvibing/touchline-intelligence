@@ -93,10 +93,15 @@ def test_ready_reports_degraded_when_the_database_is_unreachable(client: TestCli
     """If this ever returns "ready" against a dead database, the check is not checking anything."""
     response = client.get("/ready")
 
-    assert response.status_code == 200
+    # WP3.1 intentionally changed degraded readiness from a nominal HTTP 200 to the status code
+    # deployment routers can act on. Deterministic model corruption never reaches this endpoint;
+    # this is a genuine runtime dependency failure.
+    assert response.status_code == 503
     body = response.json()
     assert body["status"] == "degraded"
     assert body["database"] == "unreachable"
+    assert body["model_runtime"] == "ready"
+    assert body["model_version"] == "exp-20260810-wp2_8-release"
 
 
 def test_ready_does_not_claim_to_know_the_schema_of_a_database_it_cannot_reach(

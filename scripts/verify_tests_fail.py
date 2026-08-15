@@ -273,6 +273,11 @@ WP26_QUALIFICATION_TESTS = "uv run pytest backend/tests/test_wp2_6_qualification
 WP27_CALIBRATION_TESTS = "uv run pytest backend/tests/test_wp2_7_calibration.py -q"
 WP27_DATASET_TESTS = "uv run pytest backend/tests/test_wp2_4_dataset.py -q"
 WP28_TESTS = "uv run pytest backend/tests/test_wp2_8_release.py -q"
+WP31_BUNDLE_TESTS = "uv run pytest backend/tests/test_wp3_1_serving_bundle.py -q"
+WP31_RUNTIME_TESTS = "uv run pytest backend/tests/test_wp3_1_runtime.py -q"
+WP31_API_TESTS = "uv run pytest backend/tests/test_wp3_1_model_api.py -q"
+WP31_SHOTS_TESTS = "uv run pytest backend/tests/test_wp3_1_model_shots_integration.py -q"
+WP31_DOCKER_TESTS = "uv run python scripts/verify_wp3_1_docker.py"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 
@@ -2854,6 +2859,205 @@ BREAKS: list[Break] = [
         anchor="        if staging.exists():\n",
         replacement="        if False:  # DELIBERATE BREAK: staging cleanup removed\n",
         command=WP28_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 serving-manifest digest protects deployed bundle membership",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor=('        if serving_envelope.get("serving_manifest_sha256") != serving_digest:\n'),
+        replacement="        if False:  # DELIBERATE BREAK: serving manifest digest ignored\n",
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 minimal bundle rejects unexpected directory members",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="        unexpected = (actual_files - EXPECTED_FILES) | non_files\n",
+        replacement=(
+            "        unexpected = actual_files - EXPECTED_FILES  "
+            "# DELIBERATE BREAK: directories ignored\n"
+        ),
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 every packaged member is hash-verified before use",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="            if actual_hash != expected_hash:\n",
+        replacement="            if False:  # DELIBERATE BREAK: member hash ignored\n",
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 serving members cross-check against the qualified WP2.8 release",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="        _validate_release(release_payload, member_hashes)\n",
+        replacement="        pass  # DELIBERATE BREAK: WP2.8 cross-check omitted\n",
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 startup validates the persisted selected-column ordering",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="        _validate_artifact(artifact, artifact_manifest)\n",
+        replacement="        pass  # DELIBERATE BREAK: feature ordering validation omitted\n",
+        command=WP31_BUNDLE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 public probability applies the adopted Platt transform",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor="        probability = float(self._calibrator.predict(logit)[0])\n",
+        replacement=(
+            "        probability = float(self._bundle.predict_proba([row])[0])  "
+            "# DELIBERATE BREAK: raw base probability served\n"
+        ),
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 hypothetical inference rejects out-of-bounds probabilities",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor=("        if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:\n"),
+        replacement="        if False:  # DELIBERATE BREAK: probability bounds ignored\n",
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical inference rejects out-of-bounds probabilities",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor=(
+            "        if (\n"
+            "            not np.isfinite(probabilities).all()\n"
+            "            or np.any(probabilities < 0.0)\n"
+            "            or np.any(probabilities > 1.0)\n"
+            "        ):\n"
+        ),
+        replacement="        if False:  # DELIBERATE BREAK: batch probability bounds ignored\n",
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 literal rare follows the approved unseen-reference policy",
+        path=ROOT / "backend/src/touchline/serving.py",
+        anchor='    return UNSEEN_EXTERNAL_RARE if value == "rare" else value\n',
+        replacement="    return value  # DELIBERATE BREAK: internal rare column exposed\n",
+        command=WP31_RUNTIME_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 deterministic model initialization occurs during application startup",
+        path=ROOT / "backend/src/touchline/main.py",
+        anchor="    application.state.model_runtime = ModelRuntime.load()\n",
+        replacement=(
+            "    application.state.model_runtime = None  "
+            "# DELIBERATE BREAK: startup validation omitted\n"
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 requests reuse the startup singleton without artifact reload",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor='    runtime = getattr(request.app.state, "model_runtime", None)\n',
+        replacement=(
+            "    runtime = ModelRuntime.load()  "
+            "# DELIBERATE BREAK: serving bundle reloaded per request\n"
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 qualified metrics remain immutable and database-independent",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor=(
+            "def model_metrics(request: Request) -> ModelMetricsResponse:\n"
+            "    runtime = get_runtime(request)\n"
+        ),
+        replacement=(
+            "def model_metrics(request: Request) -> ModelMetricsResponse:\n"
+            "    psycopg.connect(get_settings().db_url_str)  "
+            "# DELIBERATE BREAK: metrics query runtime database\n"
+            "    runtime = get_runtime(request)\n"
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical filter surface rejects unknown query parameters",
+        path=ROOT / "backend/src/touchline/model_api.py",
+        anchor="        if key not in HISTORICAL_QUERY_PARAMETERS:\n",
+        replacement="        if False:  # DELIBERATE BREAK: arbitrary query keys accepted\n",
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 structured validation does not replace legacy endpoint errors",
+        path=ROOT / "backend/src/touchline/main.py",
+        anchor=(
+            '    if request.url.path != "/model" and not request.url.path.startswith("/model/"):\n'
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: legacy validation globally replaced\n",
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical row-level model output defaults publication-closed",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=(
+            "        default=False,\n"
+            "        description=(\n"
+            '            "Publication gate for row-level'
+        ),
+        replacement=(
+            "        default=True,  # DELIBERATE BREAK: publication gate defaults open\n"
+            "        description=(\n"
+            '            "Publication gate for row-level'
+        ),
+        command=WP31_API_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical model rows remain inside the named WC2022 public scope",
+        path=ROOT / "backend/src/touchline/model_shots.py",
+        anchor="    WHERE {PUBLIC_SCOPE_PREDICATE}\n",
+        replacement="    WHERE true  -- DELIBERATE BREAK: internal tournaments published\n",
+        command=WP31_SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical model cohort independently excludes penalties",
+        path=ROOT / "backend/src/touchline/model_shots.py",
+        anchor="      AND s.shot_type_name <> 'Penalty'\n",
+        replacement="      AND true -- DELIBERATE BREAK: penalties admitted\n",
+        command=WP31_SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical ordering retains the final shot-id tie-breaker",
+        path=ROOT / "backend/src/touchline/model_shots.py",
+        anchor="        s.event_id ASC\n",
+        replacement="        s.event_id DESC  -- DELIBERATE BREAK: tie-breaker reversed\n",
+        command=WP31_SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 historical query enforces its own read-only transaction",
+        path=ROOT / "backend/src/touchline/model_shots.py",
+        anchor='            cursor.execute("SET TRANSACTION READ ONLY")\n',
+        replacement="            pass  # DELIBERATE BREAK: read-only enforcement removed\n",
+        command=WP31_SHOTS_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.1 Docker image contains the exact minimal serving bundle",
+        path=ROOT / "Dockerfile",
+        anchor=("COPY --from=builder --chown=touchline:touchline /app/backend /app/backend\n"),
+        replacement=(
+            "COPY --from=builder --chown=touchline:touchline /app/backend /app/backend\n"
+            "RUN rm -rf /app/backend/model-release  # DELIBERATE BREAK: serving bundle omitted\n"
+        ),
+        command=WP31_DOCKER_TESTS,
         cwd=ROOT,
     ),
 ]

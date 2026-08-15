@@ -134,6 +134,12 @@ jobs:
       - name: Entrypoint resolves
         run: docker run --rm --entrypoint uvicorn touchline-api:ci --help
 
+      # WP3.1 ships one minimal immutable release bundle. Inspect the actual image, initialize the
+      # validated runtime from it, and prove controlled missing/corrupt package material fails
+      # closed rather than starting a degraded model process.
+      - name: Verify the packaged WP3.1 serving bundle
+        run: python scripts/verify_wp3_1_docker.py --image touchline-api:ci --skip-build
+
       # The modeling group contains the Windows/Linux PyTorch training stack. Production installs
       # no default groups, so the image must prove both API importability and Torch absence.
       - name: Training dependencies stay outside production

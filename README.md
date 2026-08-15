@@ -31,13 +31,14 @@ The project began with raw event data and a question: how do you build an analys
 whose numbers survive technical scrutiny? The answer was to build the data foundation before the
 model, lock the evaluation design before final scoring, and commit the evidence behind each claim.
 
-**M0, M1, and M2 are complete.** The repository now contains a qualified shot-conversion model,
-calibration and one-time tournament-holdout evidence, a reproducible release packet, and a canonical
-[Model Card](MODEL_CARD.md).
+**M0, M1, and M2 are complete; M3 is in progress.** The repository contains a qualified
+shot-conversion model, calibration and one-time tournament-holdout evidence, a reproducible release
+packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inference API.
 
-> **Current product boundary:** the model release is `m2_qualified`, but its serving state is
-> `not_served`. The live API and UI still show recorded, descriptive outcomes—not model
-> predictions. Connecting the qualified artifact to the product is the next milestone, M3.
+> **Current product boundary:** WP3.1 model serving is implemented and Docker-verified in the
+> repository but is not yet deployed. The live API and UI still show recorded, descriptive
+> outcomes—not model predictions—and the UI remains the M0 descriptive view. Historical row-level
+> model predictions are publication-gated off by default.
 
 ## Model at a glance
 
@@ -51,7 +52,7 @@ calibration and one-time tournament-holdout evidence, a reproducible release pac
 | Calibration | WC2022 — 1,430 shots in 64 matches |
 | Final holdout | Euro2024 — 1,304 shots in 51 matches |
 | Lifecycle state | `m2_qualified` |
-| Serving state | `not_served` |
+| Serving state | WP3.1 implemented in-repository; not yet deployed (`not_served` remains the M2 release record) |
 | Canonical technical record | [MODEL_CARD.md](MODEL_CARD.md) |
 
 The model estimates eligible non-penalty shot-conversion probability from engineered shot geometry
@@ -144,8 +145,8 @@ chain.
 
 ## Architecture
 
-Solid arrows are implemented today. Dashed arrows show the M3 serving path that has not yet been
-built.
+Solid arrows are implemented in the repository. Dashed arrows show the model-aware UI work that
+remains; the WP3.1 inference/API path is Docker-verified but not yet deployed.
 
 ```mermaid
 flowchart LR
@@ -160,12 +161,12 @@ flowchart LR
     PG --> API["Current FastAPI<br/><i>descriptive endpoints</i>"]
     API --> WEB["Current Next.js UI<br/><i>recorded shot map</i>"]
 
-    ART -.->|M3 planned| INF["Inference boundary<br/><i>loading + feature parity</i>"]
-    INF -.-> PAPI["Prediction API<br/><i>version + provenance</i>"]
-    PAPI -.-> MWEB["Model-aware analyst UI<br/><i>predictions + reliability</i>"]
+    ART --> INF["WP3.1 inference boundary<br/><i>hash validation + feature parity</i>"]
+    INF --> PAPI["WP3.1 model API<br/><i>version + provenance</i>"]
+    PAPI -.->|M3.2 planned| MWEB["Model-aware analyst UI<br/><i>predictions + reliability</i>"]
 
     classDef planned stroke-dasharray: 6 4,fill:#f8f8f8,color:#555;
-    class INF,PAPI,MWEB planned;
+    class MWEB planned;
 ```
 
 | Layer | Choice | Why |
@@ -214,16 +215,15 @@ Live today:
 - paginated read-only shot data plus health and readiness endpoints;
 - the Vercel → Railway → Neon deployed path.
 
-Not live yet:
+Implemented in the repository but not live yet:
 
-- model probabilities in the API or UI;
-- online model loading, feature-parity evidence, versioned inference contracts, drift monitoring,
-  or rollback evidence.
+- fail-fast loading of the minimal qualified serving bundle;
+- versioned model metadata, curated metrics, and validated calibrated prediction endpoints;
+- independent WP2-to-WP3 golden feature/parity evidence;
+- WC2022 historical calibrated predictions, publication-gated off by default.
 
-M3 owns that productization boundary: load and version the qualified artifact, define safe
-validated inference, expose prediction and provenance contracts, prove offline/online feature
-parity on golden cases, integrate predictions and calibration/reliability views into the analyst
-interface, and harden deployment and operations. These are planned capabilities, not current ones.
+The live UI remains descriptive and exposes no model probability. M3.2–M3.4 still own the
+model-aware analyst view, deployment hardening, deployed smoke tests, and rebuild/rollback evidence.
 
 ## Roadmap
 
@@ -232,7 +232,7 @@ interface, and harden deployment and operations. These are planned capabilities,
 | **M0** Walking skeleton | Data → PostgreSQL → descriptive API → recorded-shot UI → deployment | ✅ Complete |
 | **M1** Data foundation | Relational schema, idempotent ingestion, quality audit, SQL pack, and reproducible clean rebuild | ✅ Complete |
 | **M2** Shot quality engine | Fixed cohort and features; locked splits; logistic selection; boosting and PyTorch challengers; calibration; one-time Euro2024 holdout; reproducible release; canonical Model Card | ✅ Complete |
-| **M3** Analyst interface and serving | Versioned model loading, safe inference and prediction APIs, model-aware analyst views, feature-parity proof, deployment hardening, smoke tests, and rollback documentation | **Next** |
+| **M3** Analyst interface and serving | WP3.1 versioned serving and feature parity implemented; model-aware UI, deployment hardening, smoke tests, and rollback documentation remain | **In progress** |
 | **M4** Release and communication | Technical write-up, stakeholder summary, demo video and screenshots, attribution audit, and application materials | Planned |
 
 The detailed work-package sequence remains in [`docs/PLAN.md`](docs/PLAN.md); the milestone states

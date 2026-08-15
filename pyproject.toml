@@ -73,6 +73,7 @@ qualify-mlp = "python -m touchline.modeling.qualify_mlp"
 wp2-7-calibrate = "python -m touchline.modeling.wp2_7 calibrate"
 wp2-7-holdout = "python -m touchline.modeling.wp2_7 holdout"
 wp2-8-release = "python -m touchline.modeling.wp2_8 release"
+wp3-1-docker-acceptance = "python scripts/verify_wp3_1_docker.py"
 reproducibility-fixture = "pytest backend/tests/test_wp1_6_fixture_manifest.py backend/tests/test_wp1_6_reproducibility_integration.py"
 
 [tool.ruff]
