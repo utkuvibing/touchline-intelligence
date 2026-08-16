@@ -133,6 +133,22 @@ describe("WP3.1 model API adapter", () => {
     await expect(fetchAllHistoricalShots(2)).rejects.toThrow(/exceeds its returned limit/);
   });
 
+  it("rejects a later page that exceeds its returned limit", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      return Promise.resolve(
+        jsonResponse(
+          url.endsWith("offset=0")
+            ? page([shot("one"), shot("two")], 5, 0)
+            : page([shot("three"), shot("four"), shot("five")], 5, 2),
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchAllHistoricalShots(2)).rejects.toThrow(/exceeds its returned limit/);
+  });
+
   it("rejects a later page whose historical caveat changes", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -206,6 +222,103 @@ describe("WP3.1 model API adapter", () => {
       expect(cause).toBeInstanceOf(ModelApiError);
       expect(isPublicationGateClosed((cause as ModelApiError).toInfo())).toBe(true);
     }
+  });
+
+  it.each([
+    ["missing details", undefined],
+    ["non-array details", "not-an-array"],
+    [
+      "non-empty details",
+      [{ field: null, code: "publication_gate_closed", message: "unexpected detail" }],
+    ],
+  ])("does not classify a publication-gate envelope with %s as gate-closed", async (_label, details) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "publication_gate_closed",
+                message: "public historical model shots are not enabled",
+                details,
+              },
+            },
+            403,
+          ),
+        ),
+      ),
+    );
+
+    await expect(fetchHistoricalShotsPage()).rejects.toMatchObject({
+      code: "http_403",
+      status: 403,
+    } satisfies Partial<ModelApiError>);
+  });
+
+  it.each([
+    ["a non-object error", { error: "publication_gate_closed" }, 403],
+    [
+      "a non-string code",
+      { error: { code: 403, message: "public historical model shots are not enabled", details: [] } },
+      403,
+    ],
+    [
+      "a non-string message",
+      { error: { code: "publication_gate_closed", message: null, details: [] } },
+      403,
+    ],
+    [
+      "a non-object detail entry",
+      {
+        error: {
+          code: "data_unavailable",
+          message: "historical model shots are unavailable",
+          details: ["invalid"],
+        },
+      },
+      503,
+    ],
+    [
+      "an invalid detail field",
+      {
+        error: {
+          code: "data_unavailable",
+          message: "historical model shots are unavailable",
+          details: [{ field: 1, code: "invalid_filter", message: "invalid" }],
+        },
+      },
+      503,
+    ],
+    [
+      "an invalid detail code",
+      {
+        error: {
+          code: "data_unavailable",
+          message: "historical model shots are unavailable",
+          details: [{ field: null, code: null, message: "invalid" }],
+        },
+      },
+      503,
+    ],
+    [
+      "an invalid detail message",
+      {
+        error: {
+          code: "data_unavailable",
+          message: "historical model shots are unavailable",
+          details: [{ field: null, code: "invalid_filter", message: null }],
+        },
+      },
+      503,
+    ],
+  ])("does not accept an envelope with %s", async (_label, body, status) => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(body, status))));
+
+    await expect(fetchHistoricalShotsPage()).rejects.toMatchObject({
+      code: `http_${status}`,
+      status,
+    } satisfies Partial<ModelApiError>);
   });
 
   it("rejects non-finite or out-of-range probabilities at the response seam", () => {

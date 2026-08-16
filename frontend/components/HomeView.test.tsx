@@ -185,6 +185,7 @@ describe("WP3.2 analyst view", () => {
     expect(screen.getByText(/publication_gate_closed/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/data provided by statsbomb/i)).toBeInTheDocument();
     expect(screen.getAllByText(/NOT CLEARED/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/local acceptance PASS; independent Sol re-review PASS/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /historical shot map is not publicly enabled/i }),
     ).toBeInTheDocument();

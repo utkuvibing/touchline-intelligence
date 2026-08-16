@@ -1,6 +1,6 @@
 # WP3.2 analyst interface contract
 
-**Status:** implementation and local acceptance revalidated; independent review is pending.
+**Status:** local implementation and acceptance `PASS`; independent GPT-5.6 Sol delta re-review `PASS`.
 **Depends on:** WP3.1 serving contract and ADR 0015.
 **Scope:** frontend only. WP3.2 adds no backend endpoint and does not alter the WP3.1 API.
 
@@ -20,7 +20,7 @@ Three statuses remain independent:
 
 | Status | WP3.2 meaning |
 |---|---|
-| Local implementation / acceptance | `REVALIDATED`; independent review remains pending. |
+| Local implementation / acceptance | `PASS`; independent GPT-5.6 Sol delta re-review `PASS`. |
 | Historical publication permission | `NOT CLEARED` until current written StatsBomb/Hudl direction resolves the existing source gate. |
 | Production deployment / smoke | Not a WP3.2 claim; owned by WP3.3–WP3.4. |
 

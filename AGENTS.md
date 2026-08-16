@@ -3,12 +3,12 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-16, M2 is complete through WP2.8. WP2.7 and WP2.8 both closed with
+Last updated: 2026-08-17, M2 is complete through WP2.8. WP2.7 and WP2.8 both closed with
 independent GPT-5.6 Sol review `PASS`; the qualified release remains `not_served`. M3/WP3.1 is
-implemented and manually approved for this iteration; WP3.2 implementation and local acceptance
-are repaired and revalidated, while independent review remains pending. No independent WP3.2
-review `PASS` is claimed. Update the "Where we are" section when a work package closes; do not let
-it drift.
+implemented and manually approved for this iteration. WP3.2 local implementation and acceptance
+are closed with independent GPT-5.6 Sol re-review `PASS`; historical publication remains `NOT
+CLEARED`, and production deployment/smoke remains WP3.3–WP3.4. Update the "Where we are" section
+when a work package closes; do not let it drift.
 
 ---
 
@@ -58,7 +58,7 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 2.7 calibration, reliability, and one-time holdout | done — frozen development base, WC2022-only Platt calibration and adoption, one supervised Euro2024 tournament-holdout execution, paired bootstrap, slices, audit evidence and model card completed; independent GPT-5.6 Sol review `PASS` recorded in ADR 0013 and the closeout evidence. |
 | 2.8 reproducible calibrated release | done — development-only historical reproduction passed byte-identically in the registered environment; immutable content-hashed release `exp-20260810-wp2_8-release` qualified as `m2_qualified`, `not_served`; independent GPT-5.6 Sol review `PASS` recorded in ADR 0014 and the closeout evidence. |
 | 3.1 API and model serving | done for this iteration — minimal immutable serving bundle, fail-fast singleton runtime, versioned metadata/metrics/prediction endpoints, publication-gated WC2022 historical predictions, independent WP2 golden parity, structured errors, readiness 503 semantics, Linux-image golden/corruption acceptance and 20/20 WP3.1 mutations (284/284 suite-wide) implemented and evidenced. **The project author manually approved the review gate for this iteration; no independent Sol review ran and no independent-review `PASS` is claimed.** |
-| 3.2 analyst interface | implementation and local acceptance repaired and revalidated on the immutable remediation branch; final exhaustive mutation verification passed `290/290` with no misses or skips, independent review remains pending, historical publication remains **NOT CLEARED**, and production deployment/smoke remains **WP3.3–WP3.4**. **No independent-review `PASS` is claimed.** |
+| 3.2 analyst interface | done for the accepted local contract — repaired pagination and exact error-envelope validation, exhaustive mutation verification `292/292`, final affected delta `13/13`, and cumulative coverage of the current 294-contract population with no misses or skips; independent GPT-5.6 Sol delta re-review `PASS`. Historical publication remains **NOT CLEARED**, and production deployment/smoke remains **WP3.3–WP3.4**. |
 
 M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
 four-tournament cohort, idempotent conflict policy

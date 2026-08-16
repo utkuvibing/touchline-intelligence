@@ -993,10 +993,47 @@ BREAKS: list[Break] = [
         cwd=FRONTEND,
     ),
     Break(
+        contract="WP3.2 historical pagination must reject an over-limit later page",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (page.shots.length > page.limit) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
         contract="WP3.2 historical pagination must reject a changed page caveat",
         path=FRONTEND / "lib/model-api.ts",
         anchor="    if (page.historical_prediction_caveat !== historicalPredictionCaveat) {",
         replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 publication-gate errors must preserve the exact structured envelope",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "      hasStructuredErrorDetails(detail.details) &&\n"
+            '      (detail.code !== "publication_gate_closed" || detail.details.length === 0)'
+        ),
+        replacement="      true  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 structured error details must validate every entry",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="  return value.every(isStructuredErrorDetail);",
+        replacement="  return true;  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 structured errors must require string code and message fields",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            '      typeof detail.code === "string" &&\n      typeof detail.message === "string" &&'
+        ),
+        replacement="      true &&  // DELIBERATE BREAK",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
     ),

@@ -1,13 +1,13 @@
 # WP3.2 analyst interface evidence
 
-**Status:** WP3.2 implementation and local acceptance are **REPAIRED / REVALIDATED**. The independent review returned **FAIL**; its remediation is locally revalidated, and independent re-review remains pending. No independent-review `PASS` is claimed.
+**Status:** WP3.2 local implementation and acceptance are **CLOSED / PASS**. The final independent GPT-5.6 Sol delta re-review returned **PASS**.
 **Branch:** `codex/wp3-2-analyst-interface`
 **Scope:** local frontend implementation over the frozen WP3.1 contract.
 **Historical publication:** **NOT CLEARED**.
 **Production deployment/smoke:** not part of WP3.2; remains **WP3.3–WP3.4**.
 
 This report records only checks that actually ran. It does not claim external publication permission,
-deployed model serving, browser smoke evidence, or an independent-review `PASS` that did not occur.
+deployed model serving, or production browser smoke evidence.
 
 ## Status separation
 
@@ -17,14 +17,15 @@ deployed model serving, browser smoke evidence, or an independent-review `PASS` 
 | Local WP3.2 acceptance | **REVALIDATED** | Focused checks, fresh exhaustive mutation verification, controlled local API checks, and prior responsive/manual browser inspection passed |
 | Historical publication permission | **NOT CLEARED** | `/model/shots` remains closed by default; no StatsBomb/Hudl written direction was obtained or inferred |
 | Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3–WP3.4 own it |
-| Independent review | **FAIL — re-review pending** | Review found stale final-head mutation evidence, two pagination invariant gaps, and status drift; all remediation is locally revalidated, but no independent `PASS` is claimed |
+| Independent review | **PASS** | Independent GPT-5.6 Sol delta re-review inspected the actual final diff, tests, precise mutation anchors, bounded cumulative evidence and scope boundaries; no material issue remains |
 
 ## Implemented contracts
 
 - `/model`, `/model/metrics`, and `/model/shots` are fetched independently through the frozen
   WP3.1 interface; no backend endpoint was added or changed.
-- Success payloads are parsed at runtime. Finite/bounded probabilities, reliability values, integer
-  counts, required split literals, caveats, and structured errors are checked.
+- Success payloads and error envelopes are parsed at runtime. Finite/bounded probabilities,
+  reliability values, integer counts, required split literals, caveats, and the exact structured
+  publication-gate error are checked.
 - All seven provenance identity fields must agree across model metadata, metrics, and every
   historical page:
 
@@ -60,14 +61,14 @@ deployed model serving, browser smoke evidence, or an independent-review `PASS` 
 
 | Check | Result | Actual observation |
 |---|---|---|
-| `npm --prefix frontend test lib/model-api.test.ts` | PASS | 1 file, 8 tests passed; includes over-limit, changed-caveat, and 1,000 + 430 pagination cases |
-| `npm --prefix frontend test` | PASS | 4 files, 30 tests passed |
+| `npm --prefix frontend test lib/model-api.test.ts` | PASS | 1 file, 19 tests passed; includes first/later-page over-limit, changed-caveat, complete error-envelope negative cases, and 1,000 + 430 pagination cases |
+| `npm --prefix frontend test` | PASS | 4 files, 41 tests passed |
 | `npm --prefix frontend run lint` | PASS | ESLint completed with no findings |
 | `npm --prefix frontend run typecheck` | PASS | TypeScript completed with no errors |
 | `npm --prefix frontend run build` | PASS | Next production build completed; `/` remained dynamic |
 | `uv run poe check` | PASS | Ruff format/lint and mypy passed; pytest `932 passed, 303 skipped` |
-| WP3.2 focused mutation verification | PASS | `9 CAUGHT, 0 MISSED` for attribution, gate state, caveat, sample sizes, area mapping, provenance, duplicate paging, over-limit paging, and changed-caveat paging |
-| WP3.2 full mutation verification (fresh final-head run) | PASS | Repository-pinned Python 3.12.11, four sequential shards, `290 CAUGHT, 0 MISSED, 0 SKIP`; every `BREAKS` index executed exactly once and mutation targets restored byte-exactly |
+| WP3.2 focused mutation verification | PASS | Final affected delta: `13 CAUGHT, 0 MISSED` for attribution, gate state, caveat, sample sizes, area mapping, provenance, duplicate paging, first/later-page over-limit paging, changed-caveat paging, complete gate-envelope validation, detail-entry validation, and code/message type validation |
+| Mutation population | PASS | Base exhaustive run: `292 CAUGHT, 0 MISSED, 0 SKIP`; final review delta added two contracts and reran all 13 affected WP3.2 contracts. Current `len(BREAKS) = 294`; all current contracts are covered cumulatively with no miss or skip |
 | Controlled local gate-closed API check | PASS | `/model` 200, `/model/metrics` 200, `/model/shots` 403 `publication_gate_closed`; no `/model/predict` request occurred |
 | Controlled local gate-open pagination check | PASS | Local Docker DSN only; returned total `1,430`, pages `1,000 + 430`, 1,430 unique shots, stable seven-field provenance and stable caveat; no `/model/predict` request occurred |
 | `git diff --check` | PASS | No whitespace errors in the final remediation diff |
@@ -88,32 +89,41 @@ TOUCHLINE_FULL_COHORT_DB_URL=postgresql://touchline:localdev@localhost:5433/touc
 
 The repository requires Python `>=3.12,<3.13`; every final shard wrapper was invoked through
 `uv run python`, which reported Python `3.12.11`, with `PYTHONHASHSEED=0`. The harness was loaded
-with `runpy` under a non-`__main__` name, so `main()` was not invoked. After adding the two
-legitimate WP3.2 pagination contracts, the authoritative population was `len(BREAKS) = 290`.
+with `runpy` under a non-`__main__` name, so `main()` was not invoked. After adding direct
+later-page over-limit and exact publication-gate-envelope contracts, the exhaustive population was
+`len(BREAKS) = 292`.
 
-The earlier 288-entry run recorded in the prior closeout evidence predates the final remediation
-implementation and is superseded historical evidence only. It is not included in the final totals.
-The final run below was executed after all pagination, tests, status, contract, and evidence changes,
-using the required local Docker PostgreSQL DSN and four deterministic sequential shards. No
-parallel mutations were used.
+The earlier 288-entry and 290-entry runs predate later remediations and are superseded historical
+evidence only. Neither is included in the final totals. The final run below was executed after the
+runtime, regression-test and mutation-contract repairs, using the required local Docker PostgreSQL
+DSN and deterministic sequential ranges. No parallel mutations were used. An initial attempt was
+discarded when Docker Desktop exited; its active SQL mutation target was restored exactly before
+the valid run. The valid first range was then completed as index `0` followed by `[1,73)`.
 
-Each shard called the existing `preflight()` and `check(BREAKS[index])` functions in order. The
-wrapper asserted exact shard coverage and compared SHA-256 digests for every distinct mutation
-target before and after the shard; all mutation targets restored byte-exactly. Final repository
-status and `git diff --check` were also verified after the run.
+Each valid invocation called the existing `preflight()` and `check(BREAKS[index])` functions in
+order and asserted that every selected check returned caught. The disjoint ranges below cover every
+base-run index exactly once. Final repository status, absence of deliberate-break markers and
+`git diff --check` verified restoration after the run.
 
-| Shard | First contract | Last contract | Executed | CAUGHT | MISSED | SKIP | Result |
+| Base exhaustive range | First contract | Last contract | Executed | CAUGHT | MISSED | SKIP | Result |
 |---|---|---|---:|---:|---:|---:|---|
-| `[0,72)` | WP2.1 model cohort must exclude Penalty shot types | quality reporting must preserve generic-event position missingness | 72 | 72 | 0 | 0 | PASS |
-| `[72,144)` | quality reporting must preserve generic-event duration missingness | the refusal must name the target without printing the DSN | 72 | 72 | 0 | 0 | PASS |
-| `[144,216)` | ingestion must consult the write-target guard before any work | WP2.6 CUDA qualification cannot publish a CUDA-derived selection | 72 | 72 | 0 | 0 | PASS |
-| `[216,290)` | WP2.6 keeps artifact candidate distinct from the selection incumbent | WP3.1 Docker image contains the exact minimal serving bundle | 74 | 74 | 0 | 0 | PASS |
-| **Aggregate** | — | — | **290** | **290** | **0** | **0** | **PASS** |
+| `[0,73)` | WP2.1 model cohort must exclude Penalty shot types | quality reporting must preserve generic-event duration missingness | 73 | 73 | 0 | 0 | PASS |
+| `[73,146)` | quality manifest selection must use relational exact-scope evidence | the refusal must name the target without printing the DSN | 73 | 73 | 0 | 0 | PASS |
+| `[146,219)` | ingestion must consult the write-target guard before any work | WP2.6 keeps artifact candidate distinct from the selection incumbent | 73 | 73 | 0 | 0 | PASS |
+| `[219,292)` | WP2.6 validates the learned-parameter digest after strict load | WP3.1 Docker image contains the exact minimal serving bundle | 73 | 73 | 0 | 0 | PASS |
+| **Aggregate** | — | — | **292** | **292** | **0** | **0** | **PASS** |
 
-Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,290)`, with each
-wrapper asserting `executed == list(range(start, end))`: executed indices are exactly `0..289`,
-unique executed index count is `290`, duplicate count is `0`, and missing count is `0`. The prior
-system-Python attempt and the superseded 288-entry result are not included in any final total.
+Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,292)`: executed
+indices are exactly `0..291`, unique executed index count is `292`, duplicate count is `0`, and
+missing count is `0`. The interrupted attempt and superseded 288- and 290-entry results are not
+included in any final total.
+
+The independent review of that 292-contract state required finer-grained error-envelope protection.
+Two new mutation contracts were added for per-entry detail validation and string `code`/`message`
+validation, producing the current `len(BREAKS) = 294`. Under the bounded review protocol, the
+unchanged 292-contract exhaustive result was retained and all 13 affected WP3.2 contracts were rerun
+after the final repair: `13 CAUGHT, 0 MISSED`. Thus every current contract is covered cumulatively;
+no claim is made that a second monolithic 294-entry run occurred.
 
 ## Independent review remediation
 
@@ -125,11 +135,16 @@ The independent WP3.2 review of the previous immutable branch returned **FAIL**.
 4. the local acceptance status was inconsistent across the analyst view, contract, evidence report,
    and `AGENTS.md`.
 
-The remediation is now locally revalidated: the adapter rejects both malformed page cases, regression
-coverage and two focused mutation contracts protect them, the final authoritative mutation population
-passes at 290/290, and the status records distinguish local revalidation from the still-pending
-independent review. This does **not** manufacture an independent-review `PASS`; the branch is ready
-for independent re-review only.
+That remediation was locally revalidated, but independent re-review found two remaining
+release-required gaps: the later-page over-limit branch was not directly regression- or
+mutation-protected, and the frontend did not validate the complete structured publication-gate error
+envelope. The second remediation adds both public-seam regressions and exact envelope validation. A
+first final re-review then required direct protection for malformed error fields and detail entries;
+those negative cases and two precise mutations now pass in the 13-contract affected delta. The
+current 294-contract population is cumulatively covered by the 292-contract exhaustive run plus the
+two added contracts. The final independent GPT-5.6 Sol delta re-review inspected the actual repaired
+diff and returned **PASS** with no material finding. This closes only the accepted local WP3.2
+contract.
 
 ## Responsive/manual browser inspection
 

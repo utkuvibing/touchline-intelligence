@@ -691,13 +691,33 @@ function truncate(value: string): string {
   return value.trim().slice(0, 300);
 }
 
+function isStructuredErrorDetail(value: unknown): value is JsonObject {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const detail = value as JsonObject;
+  return (
+    (detail.field === null || typeof detail.field === "string") &&
+    typeof detail.code === "string" &&
+    typeof detail.message === "string"
+  );
+}
+
+function hasStructuredErrorDetails(value: unknown): value is JsonObject[] {
+  if (!Array.isArray(value)) return false;
+  return value.every(isStructuredErrorDetail);
+}
+
 function parseErrorBody(value: unknown): { code: string; message: string } | null {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
   const source = value as JsonObject;
   const error = source.error;
   if (error !== null && typeof error === "object" && !Array.isArray(error)) {
     const detail = error as JsonObject;
-    if (typeof detail.code === "string" && typeof detail.message === "string") {
+    if (
+      typeof detail.code === "string" &&
+      typeof detail.message === "string" &&
+      hasStructuredErrorDetails(detail.details) &&
+      (detail.code !== "publication_gate_closed" || detail.details.length === 0)
+    ) {
       return { code: detail.code, message: detail.message };
     }
   }
