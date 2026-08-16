@@ -985,6 +985,22 @@ BREAKS: list[Break] = [
         cwd=FRONTEND,
     ),
     Break(
+        contract="WP3.2 historical pagination must reject an over-limit page",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="  if (first.shots.length > first.limit) {",
+        replacement="  if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical pagination must reject a changed page caveat",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (page.historical_prediction_caveat !== historicalPredictionCaveat) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
         contract="public endpoints must remain restricted to the WC 2022 publication scope",
         path=ROOT / "backend/src/touchline/public_scope.py",
         anchor=(

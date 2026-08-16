@@ -1,23 +1,23 @@
 # WP3.2 analyst interface evidence
 
-**Status:** WP3.2 local acceptance is **CLOSED / PASS**. The exhaustive mutation gate and responsive/manual browser inspection both passed. No independent-review `PASS` is claimed.
+**Status:** WP3.2 implementation and local acceptance are **REPAIRED / REVALIDATED**. The independent review returned **FAIL**; its remediation is locally revalidated, and independent re-review remains pending. No independent-review `PASS` is claimed.
 **Branch:** `codex/wp3-2-analyst-interface`
 **Scope:** local frontend implementation over the frozen WP3.1 contract.
 **Historical publication:** **NOT CLEARED**.
 **Production deployment/smoke:** not part of WP3.2; remains **WP3.3–WP3.4**.
 
 This report records only checks that actually ran. It does not claim external publication permission,
-deployed model serving, browser smoke evidence, or an independent review that did not occur.
+deployed model serving, browser smoke evidence, or an independent-review `PASS` that did not occur.
 
 ## Status separation
 
 | Status | Result | Evidence boundary |
 |---|---|---|
-| Local WP3.2 implementation | Complete on the branch rebased onto current `origin/main` | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
-| Local WP3.2 acceptance | **CLOSED / PASS** | Focused checks, exhaustive mutation verification, and responsive/manual browser inspection passed |
+| Local WP3.2 implementation | **REPAIRED / REVALIDATED** | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
+| Local WP3.2 acceptance | **REVALIDATED** | Focused checks, fresh exhaustive mutation verification, controlled local API checks, and prior responsive/manual browser inspection passed |
 | Historical publication permission | **NOT CLEARED** | `/model/shots` remains closed by default; no StatsBomb/Hudl written direction was obtained or inferred |
 | Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3–WP3.4 own it |
-| Independent review | **NOT RUN** | No independent Sol review or `PASS` was manufactured |
+| Independent review | **FAIL — re-review pending** | Review found stale final-head mutation evidence, two pagination invariant gaps, and status drift; all remediation is locally revalidated, but no independent `PASS` is claimed |
 
 ## Implemented contracts
 
@@ -39,9 +39,10 @@ deployed model serving, browser smoke evidence, or an independent review that di
   ```
 
 - Historical paging uses a maximum page size of 1,000 and the first response's returned `total` as
-  the UI source of truth. Duplicate IDs, changed totals/offsets/page sizes, short/stalled pages and
-  inconsistent provenance are rejected. The pinned snapshot's 1,430-row / two-page result is tested
-  as an acceptance invariant, not used as a presentation constant.
+  the UI source of truth. Duplicate IDs, over-limit pages, changed totals/offsets/page sizes,
+  changed historical prediction caveats, short/stalled pages and inconsistent provenance are
+  rejected. The pinned snapshot's 1,430-row / two-page result is tested as an acceptance invariant,
+  not used as a presentation constant.
 - Offset stability is limited to the WP3.1 condition that the pinned database snapshot remains
   unchanged between requests.
 - A closed `publication_gate_closed` response is rendered as a publication notice. The frontend
@@ -59,16 +60,18 @@ deployed model serving, browser smoke evidence, or an independent review that di
 
 | Check | Result | Actual observation |
 |---|---|---|
-| `npm --prefix frontend test` | PASS | 4 files, 28 tests passed |
+| `npm --prefix frontend test lib/model-api.test.ts` | PASS | 1 file, 8 tests passed; includes over-limit, changed-caveat, and 1,000 + 430 pagination cases |
+| `npm --prefix frontend test` | PASS | 4 files, 30 tests passed |
 | `npm --prefix frontend run lint` | PASS | ESLint completed with no findings |
 | `npm --prefix frontend run typecheck` | PASS | TypeScript completed with no errors |
 | `npm --prefix frontend run build` | PASS | Next production build completed; `/` remained dynamic |
 | `uv run poe check` | PASS | Ruff format/lint and mypy passed; pytest `932 passed, 303 skipped` |
-| WP3.2 focused mutation verification | PASS | `7 CAUGHT, 0 MISSED` for attribution, gate state, caveat, sample sizes, area mapping, provenance and duplicate paging |
-| WP3.2 full mutation verification (final homogeneous run) | PASS | Repository-pinned Python 3.12.11, four sequential shards, `288 CAUGHT, 0 MISSED, 0 SKIP`; every `BREAKS` index executed exactly once |
-| Gate-closed local API/SSR check | PASS | `/model` 200, `/model/metrics` 200, `/model/shots` 403; rendered HTML contained the analyst heading, holdout heading, `publication_gate_closed`, and attribution |
-| `git diff --check` | PASS | No whitespace errors in the final closeout diff |
-| Responsive/manual browser inspection | PASS | Local Chrome inspection at 1440px, 1024px, and 390px in gate-closed and controlled local gate-open states; no final UI defects remained |
+| WP3.2 focused mutation verification | PASS | `9 CAUGHT, 0 MISSED` for attribution, gate state, caveat, sample sizes, area mapping, provenance, duplicate paging, over-limit paging, and changed-caveat paging |
+| WP3.2 full mutation verification (fresh final-head run) | PASS | Repository-pinned Python 3.12.11, four sequential shards, `290 CAUGHT, 0 MISSED, 0 SKIP`; every `BREAKS` index executed exactly once and mutation targets restored byte-exactly |
+| Controlled local gate-closed API check | PASS | `/model` 200, `/model/metrics` 200, `/model/shots` 403 `publication_gate_closed`; no `/model/predict` request occurred |
+| Controlled local gate-open pagination check | PASS | Local Docker DSN only; returned total `1,430`, pages `1,000 + 430`, 1,430 unique shots, stable seven-field provenance and stable caveat; no `/model/predict` request occurred |
+| `git diff --check` | PASS | No whitespace errors in the final remediation diff |
+| Responsive/manual browser inspection | PASS | Prior local Chrome inspection at 1440px, 1024px, and 390px covered the unchanged layout/map/reliability behavior; remediation changes were adapter invariants and status text only |
 
 ## Full mutation verification and local environment
 
@@ -84,31 +87,49 @@ TOUCHLINE_FULL_COHORT_DB_URL=postgresql://touchline:localdev@localhost:5433/touc
 ```
 
 The repository requires Python `>=3.12,<3.13`; every final shard wrapper was invoked through
-`uv run python`, which reported Python `3.12.11`. The harness was loaded with `runpy` under a
-non-`__main__` name, so `main()` was not invoked. It reported `len(BREAKS) = 288` before execution.
+`uv run python`, which reported Python `3.12.11`, with `PYTHONHASHSEED=0`. The harness was loaded
+with `runpy` under a non-`__main__` name, so `main()` was not invoked. After adding the two
+legitimate WP3.2 pagination contracts, the authoritative population was `len(BREAKS) = 290`.
 
-The initial monolithic `uv run python scripts/verify_tests_fail.py` run was incomplete because the
-serial 288-entry process reached the 1,800-second execution limit before producing final totals. A
-later provisional shard attempt used the system Python interpreter; its results, including the
-index-86 compile failure, are discarded entirely and contribute nothing to this evidence. The
-final run below is the only mutation result counted.
+The earlier 288-entry run recorded in the prior closeout evidence predates the final remediation
+implementation and is superseded historical evidence only. It is not included in the final totals.
+The final run below was executed after all pagination, tests, status, contract, and evidence changes,
+using the required local Docker PostgreSQL DSN and four deterministic sequential shards. No
+parallel mutations were used.
 
-Each final shard called the existing `preflight()` and `check(BREAKS[index])` functions in order,
-used no parallelism, verified every mutation target's bytes and the tracked Git tree after each
-entry, and confirmed restoration after the shard.
+Each shard called the existing `preflight()` and `check(BREAKS[index])` functions in order. The
+wrapper asserted exact shard coverage and compared SHA-256 digests for every distinct mutation
+target before and after the shard; all mutation targets restored byte-exactly. Final repository
+status and `git diff --check` were also verified after the run.
 
 | Shard | First contract | Last contract | Executed | CAUGHT | MISSED | SKIP | Result |
 |---|---|---|---:|---:|---:|---:|---|
 | `[0,72)` | WP2.1 model cohort must exclude Penalty shot types | quality reporting must preserve generic-event position missingness | 72 | 72 | 0 | 0 | PASS |
-| `[72,144)` | quality reporting must preserve generic-event duration missingness | WP2.4 constant baseline must use the training-fold goal rate only | 72 | 72 | 0 | 0 | PASS |
-| `[144,216)` | WP2.4 reliability bin count is locked at five (ADR 0004) | WP2.6 validates the learned-parameter digest after strict load | 72 | 72 | 0 | 0 | PASS |
-| `[216,288)` | WP2.6 validates final preprocessing against committed identity | WP3.1 Docker image contains the exact minimal serving bundle | 72 | 72 | 0 | 0 | PASS |
-| **Aggregate** | — | — | **288** | **288** | **0** | **0** | **PASS** |
+| `[72,144)` | quality reporting must preserve generic-event duration missingness | the refusal must name the target without printing the DSN | 72 | 72 | 0 | 0 | PASS |
+| `[144,216)` | ingestion must consult the write-target guard before any work | WP2.6 CUDA qualification cannot publish a CUDA-derived selection | 72 | 72 | 0 | 0 | PASS |
+| `[216,290)` | WP2.6 keeps artifact candidate distinct from the selection incumbent | WP3.1 Docker image contains the exact minimal serving bundle | 74 | 74 | 0 | 0 | PASS |
+| **Aggregate** | — | — | **290** | **290** | **0** | **0** | **PASS** |
 
-Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,288)`, with each
-wrapper asserting `executed == list(range(start, end))`: executed indices are exactly `0..287`,
-unique executed index count is `288`, duplicate count is `0`, and missing count is `0`. The
-previous system-Python attempt is not included in any total.
+Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,290)`, with each
+wrapper asserting `executed == list(range(start, end))`: executed indices are exactly `0..289`,
+unique executed index count is `290`, duplicate count is `0`, and missing count is `0`. The prior
+system-Python attempt and the superseded 288-entry result are not included in any final total.
+
+## Independent review remediation
+
+The independent WP3.2 review of the previous immutable branch returned **FAIL**. It identified:
+
+1. the claimed 288-entry exhaustive mutation run was recorded before the final implementation HEAD;
+2. historical pagination did not reject a page whose row count exceeded its returned `limit`;
+3. historical pagination did not require an identical `historical_prediction_caveat` on later pages; and
+4. the local acceptance status was inconsistent across the analyst view, contract, evidence report,
+   and `AGENTS.md`.
+
+The remediation is now locally revalidated: the adapter rejects both malformed page cases, regression
+coverage and two focused mutation contracts protect them, the final authoritative mutation population
+passes at 290/290, and the status records distinguish local revalidation from the still-pending
+independent review. This does **not** manufacture an independent-review `PASS`; the branch is ready
+for independent re-review only.
 
 ## Responsive/manual browser inspection
 
@@ -137,10 +158,12 @@ pages were:
 limit=1000 offset=0:    total=1430, rows=1000
 limit=1000 offset=1000: total=1430, rows=430
 unique shot IDs: 1430
+provenance identity: stable across metadata, metrics, and both pages
+historical prediction caveat: stable across both pages
 ```
 
-At each width the interface rendered `showing 1430 of 1430`, 1,430 markers, and the selected shot
-workspace. Exact AND filtering was exercised with `team=Ecuador` and
+The controlled API check also confirmed no `/model/predict` reconstruction request. At each width the
+interface rendered `showing 1430 of 1430`, 1,430 markers, and the selected shot workspace. Exact AND filtering was exercised with `team=Ecuador` and
 `player=Romario Andrés Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
 combination (`team=Ecuador` and `player=Abdelkarim Hassan Al Haj Fadlalla`) showed the explicit
 “No shots match the current exact filters” state, disabled the selector, removed the markers, and

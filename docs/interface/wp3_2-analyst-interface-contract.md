@@ -1,6 +1,6 @@
 # WP3.2 analyst interface contract
 
-**Status:** implementation in progress; local acceptance and independent review are not yet claimed.
+**Status:** implementation and local acceptance revalidated; independent review is pending.
 **Depends on:** WP3.1 serving contract and ADR 0015.
 **Scope:** frontend only. WP3.2 adds no backend endpoint and does not alter the WP3.1 API.
 
@@ -20,7 +20,7 @@ Three statuses remain independent:
 
 | Status | WP3.2 meaning |
 |---|---|
-| Local implementation / acceptance | May become `PASS` only after the actual local evidence and review gates run. |
+| Local implementation / acceptance | `REVALIDATED`; independent review remains pending. |
 | Historical publication permission | `NOT CLEARED` until current written StatsBomb/Hudl direction resolves the existing source gate. |
 | Production deployment / smoke | Not a WP3.2 claim; owned by WP3.3–WP3.4. |
 
@@ -44,7 +44,9 @@ request per historical row.
 The first historical response's returned `total` is the UI source of truth. The value 1,430 is an
 acceptance invariant for the pinned qualified snapshot, not a presentation constant. The client
 pages until the returned total is satisfied, rejects empty/stalled/short pages before that total,
-rejects duplicate `shot_id` values, and rejects a changed total, offset, or page size.
+rejects duplicate `shot_id` values, rejects any page whose row count exceeds its returned `limit`,
+requires the historical prediction caveat to remain identical across pages, and rejects a changed
+total, offset, or page size.
 
 Offset stability has the WP3.1 condition: the pinned, idempotently loaded database snapshot must
 remain unchanged between requests. No cross-request page stability is claimed across a rebuild,
@@ -126,7 +128,7 @@ These states are distinct and visible:
 - historical publication gate closed;
 - historical API/database failure;
 - malformed or non-finite response payload;
-- pagination shortfall, duplicate, changed total, or changed snapshot assumption; and
+- pagination shortfall, duplicate, over-limit page, changed caveat, changed total, or changed snapshot assumption; and
 - provenance mismatch or unverified identity.
 
 None is presented as “zero shots”.

@@ -782,8 +782,12 @@ export async function fetchAllHistoricalShots(
     throw new ModelContractError("historical first page does not echo the requested pagination");
   }
 
+  const historicalPredictionCaveat = first.historical_prediction_caveat;
   const shots: HistoricalShot[] = [];
   const seen = new Set<string>();
+  if (first.shots.length > first.limit) {
+    throw new ModelContractError("historical first page exceeds its returned limit");
+  }
   addUniqueShots(shots, seen, first.shots);
   if (shots.length > first.total) {
     throw new ModelContractError("historical page contains more shots than its returned total");
@@ -802,6 +806,12 @@ export async function fetchAllHistoricalShots(
     pageCount += 1;
     if (page.offset !== offset || page.limit !== pageSize || page.total !== first.total) {
       throw new ModelContractError("historical pagination changed its total or offset contract");
+    }
+    if (page.shots.length > page.limit) {
+      throw new ModelContractError("historical page exceeds its returned limit");
+    }
+    if (page.historical_prediction_caveat !== historicalPredictionCaveat) {
+      throw new ModelContractError("historical pagination changed its prediction caveat");
     }
     assertProvenanceEqual(first, page);
     if (page.shots.length === 0) {

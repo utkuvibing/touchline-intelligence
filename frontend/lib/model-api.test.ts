@@ -51,12 +51,13 @@ function page(
   offset: number,
   identity = provenance,
   limit = 2,
+  historicalPredictionCaveat = "These are calibration-data historical predictions.",
 ) {
   return {
     ...identity,
     cohort: "FIFA World Cup 2022 eligible non-penalty shots",
     split_role: "calibration_data_historical_predictions",
-    historical_prediction_caveat: "These are calibration-data historical predictions.",
+    historical_prediction_caveat: historicalPredictionCaveat,
     shots,
     total,
     limit,
@@ -115,7 +116,37 @@ describe("WP3.1 model API adapter", () => {
     expect(collection.total).toBe(1430);
     expect(collection.shots).toHaveLength(1430);
     expect(collection.page_count).toBe(2);
+    expect(collection.historical_prediction_caveat).toBe(
+      "These are calibration-data historical predictions.",
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a page that exceeds its returned limit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(jsonResponse(page([shot("one"), shot("two"), shot("three")], 3, 0))),
+      ),
+    );
+
+    await expect(fetchAllHistoricalShots(2)).rejects.toThrow(/exceeds its returned limit/);
+  });
+
+  it("rejects a later page whose historical caveat changes", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      return Promise.resolve(
+        jsonResponse(
+          url.endsWith("offset=0")
+            ? page([shot("one"), shot("two")], 3, 0)
+            : page([shot("three")], 3, 2, provenance, 2, "A different caveat."),
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchAllHistoricalShots(2)).rejects.toThrow(/changed its prediction caveat/);
   });
 
   it("rejects a duplicate or a short stalled page instead of presenting partial rows", async () => {

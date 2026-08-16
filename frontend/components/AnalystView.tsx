@@ -53,7 +53,9 @@ function DeliveryStatus() {
       <dl>
         <div>
           <dt>WP3.2 local implementation / acceptance</dt>
-          <dd className="status-value status-value-progress">In progress</dd>
+          <dd className="status-value status-value-progress">
+            Local revalidation complete; independent review pending
+          </dd>
         </div>
         <div>
           <dt>Historical publication permission</dt>
