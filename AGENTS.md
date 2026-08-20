@@ -1,4 +1,4 @@
-# Touchline Intelligence ? agent entry point
+# Touchline Intelligence — agent entry point
 
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
@@ -7,7 +7,7 @@ Last updated: 2026-08-17, M2 is complete through WP2.8. WP2.7 and WP2.8 both clo
 independent GPT-5.6 Sol review `PASS`; the qualified release remains `not_served`. M3/WP3.1 is
 implemented and manually approved for this iteration. WP3.2 local implementation and acceptance
 are closed with independent GPT-5.6 Sol re-review `PASS`; historical publication remains `NOT
-CLEARED`, and production deployment/smoke remains WP3.3?WP3.4. Update the "Where we are" section
+CLEARED`, and production deployment/smoke remains WP3.3–WP3.4. Update the "Where we are" section
 when a work package closes; do not let it drift.
 
 ---
@@ -38,27 +38,27 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | WP | State |
 |---|---|
 | 0.1 repo, tooling, Docker Compose Postgres, typed settings | done |
-| 0.2 GitHub Actions | done ? three jobs, all green |
+| 0.2 GitHub Actions | done — three jobs, all green |
 | 0.3 StatsBomb WC 2022 ingestion | done |
 | 0.4 descriptive prevalence endpoint | done |
 | 0.5 read-only shot endpoint + raw shot map | done |
-| 0.6 deployment | done ? 18/18 deployed smoke checks pass |
-| 1.1 source review, attribution, coverage inventory, data dictionary | done ? two unresolved publication questions remain explicit release gates |
-| 1.2 relational schema, ERD, ordered migrations, constraints | done ? full approved schema and ingestion implemented; independent Sol review and CI passed |
-| 1.3 fixed cohort, idempotent ingestion, run manifest | done ? full-source acceptance, mutation verification, independent Sol review and CI passed |
-| 1.4 data-quality suite and reconciliation report | done ? full-cohort report, author sampling verification, mutation verification and independent Sol review passed |
-| 1.5 SQL analysis pack and measured query plans | done ? 10 read-only queries, full-cohort results, two measured plans and rejected speculative index; focused tests, mutation verification and independent Sol review passed |
-| 1.6 deterministic fixture, integration proof, clean rebuild | done ? fixture byte pinning, network-free two-clean-build proof, full-cohort clean rebuild and no-op rerun, release evidence, mutation verification and independent Sol review passed |
-| 2.1 model cohort, target, exclusions, penalty and leakage contract | done ? versioned read-only SQL, full-cohort reconciliation, feature availability review, mutation verification and independent Sol review passed |
-| 2.2 geometry and feature pipeline | **partial.** Slice A: distance and visible goal angle shipped with source-verified constants, full-cohort read-only evidence and 6/6 mutation verification. Slice B: coverage and annotation-encoding audit shipped (7 read-only tests, 6/6 mutations) ? it **admits no feature**; the six `Uncertain` booleans are measured to be true-only annotations. The level/field decisions, training-only preprocessing and the training/serving feature contract were resolved by WP2.4 (2026-08-05). **Independent review is planned via GPT-5.6 Thinking (ChatGPT) at the final push/PR review stage and remains pending; it has not run and no `PASS` is claimed.** |
-| 2.3 split and evaluation design | done ? named three-way split locked (dev WC 2018 + Euro 2020 / calibration WC 2022 / tournament holdout Euro 2024), five deterministic match-grouped development folds, target-free by construction, byte-pinned match-assignment CSV and schema-validated manifest, shot-level partition proof and WP2.1 cohort set-equality over 5,606 rows, strict top-level chronology, 8/8 registered mutation contracts CAUGHT (139/139 suite-wide), full-cohort evidence in `reports/wp2.3-split-evidence.md`. Reliability binning fixed a priori at five equal-width bins without holdout labels (ADR 0004 amendment). **Independent review passed ? Qwen 3.7, `PASS`, no blocking or non-blocking findings; see the review note below.** |
-| 2.4 baselines and regularized logistic regression | done ? constant, geometry-only and full-minus-presence logistic on the locked 2,872-row development cohort with byte-pinned artifact verification and the structural holdout lock; D5 executable rule **excluded** both presence indicators (positive ?LL on 3/5 folds vs the ?4 requirement), so the shipped feature set is geometry + categoricals; full logistic dominates the primary metrics (mean log loss 0.262 vs 0.302 constant; Brier 0.072 vs 0.082; ROC 0.754 vs 0.476), while the PLAN ?4.1 rule names the constant as incumbent because its constructed single-bin calibration deviation (~5e-5) cannot be undercut ? investigated and reported, not tuned away. Evidence: `experiments/shot_quality/exp-20260805-wp2_4-baselines/`, `reports/wp2.4-baselines-evidence.md`. 8/8 WP2.4 mutation contracts CAUGHT (147/147 suite-wide); full-cohort evidence local. New deps numpy/scikit-learn (uv.lock). **Independent review planned via GPT-5.6 Thinking (ChatGPT) at the final push/PR review stage; not run; no `PASS` claimed.** |
-| 2.5 gradient boosting and controlled comparison | done pending review ? one `HistGradientBoostingClassifier` over a pre-registered twelve-point grid (ADR 0011), on the identical locked 2,872-row cohort, folds and WP2.4 shipped feature columns; zero new dependencies. **The booster did not replace the logistic regression.** Measured: mean log loss 0.268004 vs 0.263358 incumbent, Brier 0.074544 vs 0.073044, ROC 0.7413 vs 0.7530 ? but better calibrated (max supported deviation 0.031 vs 0.054) and more stable (cross-fold SD 0.0145 vs 0.0162), so ?4.1 conditions 3 and 4 hold while 1 and 2 fail. Selected point lr=0.03/leaves=7/min_leaf=60. Chain A (WP2.4 chain extended by one step) leaves `protocol_incumbent = constant` as pre-stated; chain B is the decision of record. All four WP2.4 candidates reproduced to 12 decimals in the same process. **A first full-cohort run was invalidated** ? its artifact SHA was not reproducible while every metric and prediction was; row order and `PYTHONHASHSEED` were tested and rejected, OpenMP thread count was shown to control the serialized estimator bytes, and the fix pins one thread at process start without touching the protocol (ADR 0011 remediation, dated). The replacement run reproduces byte-for-byte in a fresh subprocess launched through `touchline.boosting_bootstrap`, which pins one OpenMP thread before scikit-learn loads. A later review round split the bundle's ambiguous `shipped_candidate` into `artifact_candidate` (what it contains) and `selection_incumbent` (what won), moved the pin out of `touchline.modeling.__init__` into the launcher so importing WP2.3/WP2.4 code no longer mutates the environment, and regenerated the record once under the corrected code: all statistics and the WP2.4 gate unchanged, artifact schema 2, model pickle `1afe18f5ffd17b42...`. Linux CI then caught a genuine cross-platform provenance defect: `uv.lock` was hashed into every record but never pinned in `.gitattributes`, so a Windows checkout recorded its CRLF digest. Pinned, normalised and regenerated; statistics and estimator digest unchanged. Evidence: `experiments/shot_quality/exp-20260806-wp2_5-gradient-boosting/`, `reports/wp2.5-gradient-boosting-evidence.md`. 9/9 WP2.5 mutation contracts CAUGHT, 169/169 suite-wide (the suite must be run with TOUCHLINE_DB_URL and TOUCHLINE_FULL_COHORT_DB_URL set, or the integration and full-cohort contracts skip and are scored as MISSED); full-cohort evidence local. **Independent review: performed manually by the author on 2026-08-06, verdict `PASS`** ? a human review, not the GPT-5.6/Sol model review the WP2.4 row anticipated; recorded as what actually happened. CI green on the merged head (3/3). Merged to `main` as `524296b` via squash of PR #8. |
-| 2.6 bounded PyTorch MLP | done ? bounded CPU/CUDA qualification, artifact and dependency boundaries recorded. **Independent Sol review: `PASS` (closed 2026-08-09).** |
-| 2.7 calibration, reliability, and one-time holdout | done ? frozen development base, WC2022-only Platt calibration and adoption, one supervised Euro2024 tournament-holdout execution, paired bootstrap, slices, audit evidence and model card completed; independent GPT-5.6 Sol review `PASS` recorded in ADR 0013 and the closeout evidence. |
-| 2.8 reproducible calibrated release | done ? development-only historical reproduction passed byte-identically in the registered environment; immutable content-hashed release `exp-20260810-wp2_8-release` qualified as `m2_qualified`, `not_served`; independent GPT-5.6 Sol review `PASS` recorded in ADR 0014 and the closeout evidence. |
-| 3.1 API and model serving | done for this iteration ? minimal immutable serving bundle, fail-fast singleton runtime, versioned metadata/metrics/prediction endpoints, publication-gated WC2022 historical predictions, independent WP2 golden parity, structured errors, readiness 503 semantics, Linux-image golden/corruption acceptance and 20/20 WP3.1 mutations (284/284 suite-wide) implemented and evidenced. **The project author manually approved the review gate for this iteration; no independent Sol review ran and no independent-review `PASS` is claimed.** |
-| 3.2 analyst interface | done for the accepted local contract ? repaired pagination and exact error-envelope validation, exhaustive mutation verification `292/292`, prior affected delta `13/13`, current repair delta `7/7`, and cumulative coverage of the current 301-contract population with no misses or skips; independent GPT-5.6 Sol delta re-review `PASS`. Historical publication remains **NOT CLEARED**, and production deployment/smoke remains **WP3.3?WP3.4**. |
+| 0.6 deployment | done — 18/18 deployed smoke checks pass |
+| 1.1 source review, attribution, coverage inventory, data dictionary | done — two unresolved publication questions remain explicit release gates |
+| 1.2 relational schema, ERD, ordered migrations, constraints | done — full approved schema and ingestion implemented; independent Sol review and CI passed |
+| 1.3 fixed cohort, idempotent ingestion, run manifest | done — full-source acceptance, mutation verification, independent Sol review and CI passed |
+| 1.4 data-quality suite and reconciliation report | done — full-cohort report, author sampling verification, mutation verification and independent Sol review passed |
+| 1.5 SQL analysis pack and measured query plans | done — 10 read-only queries, full-cohort results, two measured plans and rejected speculative index; focused tests, mutation verification and independent Sol review passed |
+| 1.6 deterministic fixture, integration proof, clean rebuild | done — fixture byte pinning, network-free two-clean-build proof, full-cohort clean rebuild and no-op rerun, release evidence, mutation verification and independent Sol review passed |
+| 2.1 model cohort, target, exclusions, penalty and leakage contract | done — versioned read-only SQL, full-cohort reconciliation, feature availability review, mutation verification and independent Sol review passed |
+| 2.2 geometry and feature pipeline | **partial.** Slice A: distance and visible goal angle shipped with source-verified constants, full-cohort read-only evidence and 6/6 mutation verification. Slice B: coverage and annotation-encoding audit shipped (7 read-only tests, 6/6 mutations) — it **admits no feature**; the six `Uncertain` booleans are measured to be true-only annotations. The level/field decisions, training-only preprocessing and the training/serving feature contract were resolved by WP2.4 (2026-08-05). **Independent review is planned via GPT-5.6 Thinking (ChatGPT) at the final push/PR review stage and remains pending; it has not run and no `PASS` is claimed.** |
+| 2.3 split and evaluation design | done — named three-way split locked (dev WC 2018 + Euro 2020 / calibration WC 2022 / tournament holdout Euro 2024), five deterministic match-grouped development folds, target-free by construction, byte-pinned match-assignment CSV and schema-validated manifest, shot-level partition proof and WP2.1 cohort set-equality over 5,606 rows, strict top-level chronology, 8/8 registered mutation contracts CAUGHT (139/139 suite-wide), full-cohort evidence in `reports/wp2.3-split-evidence.md`. Reliability binning fixed a priori at five equal-width bins without holdout labels (ADR 0004 amendment). **Independent review passed — Qwen 3.7, `PASS`, no blocking or non-blocking findings; see the review note below.** |
+| 2.4 baselines and regularized logistic regression | done — constant, geometry-only and full-minus-presence logistic on the locked 2,872-row development cohort with byte-pinned artifact verification and the structural holdout lock; D5 executable rule **excluded** both presence indicators (positive ΔLL on 3/5 folds vs the ≥4 requirement), so the shipped feature set is geometry + categoricals; full logistic dominates the primary metrics (mean log loss 0.262 vs 0.302 constant; Brier 0.072 vs 0.082; ROC 0.754 vs 0.476), while the PLAN §4.1 rule names the constant as incumbent because its constructed single-bin calibration deviation (~5e-5) cannot be undercut — investigated and reported, not tuned away. Evidence: `experiments/shot_quality/exp-20260805-wp2_4-baselines/`, `reports/wp2.4-baselines-evidence.md`. 8/8 WP2.4 mutation contracts CAUGHT (147/147 suite-wide); full-cohort evidence local. New deps numpy/scikit-learn (uv.lock). **Independent review planned via GPT-5.6 Thinking (ChatGPT) at the final push/PR review stage; not run; no `PASS` claimed.** |
+| 2.5 gradient boosting and controlled comparison | done pending review — one `HistGradientBoostingClassifier` over a pre-registered twelve-point grid (ADR 0011), on the identical locked 2,872-row cohort, folds and WP2.4 shipped feature columns; zero new dependencies. **The booster did not replace the logistic regression.** Measured: mean log loss 0.268004 vs 0.263358 incumbent, Brier 0.074544 vs 0.073044, ROC 0.7413 vs 0.7530 — but better calibrated (max supported deviation 0.031 vs 0.054) and more stable (cross-fold SD 0.0145 vs 0.0162), so §4.1 conditions 3 and 4 hold while 1 and 2 fail. Selected point lr=0.03/leaves=7/min_leaf=60. Chain A (WP2.4 chain extended by one step) leaves `protocol_incumbent = constant` as pre-stated; chain B is the decision of record. All four WP2.4 candidates reproduced to 12 decimals in the same process. **A first full-cohort run was invalidated** — its artifact SHA was not reproducible while every metric and prediction was; row order and `PYTHONHASHSEED` were tested and rejected, OpenMP thread count was shown to control the serialized estimator bytes, and the fix pins one thread at process start without touching the protocol (ADR 0011 remediation, dated). The replacement run reproduces byte-for-byte in a fresh subprocess launched through `touchline.boosting_bootstrap`, which pins one OpenMP thread before scikit-learn loads. A later review round split the bundle's ambiguous `shipped_candidate` into `artifact_candidate` (what it contains) and `selection_incumbent` (what won), moved the pin out of `touchline.modeling.__init__` into the launcher so importing WP2.3/WP2.4 code no longer mutates the environment, and regenerated the record once under the corrected code: all statistics and the WP2.4 gate unchanged, artifact schema 2, model pickle `1afe18f5ffd17b42...`. Linux CI then caught a genuine cross-platform provenance defect: `uv.lock` was hashed into every record but never pinned in `.gitattributes`, so a Windows checkout recorded its CRLF digest. Pinned, normalised and regenerated; statistics and estimator digest unchanged. Evidence: `experiments/shot_quality/exp-20260806-wp2_5-gradient-boosting/`, `reports/wp2.5-gradient-boosting-evidence.md`. 9/9 WP2.5 mutation contracts CAUGHT, 169/169 suite-wide (the suite must be run with TOUCHLINE_DB_URL and TOUCHLINE_FULL_COHORT_DB_URL set, or the integration and full-cohort contracts skip and are scored as MISSED); full-cohort evidence local. **Independent review: performed manually by the author on 2026-08-06, verdict `PASS`** — a human review, not the GPT-5.6/Sol model review the WP2.4 row anticipated; recorded as what actually happened. CI green on the merged head (3/3). Merged to `main` as `524296b` via squash of PR #8. |
+| 2.6 bounded PyTorch MLP | done — bounded CPU/CUDA qualification, artifact and dependency boundaries recorded. **Independent Sol review: `PASS` (closed 2026-08-09).** |
+| 2.7 calibration, reliability, and one-time holdout | done — frozen development base, WC2022-only Platt calibration and adoption, one supervised Euro2024 tournament-holdout execution, paired bootstrap, slices, audit evidence and model card completed; independent GPT-5.6 Sol review `PASS` recorded in ADR 0013 and the closeout evidence. |
+| 2.8 reproducible calibrated release | done — development-only historical reproduction passed byte-identically in the registered environment; immutable content-hashed release `exp-20260810-wp2_8-release` qualified as `m2_qualified`, `not_served`; independent GPT-5.6 Sol review `PASS` recorded in ADR 0014 and the closeout evidence. |
+| 3.1 API and model serving | done for this iteration — minimal immutable serving bundle, fail-fast singleton runtime, versioned metadata/metrics/prediction endpoints, publication-gated WC2022 historical predictions, independent WP2 golden parity, structured errors, readiness 503 semantics, Linux-image golden/corruption acceptance and 20/20 WP3.1 mutations (284/284 suite-wide) implemented and evidenced. **The project author manually approved the review gate for this iteration; no independent Sol review ran and no independent-review `PASS` is claimed.** |
+| 3.2 analyst interface | done for the accepted local contract — repaired pagination and exact error-envelope validation, exhaustive mutation verification `292/292`, prior affected delta `13/13`, current repair delta `7/7`, and cumulative coverage of the current 301-contract population with no misses or skips; independent GPT-5.6 Sol delta re-review `PASS`. Historical publication remains **NOT CLEARED**, and production deployment/smoke remains **WP3.3–WP3.4**. |
 
 M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
 four-tournament cohort, idempotent conflict policy
@@ -76,8 +76,8 @@ as `exp-20260810-wp2_8-release` with `release_status = m2_qualified` and
 reproduction was development-only and did not reopen WC2022 or Euro2024. The public API remains
 restricted to WC 2022, and M3 owns serving.
 
-WP2.2 is **partially complete**. Slice A ships the two continuous geometry features ? distance to
-the goal centre and the visible goal angle in a numerically stable two-post form ? over exactly
+WP2.2 is **partially complete**. Slice A ships the two continuous geometry features — distance to
+the goal centre and the visible goal angle in a numerically stable two-post form — over exactly
 WP2.1's 5,606 rows. The goal constants are verified against StatsBomb Open Data Specification v1.1
 Appendix 2 rather than assumed, and the measurement found what an assumption would have hidden.
 `docs/SCHEMA.md` records that the pinned revision holds exactly one event at `location_x = 120.1`
@@ -94,7 +94,7 @@ no feature: `backend/sql/wp2_2/03_categorical_support.sql` and `04_annotation_en
 seven read-only full-cohort tests, and
 [`reports/wp2.2-slice-b-coverage-evidence.md`](reports/wp2.2-slice-b-coverage-evidence.md). It
 settles one thing and hands forward several. Settled: **none of the six `Uncertain` booleans ever
-records an explicit `false`** in 33,636 field-observations, so they are true-only annotations ?
+records an explicit `false`** in 33,636 field-observations, so they are true-only annotations —
 absence cannot be separated from "annotated as not the case", and anything built on them is a
 presence indicator, not a boolean. Neither query reads the target, because conversion rate per
 level is measurable only over a cohort that contains WP2.3's holdout.
@@ -113,7 +113,7 @@ it. This sentence stays here until it actually runs.
 
 WP2.3 locks the named three-way split before any model exists: development is WC 2018 + Euro 2020
 (115 matches), calibration is WC 2022 (64 matches), and Euro 2024 (51 matches) is the tournament
-holdout, locked from WP2.3 onward and **not blind** ? WP2.1's published reconciliation already
+holdout, locked from WP2.3 onward and **not blind** — WP2.1's published reconciliation already
 exposed descriptive per-tournament goal counts, and WP2.2 recorded exploratory viewing of outcome
 rates; the contract document states that history rather than claiming otherwise. Five deterministic
 match-grouped development folds of 23 matches each are produced by a pure, target-free function
@@ -131,7 +131,7 @@ evidence: [`reports/wp2.3-split-evidence.md`](reports/wp2.3-split-evidence.md).
 | Document | Owns |
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | Milestones, data scope, validation design, and per-milestone "must be able to defend" lists |
-| `docs/TARGETING.md` *(local only, git-ignored)* | Role fit tiers, employers, visa reality, artifact?requirement mapping |
+| `docs/TARGETING.md` *(local only, git-ignored)* | Role fit tiers, employers, visa reality, artifact↔requirement mapping |
 | [`DATA_SOURCE.md`](DATA_SOURCE.md) | Source revision, dated terms review, current coverage inventory, data dictionary, publication gates |
 | [`CONTEXT.md`](CONTEXT.md) | Canonical domain terms and meanings |
 | [`docs/SCHEMA.md`](docs/SCHEMA.md) | ERD, table grain, migration lifecycle, constraints, and validation boundaries |
@@ -140,7 +140,7 @@ evidence: [`reports/wp2.3-split-evidence.md`](reports/wp2.3-split-evidence.md).
 | `docs/research/job-market-methodology.md` *(local only, git-ignored)* | How scope was decided from 30 real job postings |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Hosts, cost, environment variables, order of operations, failure modes |
 | [`CLAUDE.md`](CLAUDE.md) | Standing working agreement for AI agents on this repo |
-| [`README.md`](README.md) | Public project introduction ? what it is, features, architecture, quick start, credits |
+| [`README.md`](README.md) | Public project introduction — what it is, features, architecture, quick start, credits |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Full command matrix, testing contract, ingestion internals, endpoint semantics, current limitations |
 
 `.scratch/` holds planning records and is git-ignored. Durable decisions are promoted to
@@ -151,7 +151,7 @@ evidence: [`reports/wp2.3-split-evidence.md`](reports/wp2.3-split-evidence.md).
 These exist because breaking them silently produces something that looks right and is not.
 
 **No unevaluated number is presented as a result.** There is no model yet. The `/baseline` endpoint
-returns a *descriptive prevalence* ? the conversion rate of the loaded data ? and says so in its own
+returns a *descriptive prevalence* — the conversion rate of the loaded data — and says so in its own
 payload. It is explicitly **not** the baseline that M2 models are compared against: that one is
 estimated from the training split alone and scored on validation and holdout rows under the same
 log loss, Brier and calibration protocol as every candidate. Using the full-cohort rate as a
@@ -195,7 +195,7 @@ the tests notice. Run it after adding a contract, and **add the new contract to 
 uv run python scripts/verify_tests_fail.py
 ```
 
-It has already caught three tests that passed for the wrong reason ? a liveness test blind to an
+It has already caught three tests that passed for the wrong reason — a liveness test blind to an
 invisible regression, a secret-leak test using a substring blocklist the real error did not happen
 to contain, and a read-only test that set up its own transaction and never exercised the production
 code. A green suite proves the tests pass, not that they would fail if the behaviour broke.
@@ -206,7 +206,7 @@ a developer's loaded data. CI provides a service container.
 
 ## 6. Data, and the two things about it that surprise people
 
-The snapshot is **pinned to a StatsBomb commit SHA**, not `master` ? Open Data is a live repository
+The snapshot is **pinned to a StatsBomb commit SHA**, not `master` — Open Data is a live repository
 and unpinned counts have no shelf life. Per-file hashes live in `data/provenance/`.
 
 Two facts that shaped the cohort design and are easy to get wrong:
@@ -240,7 +240,7 @@ tournament changes time and competition composition together. Say so rather than
 - A `PASS` claim must not be made unless the review actually ran.
 
 **Deferral closed.** WP2.3 (the locked three-way split and evaluation design) has received its
-independent review. Reviewer model: **Qwen 3.7** ? an independent reviewer, not the implementing
+independent review. Reviewer model: **Qwen 3.7** — an independent reviewer, not the implementing
 model, so the self-review prohibition above is satisfied. Verdict: **`PASS`**, with **no blocking
 findings and no non-blocking findings**; recommendation: ready to merge. The reviewer inspected the
 implementation and the evidence packet, ran the 28 WP2.3 unit and integration tests, the 12
@@ -248,7 +248,7 @@ full-cohort tests and the 42 database-safety tests, independently recomputed the
 `data/model/wp2_3_match_assignments.csv` SHA-256, and verified that the bytecode regression test
 catches the historical stale-`pyc` bug. Recorded on 2026-08-04 against head
 `b8ba8f1ffeb22b0db7813d2f8518d8b8adea8ef3` (PR #6). WP2.2's two slices remain deferred, as stated
-in ?2 above.
+in §2 above.
 
 **WP2.6 close.** WP2.6 is closed with the independent Sol review recorded as `PASS` on 2026-08-09.
 
@@ -288,7 +288,7 @@ Scope changes come from the author, not from an agent's judgement that something
 When asked for a narrow correction pass, do exactly what is listed.
 
 Report outcomes honestly. If a check was skipped, say so. If a test fails, show the output. Do not
-call something complete before it has actually run ? "the code is written" and "it works deployed"
+call something complete before it has actually run — "the code is written" and "it works deployed"
 are different claims and only the second one counts for WP0.6.
 
 Commit messages are long and reasoned on purpose: what was wrong and why the change is right, not

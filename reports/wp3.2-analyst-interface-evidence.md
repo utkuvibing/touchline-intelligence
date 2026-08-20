@@ -4,7 +4,7 @@
 **Branch:** `codex/wp3-2-analyst-interface`
 **Scope:** local frontend implementation over the frozen WP3.1 contract.
 **Historical publication:** **NOT CLEARED**.
-**Production deployment/smoke:** not part of WP3.2; remains **WP3.3?WP3.4**.
+**Production deployment/smoke:** not part of WP3.2; remains **WP3.3–WP3.4**.
 
 This report records only checks that actually ran. It does not claim external publication permission,
 deployed model serving, or production browser smoke evidence.
@@ -16,7 +16,7 @@ deployed model serving, or production browser smoke evidence.
 | Local WP3.2 implementation | **REPAIRED / REVALIDATED** | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
 | Local WP3.2 acceptance | **REVALIDATED** | Focused checks, fresh exhaustive mutation verification, controlled local API checks, and prior responsive/manual browser inspection passed |
 | Historical publication permission | **NOT CLEARED** | `/model/shots` remains closed by default; no StatsBomb/Hudl written direction was obtained or inferred |
-| Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3?WP3.4 own it |
+| Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3–WP3.4 own it |
 | Independent review | **PASS** | Independent GPT-5.6 Sol delta re-review inspected the actual final diff, tests, precise mutation anchors, bounded cumulative evidence and scope boundaries; no material issue remains |
 
 ## Implemented contracts
@@ -49,7 +49,7 @@ deployed model serving, or production browser smoke evidence.
 - A closed `publication_gate_closed` response is rendered as a publication notice. The frontend
   does not substitute raw `/shots` rows or issue one `/model/predict` request per historical row.
 - Probability uses the exact affine-area mapping
-  `r(p) = sqrt(0.45? + p ? (2.40? ? 0.45?))`.
+  `r(p) = sqrt(0.45² + p × (2.40² − 0.45²))`.
 - Goals are filled, non-goals hollow, and selection uses a separate outer ring. A single keyboard
   selector avoids putting every map marker in the tab order.
 - Euro2024 reliability bins retain counts and positive counts, including sparse `n=4` and `n=1`
@@ -112,7 +112,7 @@ base-run index exactly once. Final repository status, absence of deliberate-brea
 | `[73,146)` | quality manifest selection must use relational exact-scope evidence | the refusal must name the target without printing the DSN | 73 | 73 | 0 | 0 | PASS |
 | `[146,219)` | ingestion must consult the write-target guard before any work | WP2.6 keeps artifact candidate distinct from the selection incumbent | 73 | 73 | 0 | 0 | PASS |
 | `[219,292)` | WP2.6 validates the learned-parameter digest after strict load | WP3.1 Docker image contains the exact minimal serving bundle | 73 | 73 | 0 | 0 | PASS |
-| **Aggregate** | ? | ? | **292** | **292** | **0** | **0** | **PASS** |
+| **Aggregate** | — | — | **292** | **292** | **0** | **0** | **PASS** |
 
 Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,292)`: executed
 indices are exactly `0..291`, unique executed index count is `292`, duplicate count is `0`, and
@@ -163,7 +163,7 @@ and `/model/shots` returned the structured 403 `publication_gate_closed`. At all
 metadata identity, aggregate metrics, Euro2024 holdout reliability view, limitations, and visible
 StatsBomb attribution remained usable. The page clearly showed `publication_gate_closed`, `NOT
 CLEARED`, and the historical publication explanation; it did not show a zero-shot state. API logs
-showed only `/model`, `/model/metrics`, and the gated `/model/shots` request?no legacy `/shots`
+showed only `/model`, `/model/metrics`, and the gated `/model/shots` request—no legacy `/shots`
 fallback and no `/model/predict` reconstruction.
 
 ### Controlled local gate-open state
@@ -182,9 +182,9 @@ historical prediction caveat: stable across both pages
 
 The controlled API check also confirmed no `/model/predict` reconstruction request. At each width the
 interface rendered `showing 1430 of 1430`, 1,430 markers, and the selected shot workspace. Exact AND filtering was exercised with `team=Ecuador` and
-`player=Romario Andr?s Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
+`player=Romario Andrés Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
 combination (`team=Ecuador` and `player=Abdelkarim Hassan Al Haj Fadlalla`) showed the explicit
-?No shots match the current exact filters? state, disabled the selector, removed the markers, and
+“No shots match the current exact filters” state, disabled the selector, removed the markers, and
 showed the empty detail state. Reset restored all 1,430 rows. Selecting a shot and then filtering
 out its team repaired selection to the first remaining shot; the keyboard selector's `ArrowDown`
 path moved selection, the map ring followed it, and the detail panel matched the selected shot's
@@ -195,17 +195,17 @@ player, outcome, probability, and caveat.
 The rendered map contained 152 filled goal markers and 1,278 hollow non-goal markers. Every marker's
 `cx`/`cy` matched the API coordinates without jitter; the attacking-half viewBox was `60 0 60 80`
 (the 60:80 StatsBomb coordinate-space ratio), and every rendered radius matched
-`r(p) = sqrt(0.45? + p ? (2.40? ? 0.45?))`. The observed low/high radii increased from
+`r(p) = sqrt(0.45² + p × (2.40² − 0.45²))`. The observed low/high radii increased from
 `0.452875...` to `2.345938...`; one independent outer selection ring was present. The dense
 central overlap area remained interpretable through the hollow/filled outcome encoding, opacity,
 individual titles, and selection ring. The probability/outcome legend was readable.
 
 The reliability view showed all five bins and both count columns, explicitly identified `n=4` and
 `n=1`, rendered five unconnected points with zero connecting paths, reported the signed
-`calibrated ? raw` comparison, and kept the WC2022 calibration/adoption section separate from the
+`calibrated − raw` comparison, and kept the WC2022 calibration/adoption section separate from the
 Euro2024 one-time tournament holdout. The historical calibration-data caveat remained beside the
-workspace and selected-shot probability. ?Data provided by StatsBomb?, ?not StatsBomb's
-proprietary xG model?, ?Event data is not tracking?, and ?No causal recommendation? were visible.
+workspace and selected-shot probability. “Data provided by StatsBomb”, “not StatsBomb's
+proprietary xG model”, “Event data is not tracking”, and “No causal recommendation” were visible.
 
 After the first inspection found two bounded defects, they were fixed and rechecked: reliability
 content now permits a mobile-width internal table scroll without page-level horizontal overflow,
@@ -215,7 +215,7 @@ or page errors and no horizontal overflow at any requested width; controls, map,
 reliability table/chart, limitations, and attribution remained readable/usable.
 
 Historical publication remains **NOT CLEARED**, and production deployment/smoke remains
-**WP3.3?WP3.4**.
+**WP3.3–WP3.4**.
 
 ## Durable artifacts
 
