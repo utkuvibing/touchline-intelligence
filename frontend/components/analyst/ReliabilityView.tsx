@@ -10,7 +10,7 @@ const CHART_HEIGHT = 280;
 const CHART_PADDING = 40;
 
 function percent(value: number | null): string {
-  return value === null ? "?" : `${(value * 100).toFixed(1)}%`;
+  return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
 }
 
 function formatSignedMetric(value: number): string {
@@ -116,7 +116,7 @@ function ReliabilityTable({ rows }: { rows: ReliabilityRow[] }) {
             <tr key={row.bin}>
               <th scope="row">{row.bin}</th>
               <td>
-                {percent(row.lower)}?{percent(row.upper)}
+                {percent(row.lower)}–{percent(row.upper)}
               </td>
               <td>{row.count}</td>
               <td>{row.positive_count}</td>
@@ -216,7 +216,7 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.log_loss)}</dd>
           </div>
           <div>
-            <dt>Calibrated ? raw log loss</dt>
+            <dt>Calibrated − raw log loss</dt>
             <dd>
               {formatSignedMetric(effect.log_loss)} <span className="muted">({formatInterval(effect.log_loss_interval.lower, effect.log_loss_interval.upper)})</span>
             </dd>
@@ -230,7 +230,7 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.brier)}</dd>
           </div>
           <div>
-            <dt>Calibrated ? raw Brier</dt>
+            <dt>Calibrated − raw Brier</dt>
             <dd>
               {formatSignedMetric(effect.brier)} <span className="muted">({formatInterval(effect.brier_interval.lower, effect.brier_interval.upper)})</span>
             </dd>

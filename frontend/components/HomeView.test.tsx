@@ -201,7 +201,7 @@ describe("WP3.2 analyst view", () => {
     expect(within(table).getByText("25")).toBeInTheDocument();
     expect(within(table).getAllByText("4").length).toBeGreaterThan(0);
     expect(within(table).getAllByText("1").length).toBeGreaterThan(0);
-    expect(screen.getByText(/calibrated ? raw log loss/i)).toBeInTheDocument();
+    expect(screen.getByText(/calibrated − raw log loss/i)).toBeInTheDocument();
     expect(screen.getByText(/\+0\.0038/)).toBeInTheDocument();
     expect(screen.getByText(/sparse bins are visible/i)).toBeInTheDocument();
   });
