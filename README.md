@@ -1,19 +1,19 @@
 <div align="center">
 
-# ⚽ Touchline Intelligence Platform
+# ? Touchline Intelligence Platform
 
 **An end-to-end football analytics and applied-ML platform built on open match data.**
 
-From raw StatsBomb Open Data → a validated relational database → reproducible analysis and model
-evidence → an analyst-facing product.
+From raw StatsBomb Open Data ? a validated relational database ? reproducible analysis and model
+evidence ? an analyst-facing product.
 
-[**Live app**](https://touchline-intelligence.vercel.app) ·
-[**API docs**](https://touchline-intelligence-production.up.railway.app/docs) ·
-[**Model Card**](MODEL_CARD.md) ·
+[**Live app**](https://touchline-intelligence.vercel.app) ?
+[**API docs**](https://touchline-intelligence-production.up.railway.app/docs) ?
+[**Model Card**](MODEL_CARD.md) ?
 [**Data source & coverage**](DATA_SOURCE.md)
 
-`Python 3.12` · `FastAPI` · `PostgreSQL` · `scikit-learn` · `PyTorch` · `Next.js 16` ·
-`TypeScript` · `Docker`
+`Python 3.12` ? `FastAPI` ? `PostgreSQL` ? `scikit-learn` ? `PyTorch` ? `Next.js 16` ?
+`TypeScript` ? `Docker`
 
 </div>
 
@@ -39,7 +39,7 @@ packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inferen
 > repository but is not yet deployed. The repository frontend now contains the WP3.2 model-aware
 > analyst view: qualified metadata, holdout evidence, limitations, attribution, and a historical
 > workspace that remains publication-gated. The live API and UI remain the earlier descriptive
-> deployment until WP3.3–WP3.4 hardening and smoke evidence are complete. Historical row-level model
+> deployment until WP3.3?WP3.4 hardening and smoke evidence are complete. Historical row-level model
 > predictions remain gated off by default.
 
 ## Model at a glance
@@ -50,16 +50,16 @@ packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inferen
 | Final base model | `full_minus_presence` L2-regularized logistic regression |
 | Released variant | Base model plus the WC2022-fitted Platt transform adopted before holdout access |
 | Features | 16 columns: two standardized geometry features and 14 categorical indicators |
-| Development | WC2018 + Euro2020 — 2,872 shots in 115 matches |
-| Calibration | WC2022 — 1,430 shots in 64 matches |
-| Final holdout | Euro2024 — 1,304 shots in 51 matches |
+| Development | WC2018 + Euro2020 ? 2,872 shots in 115 matches |
+| Calibration | WC2022 ? 1,430 shots in 64 matches |
+| Final holdout | Euro2024 ? 1,304 shots in 51 matches |
 | Lifecycle state | `m2_qualified` |
 | Serving state | WP3.1 implemented in-repository; not yet deployed (`not_served` remains the M2 release record) |
 | Canonical technical record | [MODEL_CARD.md](MODEL_CARD.md) |
 
 The model estimates eligible non-penalty shot-conversion probability from engineered shot geometry
-and recorded contextual categories. It is an independent Touchline Intelligence model—not
-StatsBomb's proprietary xG—and provider xG is deliberately removed before storage and never used as
+and recorded contextual categories. It is an independent Touchline Intelligence model?not
+StatsBomb's proprietary xG?and provider xG is deliberately removed before storage and never used as
 a feature.
 
 The [Model Card](MODEL_CARD.md) owns the model-specific detail: exact identity and feature contract,
@@ -91,11 +91,11 @@ development rows and match-grouped folds:
 2. geometry-only regularized logistic regression;
 3. richer logistic candidates;
 4. a controlled `HistGradientBoostingClassifier` grid;
-5. a bounded `16 → 8 → 1` PyTorch MLP.
+5. a bounded `16 ? 8 ? 1` PyTorch MLP.
 
 The two provider presence annotations tested in the richest logistic candidate failed their
 registered consistency gate, producing the 16-column `full_minus_presence` feature set. The
-gradient booster and MLP were valid controlled challengers—not failed engineering work—but neither
+gradient booster and MLP were valid controlled challengers?not failed engineering work?but neither
 met all registered replacement conditions. The simpler regularized logistic model therefore
 remained the evidence-backed base estimator.
 
@@ -120,7 +120,7 @@ The WC2022 rule adopted the calibrated variant before Euro2024 was opened. On th
 the transform slightly worsened the two probability-quality scores while leaving ranking metrics
 unchanged:
 
-| Euro2024 variant | Log loss ↓ | Brier ↓ | ROC AUC ↑ |
+| Euro2024 variant | Log loss ? | Brier ? | ROC AUC ? |
 |---|---:|---:|---:|
 | Raw base model | 0.239308 | 0.064707 | 0.744678 |
 | Pre-holdout-adopted calibrated model | 0.243113 | 0.066030 | 0.744678 |
@@ -147,8 +147,8 @@ chain.
 
 ## Architecture
 
-Solid arrows are implemented in the repository. Dashed arrows show the model-aware UI work that
-remains; the WP3.1 inference/API path is Docker-verified but not yet deployed.
+Solid arrows are implemented in the repository. The WP3.1 inference/API path and WP3.2 analyst UI
+are implemented locally but are not yet deployed; WP3.3?WP3.4 own production hardening and smoke.
 
 ```mermaid
 flowchart LR
@@ -158,17 +158,14 @@ flowchart LR
     PG --> QA["Quality + SQL analysis<br/><i>reconciled evidence</i>"]
     PG --> FEAT["Feature pipeline<br/><i>geometry + context</i>"]
     FEAT --> LIFE["Qualified M2 lifecycle<br/><i>selection + calibration + holdout</i>"]
-    LIFE --> ART["Qualified release artifact<br/><i>m2_qualified · not_served</i>"]
+    LIFE --> ART["Qualified release artifact<br/><i>m2_qualified ? not_served</i>"]
 
     PG --> API["Current FastAPI<br/><i>descriptive endpoints</i>"]
     API --> WEB["Current Next.js UI<br/><i>recorded shot map</i>"]
 
     ART --> INF["WP3.1 inference boundary<br/><i>hash validation + feature parity</i>"]
     INF --> PAPI["WP3.1 model API<br/><i>version + provenance</i>"]
-    PAPI -.->|M3.2 planned| MWEB["Model-aware analyst UI<br/><i>predictions + reliability</i>"]
-
-    classDef planned stroke-dasharray: 6 4,fill:#f8f8f8,color:#555;
-    class MWEB planned;
+    PAPI --> MWEB["WP3.2 model-aware analyst UI<br/><i>local + publication-gated</i>"]
 ```
 
 | Layer | Choice | Why |
@@ -178,7 +175,7 @@ flowchart LR
 | Modeling | scikit-learn + bounded PyTorch | Controlled classical and neural candidates under one locked protocol |
 | Backend | Python 3.12, FastAPI, psycopg | Typed settings, strict mypy, and a small serving surface |
 | Frontend | Next.js 16, React 19, TypeScript | Server-rendered analyst views with end-to-end type safety |
-| Infrastructure | Docker Compose locally · Vercel + Railway + Neon in production | A small, reproducible stack deployable by one person |
+| Infrastructure | Docker Compose locally ? Vercel + Railway + Neon in production | A small, reproducible stack deployable by one person |
 | Quality | Ruff, mypy, pytest, Vitest, GitHub Actions | One `uv run poe check` covers the Python checks used by CI |
 
 ## The data
@@ -198,7 +195,7 @@ possessions, 1.23M directed event relations, and 78,866 actors from shot-embedde
 The fixed model cohort contains 5,606 eligible non-penalty shots and 507 goals.
 
 The **public API is intentionally limited to World Cup 2022** while an open question about
-row-level data redistribution is resolved with the provider—see
+row-level data redistribution is resolved with the provider?see
 [`DATA_SOURCE.md`](DATA_SOURCE.md). The internal model evidence spans all four tournaments; that
 does not expand the public row-level serving scope.
 
@@ -209,13 +206,13 @@ Two important boundaries:
 - **Shot freeze frames are not called tracking data.** They are partial snapshots around individual
   events, not continuous player tracking or StatsBomb 360 data.
 
-## What is live—and what comes next
+## What is live?and what comes next
 
 Live today:
 
 - the World Cup 2022 descriptive conversion summary and recorded shot map;
 - paginated read-only shot data plus health and readiness endpoints;
-- the Vercel → Railway → Neon deployed path.
+- the Vercel ? Railway ? Neon deployed path.
 
 Implemented in the repository but not live yet:
 
@@ -227,16 +224,16 @@ Implemented in the repository but not live yet:
 - WC2022 historical calibrated predictions, publication-gated off by default.
 
 The deployed live UI remains descriptive and exposes no model probability. The repository
-WP3.2 analyst view is implemented locally but is not a deployment claim; M3.3–M3.4 still own
+WP3.2 analyst view is implemented locally but is not a deployment claim; M3.3?M3.4 still own
 production hardening, deployed smoke tests, and rebuild/rollback evidence.
 
 ## Roadmap
 
 | Milestone | Ships | State |
 |---|---|---|
-| **M0** Walking skeleton | Data → PostgreSQL → descriptive API → recorded-shot UI → deployment | ✅ Complete |
-| **M1** Data foundation | Relational schema, idempotent ingestion, quality audit, SQL pack, and reproducible clean rebuild | ✅ Complete |
-| **M2** Shot quality engine | Fixed cohort and features; locked splits; logistic selection; boosting and PyTorch challengers; calibration; one-time Euro2024 holdout; reproducible release; canonical Model Card | ✅ Complete |
+| **M0** Walking skeleton | Data ? PostgreSQL ? descriptive API ? recorded-shot UI ? deployment | ? Complete |
+| **M1** Data foundation | Relational schema, idempotent ingestion, quality audit, SQL pack, and reproducible clean rebuild | ? Complete |
+| **M2** Shot quality engine | Fixed cohort and features; locked splits; logistic selection; boosting and PyTorch challengers; calibration; one-time Euro2024 holdout; reproducible release; canonical Model Card | ? Complete |
 | **M3** Analyst interface and serving | WP3.1 serving and WP3.2 model-aware UI implemented locally; deployment hardening, smoke tests, and rollback documentation remain | **In progress** |
 | **M4** Release and communication | Technical write-up, stakeholder summary, demo video and screenshots, attribution audit, and application materials | Planned |
 
@@ -325,7 +322,7 @@ competitions, including complete World Cup and European Championship coverage.
 
 - Repository: <https://github.com/statsbomb/open-data>
 - Pinned revision: `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` (2026-05-26)
-- Terms and README reviewed on **2026-08-01**—see [`DATA_SOURCE.md`](DATA_SOURCE.md)
+- Terms and README reviewed on **2026-08-01**?see [`DATA_SOURCE.md`](DATA_SOURCE.md)
 
 **Please respect the source terms.** StatsBomb Open Data is governed by its own Public Data User
 Agreement and requires attribution. If you build on this repository, credit StatsBomb, review the
@@ -341,17 +338,17 @@ event data; Touchline's shot-quality model is an independent estimate built with
 
 ### Built with
 
-[FastAPI](https://fastapi.tiangolo.com/) · [PostgreSQL](https://www.postgresql.org/) ·
-[scikit-learn](https://scikit-learn.org/) · [PyTorch](https://pytorch.org/) ·
-[Next.js](https://nextjs.org/) · [uv](https://docs.astral.sh/uv/) ·
-[Ruff](https://docs.astral.sh/ruff/) · [pytest](https://pytest.org/) ·
-[Vitest](https://vitest.dev/)—hosted on [Vercel](https://vercel.com/),
+[FastAPI](https://fastapi.tiangolo.com/) ? [PostgreSQL](https://www.postgresql.org/) ?
+[scikit-learn](https://scikit-learn.org/) ? [PyTorch](https://pytorch.org/) ?
+[Next.js](https://nextjs.org/) ? [uv](https://docs.astral.sh/uv/) ?
+[Ruff](https://docs.astral.sh/ruff/) ? [pytest](https://pytest.org/) ?
+[Vitest](https://vitest.dev/)?hosted on [Vercel](https://vercel.com/),
 [Railway](https://railway.com/), and [Neon](https://neon.com/).
 
 ### Author
 
-Built by **Utku Şahin** as an end-to-end portfolio project in football analytics and applied
-machine learning. Questions, corrections, and pointed criticism are welcome—open an issue or get
+Built by **Utku ?ahin** as an end-to-end portfolio project in football analytics and applied
+machine learning. Questions, corrections, and pointed criticism are welcome?open an issue or get
 in touch:
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Utku_%C5%9Eahin-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/utku-%C5%9Fahin-696397210/)
@@ -359,7 +356,7 @@ in touch:
 ## Licence
 
 **Source-available, not open source.** The code is public so it can be read and evaluated; it is not
-licensed for reuse. See [`LICENSE`](LICENSE) for what that permits—and ask if you want to use a
+licensed for reuse. See [`LICENSE`](LICENSE) for what that permits?and ask if you want to use a
 piece of it.
 
 The match data belongs to StatsBomb/Hudl and is governed by its own agreement. Nothing in this

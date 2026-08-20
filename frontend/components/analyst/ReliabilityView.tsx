@@ -10,7 +10,11 @@ const CHART_HEIGHT = 280;
 const CHART_PADDING = 40;
 
 function percent(value: number | null): string {
-  return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
+  return value === null ? "?" : `${(value * 100).toFixed(1)}%`;
+}
+
+function formatSignedMetric(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(4)}`;
 }
 
 function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
@@ -112,7 +116,7 @@ function ReliabilityTable({ rows }: { rows: ReliabilityRow[] }) {
             <tr key={row.bin}>
               <th scope="row">{row.bin}</th>
               <td>
-                {percent(row.lower)}–{percent(row.upper)}
+                {percent(row.lower)}?{percent(row.upper)}
               </td>
               <td>{row.count}</td>
               <td>{row.positive_count}</td>
@@ -212,9 +216,9 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.log_loss)}</dd>
           </div>
           <div>
-            <dt>Calibrated − raw log loss</dt>
+            <dt>Calibrated ? raw log loss</dt>
             <dd>
-              +{effect.log_loss.toFixed(4)} <span className="muted">({formatInterval(effect.log_loss_interval.lower, effect.log_loss_interval.upper)})</span>
+              {formatSignedMetric(effect.log_loss)} <span className="muted">({formatInterval(effect.log_loss_interval.lower, effect.log_loss_interval.upper)})</span>
             </dd>
           </div>
           <div>
@@ -226,9 +230,9 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.brier)}</dd>
           </div>
           <div>
-            <dt>Calibrated − raw Brier</dt>
+            <dt>Calibrated ? raw Brier</dt>
             <dd>
-              +{effect.brier.toFixed(4)} <span className="muted">({formatInterval(effect.brier_interval.lower, effect.brier_interval.upper)})</span>
+              {formatSignedMetric(effect.brier)} <span className="muted">({formatInterval(effect.brier_interval.lower, effect.brier_interval.upper)})</span>
             </dd>
           </div>
         </dl>

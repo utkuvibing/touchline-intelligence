@@ -7,6 +7,8 @@ import {
   fetchAllHistoricalShots,
   fetchHistoricalShotsPage,
   isPublicationGateClosed,
+  parseModelMetadata,
+  parseModelMetrics,
   parseHistoricalShotsPage,
   type HistoricalShot,
   type ProvenanceIdentity,
@@ -21,6 +23,125 @@ const provenance: ProvenanceIdentity = {
   artifact_sha256: "artifact",
   calibration_decision_sha256: "calibration",
 };
+
+function metadataPayload() {
+  return {
+    ...provenance,
+    release_status: "m2_qualified",
+    qualification_serving_status: "not_served",
+    runtime_status: "ready",
+    candidate: "full_minus_presence",
+    estimator: "logistic_regression",
+    calibration: "platt_sigmoid",
+    adopted_variant: "calibrated",
+    output: "goal_conversion_probability",
+    scopes: {
+      development: {
+        competitions: ["FIFA World Cup 2018", "UEFA Euro 2020"],
+        shots: 2872,
+        matches: 115,
+        role: "model_development",
+      },
+      calibration: {
+        competition: "FIFA World Cup 2022",
+        shots: 1430,
+        matches: 64,
+        role: "platt_calibration_and_adoption",
+      },
+      tournament_holdout: {
+        competition: "UEFA Euro 2024",
+        shots: 1304,
+        matches: 51,
+        role: "one_time_final_evaluation",
+      },
+    },
+    input_contract: {
+      coordinates: {
+        system: "StatsBomb",
+        location_x: { minimum: 0, maximum: 120 },
+        location_y: { minimum: 0, maximum: 80 },
+      },
+      categorical_policy: "exact_frozen_vocabulary_with_unseen_as_reference",
+      fields: {
+        body_part: { reference: "Right Foot", retained: ["Left Foot"], rare_members: ["Other"] },
+        technique: { reference: "Normal", retained: ["Volley"], rare_members: ["Other"] },
+        play_pattern: {
+          reference: "Regular Play",
+          retained: ["From Corner"],
+          rare_members: ["Other"],
+        },
+      },
+    },
+  };
+}
+
+function metricsPayload() {
+  const reliability = {
+    bin: 0,
+    lower: 0,
+    upper: 0.2,
+    count: 10,
+    positive_count: 1,
+    mean_prediction: 0.1,
+    observed_rate: 0.1,
+  };
+  const calibrationReliability = {
+    ...reliability,
+    raw_mean_prediction: 0.1,
+    calibrated_mean_prediction: 0.1,
+  };
+  const scores = { log_loss: 0.2, brier: 0.05, max_supported_calibration_deviation: 0.02 };
+  const discrimination = { roc_auc: 0.7, pr_auc: 0.2 };
+  return {
+    ...provenance,
+    evidence_source: {
+      holdout_metrics_sha256: "holdout",
+      evidence_status: "qualified_m2_evidence",
+      recomputed_at_request_time: false,
+    },
+    calibration_adoption: {
+      split: "FIFA World Cup 2022",
+      role: "calibration",
+      shots: 1430,
+      matches: 64,
+      adopted_variant: "calibrated",
+      supported_raw_anchor_bins: 1,
+      raw: scores,
+      calibrated: scores,
+      raw_anchor_reliability: [calibrationReliability],
+    },
+    tournament_holdout: {
+      split: "UEFA Euro 2024",
+      role: "one_time_tournament_holdout",
+      shots: 1304,
+      matches: 51,
+      goals: 98,
+      observed_prevalence: 0.075,
+      adopted_variant: "calibrated",
+      proper_scoring: { log_loss: 0.21, brier: 0.06 },
+      discrimination,
+      uncertainty: {
+        method: "match_clustered_paired_bootstrap",
+        confidence_level: 0.95,
+        repetitions: 2000,
+        seed: 0,
+        log_loss: { lower: 0.2, upper: 0.22 },
+        brier: { lower: 0.05, upper: 0.07 },
+      },
+      reliability: [reliability],
+      raw_comparator: {
+        proper_scoring: { log_loss: 0.2, brier: 0.05 },
+        discrimination,
+        calibrated_minus_raw: {
+          log_loss: 0.01,
+          brier: 0.01,
+          log_loss_interval: { lower: 0, upper: 0.02 },
+          brier_interval: { lower: 0, upper: 0.02 },
+        },
+      },
+    },
+  };
+}
 
 function shot(id: string, probability = 0.1): HistoricalShot {
   return {
@@ -77,6 +198,39 @@ beforeEach(() => {
 });
 
 describe("WP3.1 model API adapter", () => {
+  it("parses valid metadata and metrics at the response seam", () => {
+    expect(parseModelMetadata(metadataPayload()).candidate).toBe("full_minus_presence");
+    expect(parseModelMetrics(metricsPayload()).tournament_holdout.reliability).toHaveLength(1);
+  });
+
+  it.each(["location_x", "location_y"] as const)(
+    "rejects a non-object %s coordinate bound",
+    (coordinateField) => {
+      const malformed = structuredClone(metadataPayload()) as {
+        input_contract: { coordinates: Record<string, unknown> };
+      };
+      malformed.input_contract.coordinates[coordinateField] = 0;
+      expect(() => parseModelMetadata(malformed)).toThrow(new RegExp(coordinateField));
+    },
+  );
+
+  it.each(["candidate", "estimator", "calibration", "output"] as const)(
+    "rejects a non-registered %s literal",
+    (field) => {
+      const malformed = structuredClone(metadataPayload()) as Record<string, unknown>;
+      malformed[field] = "unregistered_value";
+      expect(() => parseModelMetadata(malformed)).toThrow(new RegExp(field));
+    },
+  );
+
+  it("rejects malformed metrics values at the response seam", () => {
+    const malformed = structuredClone(metricsPayload()) as {
+      tournament_holdout: { uncertainty: { confidence_level: number } };
+    };
+    malformed.tournament_holdout.uncertainty.confidence_level = 1.01;
+    expect(() => parseModelMetrics(malformed)).toThrow(/confidence_level/);
+  });
+
   it("uses the returned total and verifies every page identity", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);

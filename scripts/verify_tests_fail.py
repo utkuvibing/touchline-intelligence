@@ -11,7 +11,7 @@ Run with a clean working tree, **and with both database variables set**:
 Both are required, and the script refuses to start without them. Integration and full-cohort tests
 skip when their variable is missing; a skipped test suite exits zero, which this harness would read
 as "the mutation was not noticed". A run without the variables once reported 71 CAUGHT and 98
-MISSED where the real figure was 169 CAUGHT — an environment gap masquerading as 98 unprotected
+MISSED where the real figure was 169 CAUGHT ? an environment gap masquerading as 98 unprotected
 contracts. Refusing up front is cheaper than the investigation that mistake costs.
 
 It has already earned its place three times. It found that the /health liveness test passed even
@@ -1038,6 +1038,90 @@ BREAKS: list[Break] = [
         cwd=FRONTEND,
     ),
     Break(
+        contract="WP3.2 metadata coordinate bounds must remain structured objects",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "  const locationX = object(\n"
+            "    coordinates.location_x,\n"
+            '    "model metadata.input_contract.coordinates.location_x",\n'
+            "  );\n"
+        ),
+        replacement=(
+            "  const locationX = object(\n"
+            "    coordinates.location_x || { minimum: 0, maximum: 120 },  // DELIBERATE BREAK\n"
+            '    "model metadata.input_contract.coordinates.location_x",\n'
+            "  );\n"
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata y coordinate bounds must remain structured objects",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "  const locationY = object(\n"
+            "    coordinates.location_y,\n"
+            '    "model metadata.input_contract.coordinates.location_y",\n'
+            "  );\n"
+        ),
+        replacement=(
+            "  const locationY = object(\n"
+            "    coordinates.location_y || { minimum: 0, maximum: 80 },  // DELIBERATE BREAK\n"
+            '    "model metadata.input_contract.coordinates.location_y",\n'
+            "  );\n"
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata candidate must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    candidate: literal(source.candidate, "full_minus_presence", "candidate"),',
+        replacement=(
+            '    candidate: source.candidate as "full_minus_presence",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata estimator must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    estimator: literal(source.estimator, "logistic_regression", "estimator"),',
+        replacement=(
+            '    estimator: source.estimator as "logistic_regression",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata calibration must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    calibration: literal(source.calibration, "platt_sigmoid", "calibration"),',
+        replacement=(
+            '    calibration: source.calibration as "platt_sigmoid",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata output must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    output: literal(source.output, "goal_conversion_probability", "output"),',
+        replacement=(
+            '    output: source.output as "goal_conversion_probability",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 negative calibrated-minus-raw effects must not render with a plus sign",
+        path=FRONTEND / "components/analyst/ReliabilityView.tsx",
+        anchor="{formatSignedMetric(effect.log_loss)}",
+        replacement="{`+${effect.log_loss.toFixed(4)}`}  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
         contract="public endpoints must remain restricted to the WC 2022 publication scope",
         path=ROOT / "backend/src/touchline/public_scope.py",
         anchor=(
@@ -1887,7 +1971,7 @@ BREAKS: list[Break] = [
     Break(
         contract="WP2.4 published notes must not point readers at unpublished docs/**",
         path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor='        "- `reports/wp2.4-baselines-evidence.md` — the reviewable WP2.4 evidence '
+        anchor='        "- `reports/wp2.4-baselines-evidence.md` ? the reviewable WP2.4 evidence '
         'report.\\n\\n"\n',
         replacement=(
             '        "- see docs/modeling/wp2_4-baselines-and-logistic-contract.md\\n\\n"'
@@ -3174,10 +3258,10 @@ def _invalidate_bytecode(path: Path) -> None:
     A break's test run compiles the mutated source and writes a pyc whose header records the
     source's integer-second mtime. Restoring the original within the same second leaves that pyc
     looking fresh, so a later import silently runs the mutated code while the file shows the
-    original — the test suite then fails for reasons that no longer exist. Deleting the pyc makes
+    original ? the test suite then fails for reasons that no longer exist. Deleting the pyc makes
     the restore real.
-    Python cache files are named for the module plus an interpreter tag — ``splits.cpython-313.pyc``
-    — so the glob must be keyed off ``path.stem`` (``splits``), never off ``path.name``
+    Python cache files are named for the module plus an interpreter tag ? ``splits.cpython-313.pyc``
+    ? so the glob must be keyed off ``path.stem`` (``splits``), never off ``path.name``
     (``splits.py``), which would match nothing. See ``backend/tests/test_verify_tests_fail.py``.
     """
     cache = path.parent / "__pycache__"

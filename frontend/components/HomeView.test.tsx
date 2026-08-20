@@ -201,9 +201,32 @@ describe("WP3.2 analyst view", () => {
     expect(within(table).getByText("25")).toBeInTheDocument();
     expect(within(table).getAllByText("4").length).toBeGreaterThan(0);
     expect(within(table).getAllByText("1").length).toBeGreaterThan(0);
-    expect(screen.getByText(/calibrated − raw log loss/i)).toBeInTheDocument();
+    expect(screen.getByText(/calibrated ? raw log loss/i)).toBeInTheDocument();
     expect(screen.getByText(/\+0\.0038/)).toBeInTheDocument();
     expect(screen.getByText(/sparse bins are visible/i)).toBeInTheDocument();
+  });
+
+  it("renders negative calibrated-minus-raw effects with a minus sign", () => {
+    const negativeMetrics: ModelMetrics = {
+      ...metrics,
+      tournament_holdout: {
+        ...metrics.tournament_holdout,
+        raw_comparator: {
+          ...metrics.tournament_holdout.raw_comparator,
+          calibrated_minus_raw: {
+            ...metrics.tournament_holdout.raw_comparator.calibrated_minus_raw,
+            log_loss: -0.0012,
+            brier: -0.0023,
+          },
+        },
+      },
+    };
+
+    render(<AnalystView {...baseProps()} metrics={ready(negativeMetrics)} />);
+
+    expect(screen.getByText(/-0\.0012/)).toBeInTheDocument();
+    expect(screen.getByText(/-0\.0023/)).toBeInTheDocument();
+    expect(screen.queryByText(/\+-/)).not.toBeInTheDocument();
   });
 
   it("keeps reliability SVG tooltips as single text nodes for hydration", () => {

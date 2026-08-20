@@ -4,7 +4,7 @@
 **Branch:** `codex/wp3-2-analyst-interface`
 **Scope:** local frontend implementation over the frozen WP3.1 contract.
 **Historical publication:** **NOT CLEARED**.
-**Production deployment/smoke:** not part of WP3.2; remains **WP3.3–WP3.4**.
+**Production deployment/smoke:** not part of WP3.2; remains **WP3.3?WP3.4**.
 
 This report records only checks that actually ran. It does not claim external publication permission,
 deployed model serving, or production browser smoke evidence.
@@ -16,7 +16,7 @@ deployed model serving, or production browser smoke evidence.
 | Local WP3.2 implementation | **REPAIRED / REVALIDATED** | Frontend source, typed WP3.1 adapter, model-aware view, filters, map, detail panel, reliability view, limitations and attribution |
 | Local WP3.2 acceptance | **REVALIDATED** | Focused checks, fresh exhaustive mutation verification, controlled local API checks, and prior responsive/manual browser inspection passed |
 | Historical publication permission | **NOT CLEARED** | `/model/shots` remains closed by default; no StatsBomb/Hudl written direction was obtained or inferred |
-| Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3–WP3.4 own it |
+| Production deployment/smoke | **NOT PART OF WP3.2** | No deployment, production variable change, or deployed smoke claim was made; WP3.3?WP3.4 own it |
 | Independent review | **PASS** | Independent GPT-5.6 Sol delta re-review inspected the actual final diff, tests, precise mutation anchors, bounded cumulative evidence and scope boundaries; no material issue remains |
 
 ## Implemented contracts
@@ -49,7 +49,7 @@ deployed model serving, or production browser smoke evidence.
 - A closed `publication_gate_closed` response is rendered as a publication notice. The frontend
   does not substitute raw `/shots` rows or issue one `/model/predict` request per historical row.
 - Probability uses the exact affine-area mapping
-  `r(p) = sqrt(0.45² + p × (2.40² − 0.45²))`.
+  `r(p) = sqrt(0.45? + p ? (2.40? ? 0.45?))`.
 - Goals are filled, non-goals hollow, and selection uses a separate outer ring. A single keyboard
   selector avoids putting every map marker in the tab order.
 - Euro2024 reliability bins retain counts and positive counts, including sparse `n=4` and `n=1`
@@ -61,14 +61,14 @@ deployed model serving, or production browser smoke evidence.
 
 | Check | Result | Actual observation |
 |---|---|---|
-| `npm --prefix frontend test lib/model-api.test.ts` | PASS | 1 file, 19 tests passed; includes first/later-page over-limit, changed-caveat, complete error-envelope negative cases, and 1,000 + 430 pagination cases |
-| `npm --prefix frontend test` | PASS | 4 files, 41 tests passed |
+| `npm --prefix frontend test lib/model-api.test.ts` | PASS | 1 file, 27 tests passed; includes metadata/metrics response-seam validation, first/later-page over-limit, changed-caveat, complete error-envelope negative cases, and 1,000 + 430 pagination cases |
+| `npm --prefix frontend test` | PASS | 4 files, 50 tests passed |
 | `npm --prefix frontend run lint` | PASS | ESLint completed with no findings |
 | `npm --prefix frontend run typecheck` | PASS | TypeScript completed with no errors |
 | `npm --prefix frontend run build` | PASS | Next production build completed; `/` remained dynamic |
 | `uv run poe check` | PASS | Ruff format/lint and mypy passed; pytest `932 passed, 303 skipped` |
-| WP3.2 focused mutation verification | PASS | Final affected delta: `13 CAUGHT, 0 MISSED` for attribution, gate state, caveat, sample sizes, area mapping, provenance, duplicate paging, first/later-page over-limit paging, changed-caveat paging, complete gate-envelope validation, detail-entry validation, and code/message type validation |
-| Mutation population | PASS | Base exhaustive run: `292 CAUGHT, 0 MISSED, 0 SKIP`; final review delta added two contracts and reran all 13 affected WP3.2 contracts. Current `len(BREAKS) = 294`; all current contracts are covered cumulatively with no miss or skip |
+| WP3.2 focused mutation verification | PASS | Prior affected delta: `13 CAUGHT, 0 MISSED`; current repair delta: `7 CAUGHT, 0 MISSED` for both coordinate objects, all four registered metadata literals, and signed comparator output; cumulative affected evidence: `20 CAUGHT, 0 MISSED` |
+| Mutation population | PASS | Base exhaustive run: `292 CAUGHT, 0 MISSED, 0 SKIP`; the prior review added two contracts and the current repair added seven. Current `len(BREAKS) = 301`; all current contracts are covered cumulatively with no miss or skip |
 | Controlled local gate-closed API check | PASS | `/model` 200, `/model/metrics` 200, `/model/shots` 403 `publication_gate_closed`; no `/model/predict` request occurred |
 | Controlled local gate-open pagination check | PASS | Local Docker DSN only; returned total `1,430`, pages `1,000 + 430`, 1,430 unique shots, stable seven-field provenance and stable caveat; no `/model/predict` request occurred |
 | `git diff --check` | PASS | No whitespace errors in the final remediation diff |
@@ -89,9 +89,10 @@ TOUCHLINE_FULL_COHORT_DB_URL=postgresql://touchline:localdev@localhost:5433/touc
 
 The repository requires Python `>=3.12,<3.13`; every final shard wrapper was invoked through
 `uv run python`, which reported Python `3.12.11`, with `PYTHONHASHSEED=0`. The harness was loaded
-with `runpy` under a non-`__main__` name, so `main()` was not invoked. After adding direct
-later-page over-limit and exact publication-gate-envelope contracts, the exhaustive population was
-`len(BREAKS) = 292`.
+with `runpy` under a non-`__main__` name, so `main()` was not invoked. The base exhaustive run after
+the later-page over-limit and exact publication-gate-envelope contracts had
+`len(BREAKS) = 292`; subsequent bounded review repairs added two contracts, and the current parser
+and comparator repair adds seven, producing the current `len(BREAKS) = 301`.
 
 The earlier 288-entry and 290-entry runs predate later remediations and are superseded historical
 evidence only. Neither is included in the final totals. The final run below was executed after the
@@ -111,7 +112,7 @@ base-run index exactly once. Final repository status, absence of deliberate-brea
 | `[73,146)` | quality manifest selection must use relational exact-scope evidence | the refusal must name the target without printing the DSN | 73 | 73 | 0 | 0 | PASS |
 | `[146,219)` | ingestion must consult the write-target guard before any work | WP2.6 keeps artifact candidate distinct from the selection incumbent | 73 | 73 | 0 | 0 | PASS |
 | `[219,292)` | WP2.6 validates the learned-parameter digest after strict load | WP3.1 Docker image contains the exact minimal serving bundle | 73 | 73 | 0 | 0 | PASS |
-| **Aggregate** | — | — | **292** | **292** | **0** | **0** | **PASS** |
+| **Aggregate** | ? | ? | **292** | **292** | **0** | **0** | **PASS** |
 
 Exhaustive coverage is proven by the four non-overlapping ranges partitioning `[0,292)`: executed
 indices are exactly `0..291`, unique executed index count is `292`, duplicate count is `0`, and
@@ -120,10 +121,10 @@ included in any final total.
 
 The independent review of that 292-contract state required finer-grained error-envelope protection.
 Two new mutation contracts were added for per-entry detail validation and string `code`/`message`
-validation, producing the current `len(BREAKS) = 294`. Under the bounded review protocol, the
-unchanged 292-contract exhaustive result was retained and all 13 affected WP3.2 contracts were rerun
-after the final repair: `13 CAUGHT, 0 MISSED`. Thus every current contract is covered cumulatively;
-no claim is made that a second monolithic 294-entry run occurred.
+validation, producing the intermediate `len(BREAKS) = 294`; the 13 affected contracts were rerun
+with `13 CAUGHT, 0 MISSED`. The current parser and comparator repair adds seven more contracts,
+which were rerun with `7 CAUGHT, 0 MISSED`. Thus every current 301-contract population member is
+covered cumulatively; no claim is made that a second monolithic 301-entry run occurred.
 
 ## Independent review remediation
 
@@ -140,9 +141,11 @@ release-required gaps: the later-page over-limit branch was not directly regress
 mutation-protected, and the frontend did not validate the complete structured publication-gate error
 envelope. The second remediation adds both public-seam regressions and exact envelope validation. A
 first final re-review then required direct protection for malformed error fields and detail entries;
-those negative cases and two precise mutations now pass in the 13-contract affected delta. The
-current 294-contract population is cumulatively covered by the 292-contract exhaustive run plus the
-two added contracts. The final independent GPT-5.6 Sol delta re-review inspected the actual repaired
+those negative cases and two precise mutations passed in the 13-contract affected delta. The latest
+repair adds direct coverage for both coordinate objects, all four registered metadata literals, and
+signed comparator output; all seven new mutations were caught. The current 301-contract population
+is cumulatively covered by the 292-contract exhaustive run plus the prior 13-contract delta and the
+current 7-contract delta. The final independent GPT-5.6 Sol re-review inspected the actual repaired
 diff and returned **PASS** with no material finding. This closes only the accepted local WP3.2
 contract.
 
@@ -160,7 +163,7 @@ and `/model/shots` returned the structured 403 `publication_gate_closed`. At all
 metadata identity, aggregate metrics, Euro2024 holdout reliability view, limitations, and visible
 StatsBomb attribution remained usable. The page clearly showed `publication_gate_closed`, `NOT
 CLEARED`, and the historical publication explanation; it did not show a zero-shot state. API logs
-showed only `/model`, `/model/metrics`, and the gated `/model/shots` request—no legacy `/shots`
+showed only `/model`, `/model/metrics`, and the gated `/model/shots` request?no legacy `/shots`
 fallback and no `/model/predict` reconstruction.
 
 ### Controlled local gate-open state
@@ -179,9 +182,9 @@ historical prediction caveat: stable across both pages
 
 The controlled API check also confirmed no `/model/predict` reconstruction request. At each width the
 interface rendered `showing 1430 of 1430`, 1,430 markers, and the selected shot workspace. Exact AND filtering was exercised with `team=Ecuador` and
-`player=Romario Andrés Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
+`player=Romario Andr?s Ibarra Mina`, producing the expected 2 rows. A deliberately empty exact
 combination (`team=Ecuador` and `player=Abdelkarim Hassan Al Haj Fadlalla`) showed the explicit
-“No shots match the current exact filters” state, disabled the selector, removed the markers, and
+?No shots match the current exact filters? state, disabled the selector, removed the markers, and
 showed the empty detail state. Reset restored all 1,430 rows. Selecting a shot and then filtering
 out its team repaired selection to the first remaining shot; the keyboard selector's `ArrowDown`
 path moved selection, the map ring followed it, and the detail panel matched the selected shot's
@@ -192,17 +195,17 @@ player, outcome, probability, and caveat.
 The rendered map contained 152 filled goal markers and 1,278 hollow non-goal markers. Every marker's
 `cx`/`cy` matched the API coordinates without jitter; the attacking-half viewBox was `60 0 60 80`
 (the 60:80 StatsBomb coordinate-space ratio), and every rendered radius matched
-`r(p) = sqrt(0.45² + p × (2.40² − 0.45²))`. The observed low/high radii increased from
+`r(p) = sqrt(0.45? + p ? (2.40? ? 0.45?))`. The observed low/high radii increased from
 `0.452875...` to `2.345938...`; one independent outer selection ring was present. The dense
 central overlap area remained interpretable through the hollow/filled outcome encoding, opacity,
 individual titles, and selection ring. The probability/outcome legend was readable.
 
 The reliability view showed all five bins and both count columns, explicitly identified `n=4` and
 `n=1`, rendered five unconnected points with zero connecting paths, reported the signed
-`calibrated − raw` comparison, and kept the WC2022 calibration/adoption section separate from the
+`calibrated ? raw` comparison, and kept the WC2022 calibration/adoption section separate from the
 Euro2024 one-time tournament holdout. The historical calibration-data caveat remained beside the
-workspace and selected-shot probability. “Data provided by StatsBomb”, “not StatsBomb's
-proprietary xG model”, “Event data is not tracking”, and “No causal recommendation” were visible.
+workspace and selected-shot probability. ?Data provided by StatsBomb?, ?not StatsBomb's
+proprietary xG model?, ?Event data is not tracking?, and ?No causal recommendation? were visible.
 
 After the first inspection found two bounded defects, they were fixed and rechecked: reliability
 content now permits a mobile-width internal table scroll without page-level horizontal overflow,
@@ -212,7 +215,7 @@ or page errors and no horizontal overflow at any requested width; controls, map,
 reliability table/chart, limitations, and attribution remained readable/usable.
 
 Historical publication remains **NOT CLEARED**, and production deployment/smoke remains
-**WP3.3–WP3.4**.
+**WP3.3?WP3.4**.
 
 ## Durable artifacts
 

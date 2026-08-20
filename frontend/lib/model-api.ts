@@ -20,11 +20,11 @@ export interface ModelMetadata extends ProvenanceIdentity {
   release_status: "m2_qualified";
   qualification_serving_status: "not_served";
   runtime_status: "ready";
-  candidate: string;
-  estimator: string;
-  calibration: string;
+  candidate: "full_minus_presence";
+  estimator: "logistic_regression";
+  calibration: "platt_sigmoid";
   adopted_variant: "calibrated";
-  output: string;
+  output: "goal_conversion_probability";
   scopes: {
     development: {
       competitions: string[];
@@ -366,7 +366,16 @@ export function parseModelMetadata(value: unknown): ModelMetadata {
   const source = object(value, "model metadata");
   const input = object(source.input_contract, "model metadata.input_contract");
   const coordinates = object(input.coordinates, "model metadata.input_contract.coordinates");
+  const locationX = object(
+    coordinates.location_x,
+    "model metadata.input_contract.coordinates.location_x",
+  );
+  const locationY = object(
+    coordinates.location_y,
+    "model metadata.input_contract.coordinates.location_y",
+  );
   const fields = object(input.fields, "model metadata.input_contract.fields");
+  const scopes = object(source.scopes, "model metadata.scopes");
 
   return {
     ...parseProvenance(source, "model metadata"),
@@ -377,19 +386,19 @@ export function parseModelMetadata(value: unknown): ModelMetadata {
       "qualification_serving_status",
     ),
     runtime_status: literal(source.runtime_status, "ready", "runtime_status"),
-    candidate: string(source.candidate, "candidate"),
-    estimator: string(source.estimator, "estimator"),
-    calibration: string(source.calibration, "calibration"),
+    candidate: literal(source.candidate, "full_minus_presence", "candidate"),
+    estimator: literal(source.estimator, "logistic_regression", "estimator"),
+    calibration: literal(source.calibration, "platt_sigmoid", "calibration"),
     adopted_variant: literal(source.adopted_variant, "calibrated", "adopted_variant"),
-    output: string(source.output, "output"),
+    output: literal(source.output, "goal_conversion_probability", "output"),
     scopes: {
-      development: parseScope(object(source.scopes, "scopes").development, "scopes.development"),
+      development: parseScope(scopes.development, "scopes.development"),
       calibration: parseCalibrationScope(
-        object(source.scopes, "scopes").calibration,
+        scopes.calibration,
         "scopes.calibration",
       ),
       tournament_holdout: parseHoldoutScope(
-        object(source.scopes, "scopes").tournament_holdout,
+        scopes.tournament_holdout,
         "scopes.tournament_holdout",
       ),
     },
@@ -397,12 +406,12 @@ export function parseModelMetadata(value: unknown): ModelMetadata {
       coordinates: {
         system: literal(coordinates.system, "StatsBomb", "coordinates.system"),
         location_x: {
-          minimum: number(coordinates.location_x && object(coordinates.location_x, "location_x").minimum, "location_x.minimum"),
-          maximum: number(coordinates.location_x && object(coordinates.location_x, "location_x").maximum, "location_x.maximum"),
+          minimum: number(locationX.minimum, "coordinates.location_x.minimum"),
+          maximum: number(locationX.maximum, "coordinates.location_x.maximum"),
         },
         location_y: {
-          minimum: number(coordinates.location_y && object(coordinates.location_y, "location_y").minimum, "location_y.minimum"),
-          maximum: number(coordinates.location_y && object(coordinates.location_y, "location_y").maximum, "location_y.maximum"),
+          minimum: number(locationY.minimum, "coordinates.location_y.minimum"),
+          maximum: number(locationY.maximum, "coordinates.location_y.maximum"),
         },
       },
       categorical_policy: literal(
