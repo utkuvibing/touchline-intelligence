@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import os
+import threading
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import psycopg
 import pytest
@@ -60,6 +63,31 @@ def test_migrations_apply_in_order_and_a_rerun_is_a_no_op(
         "0006_ingestion_runs",
         "0007_measured_event_x_boundary",
     ]
+
+
+def test_concurrent_migration_attempts_are_serialized_by_the_advisory_lock(
+    conn: psycopg.Connection[Any],
+) -> None:
+    """Two release runners must yield one full apply and one no-op, never duplicate DDL."""
+    del conn  # The fixture owns schema setup/cleanup; each worker needs its own session.
+    assert DB_URL is not None
+    barrier = threading.Barrier(2)
+
+    def _run() -> tuple[str, ...]:
+        with connect_local(DB_URL) as connection:
+            with connection.cursor() as cur:
+                cur.execute(f'SET search_path TO "{TEST_SCHEMA}"')
+            connection.commit()
+            barrier.wait()
+            applied = apply_migrations(connection)
+            connection.commit()
+            return applied
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: _run(), range(2)))
+
+    expected = tuple(migration.version for migration in read_migrations())
+    assert sorted(results, key=len) == [(), expected]
 
 
 def _seed_valid_parents(conn: psycopg.Connection) -> None:

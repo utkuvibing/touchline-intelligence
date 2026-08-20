@@ -12,7 +12,12 @@ import psycopg
 
 from touchline.config import (
     DirectDatabaseUrlRequiredError,
+    MigrationDatabaseUrlInvalidError,
+    MigrationDatabaseUrlRequiredError,
+    MissingConfigurationError,
+    RuntimeDatabaseUrlInvalidError,
     get_settings,
+    migration_database_url,
     require_direct_database_url,
 )
 
@@ -226,14 +231,34 @@ def apply_migrations(conn: psycopg.Connection) -> tuple[str, ...]:
 
 def main() -> int:
     """Apply pending migrations to the configured database."""
-    settings = get_settings()
     try:
-        require_direct_database_url(settings.db_url)
-    except DirectDatabaseUrlRequiredError as exc:
+        settings = get_settings()
+        db_url = migration_database_url(settings)
+        require_direct_database_url(
+            db_url,
+            variable_name=(
+                "TOUCHLINE_MIGRATION_DB_URL"
+                if settings.migration_db_url is not None
+                else "TOUCHLINE_DB_URL"
+            ),
+        )
+    except (
+        DirectDatabaseUrlRequiredError,
+        MigrationDatabaseUrlInvalidError,
+        MigrationDatabaseUrlRequiredError,
+        MissingConfigurationError,
+        RuntimeDatabaseUrlInvalidError,
+    ) as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    with psycopg.connect(settings.db_url_str) as conn:
-        applied = apply_migrations(conn)
+    try:
+        with psycopg.connect(str(db_url)) as conn:
+            applied = apply_migrations(conn)
+    except psycopg.Error as exc:
+        # Driver messages can include a DSN or provider detail. The command is often run in CI or
+        # a platform pre-deploy log, so expose only the exception class and keep credentials out.
+        print(f"Migration failed: {type(exc).__name__}", file=sys.stderr)
+        return 1
     if applied:
         print("Applied migrations: " + ", ".join(applied))
     else:

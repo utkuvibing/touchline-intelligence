@@ -315,6 +315,7 @@ def test_migration_is_deliberately_outside_the_write_target_guard(
     revisited with it instead of breaking silently in a release.
     """
     monkeypatch.setenv("TOUCHLINE_DB_URL", PRODUCTION_DSN)
+    monkeypatch.setenv("TOUCHLINE_MIGRATION_DB_URL", PRODUCTION_DSN)
     reached: list[str] = []
 
     def _record_connection(*args: object, **kwargs: object) -> None:
