@@ -1,42 +1,52 @@
-/**
- * M0 landing page.
- *
- * This is an async Server Component and does nothing but fetch: every rendering decision lives in
- * `HomeView`, which is synchronous and therefore unit-testable. Async Server Components are not
- * testable with Vitest, so keeping logic out of this file is what stops the page's claims — the
- * provisional notice, the attribution, the "not an estimate" wording — from becoming untested.
- *
- * Rendered per request: the data is small and public, and changes only when the ingestion is
- * re-run, so there is nothing a cached render would buy.
- */
-
-import { HomeView } from "@/components/HomeView";
+import { AnalystView, type ResourceState } from "@/components/AnalystView";
 import {
-  fetchAllShots,
-  fetchConversionRate,
-  type ConversionRate,
-  type Shot,
-} from "@/lib/api";
+  asModelApiErrorInfo,
+  assertProvenanceEqual,
+  fetchAllHistoricalShots,
+  fetchModelMetadata,
+  fetchModelMetrics,
+  type HistoricalShotCollection,
+  type ModelMetadata,
+  type ModelMetrics,
+  type ModelApiErrorInfo,
+} from "@/lib/model-api";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  let shots: Shot[] = [];
-  let total = 0;
-  let rate: ConversionRate | null = null;
-  let error: string | null = null;
+function resourceState<T>(result: PromiseSettledResult<T>): ResourceState<T> {
+  if (result.status === "fulfilled") return { status: "ready", data: result.value };
+  return { status: "error", error: asModelApiErrorInfo(result.reason) };
+}
 
-  try {
-    const [all, conversion] = await Promise.all([
-      fetchAllShots(),
-      fetchConversionRate(),
-    ]);
-    shots = all.shots;
-    total = all.total;
-    rate = conversion;
-  } catch (cause) {
-    error = cause instanceof Error ? cause.message : "unknown error";
+export default async function Home() {
+  const [metadataResult, metricsResult, historicalResult] = await Promise.allSettled([
+    fetchModelMetadata(),
+    fetchModelMetrics(),
+    fetchAllHistoricalShots(),
+  ]);
+
+  const metadata = resourceState<ModelMetadata>(metadataResult);
+  const metrics = resourceState<ModelMetrics>(metricsResult);
+  const historical = resourceState<HistoricalShotCollection>(historicalResult);
+  let provenanceError: ModelApiErrorInfo | null = null;
+
+  if (metadata.status === "ready" && metrics.status === "ready") {
+    try {
+      assertProvenanceEqual(metadata.data, metrics.data);
+      if (historical.status === "ready") {
+        assertProvenanceEqual(metadata.data, historical.data);
+      }
+    } catch (cause) {
+      provenanceError = asModelApiErrorInfo(cause);
+    }
   }
 
-  return <HomeView shots={shots} total={total} rate={rate} error={error} />;
+  return (
+    <AnalystView
+      metadata={metadata}
+      metrics={metrics}
+      historical={historical}
+      provenanceError={provenanceError}
+    />
+  );
 }

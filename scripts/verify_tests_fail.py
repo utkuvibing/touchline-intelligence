@@ -11,7 +11,7 @@ Run with a clean working tree, **and with both database variables set**:
 Both are required, and the script refuses to start without them. Integration and full-cohort tests
 skip when their variable is missing; a skipped test suite exits zero, which this harness would read
 as "the mutation was not noticed". A run without the variables once reported 71 CAUGHT and 98
-MISSED where the real figure was 169 CAUGHT — an environment gap masquerading as 98 unprotected
+MISSED where the real figure was 169 CAUGHT ? an environment gap masquerading as 98 unprotected
 contracts. Refusing up front is cheaper than the investigation that mistake costs.
 
 It has already earned its place three times. It found that the /health liveness test passed even
@@ -924,18 +924,200 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="the 'no evaluated model' notice must stay while M0 has no model",
-        path=FRONTEND / "components/HomeView.tsx",
-        anchor='        <p role="note">{PROVISIONAL_NOTICE}</p>',
-        replacement="        {/* DELIBERATE BREAK */}",
+        contract="WP3.2 visible StatsBomb attribution must stay (licence obligation)",
+        path=FRONTEND / "components/AnalystView.tsx",
+        anchor='          <p aria-label="Data provided by StatsBomb">',
+        replacement='          <p aria-label="Attribution omitted">  # DELIBERATE BREAK',
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
     ),
     Break(
-        contract="StatsBomb attribution must stay (licence obligation)",
-        path=FRONTEND / "components/HomeView.tsx",
-        anchor="          Data provided by StatsBomb.",
-        replacement="          DELIBERATE BREAK.",
+        contract="WP3.2 publication-gate state must not become a generic empty-data state",
+        path=FRONTEND / "components/AnalystView.tsx",
+        anchor="  if (isPublicationGateClosed(state.error)) {",
+        replacement="  if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical caveat must remain beside row-level probabilities",
+        path=FRONTEND / "components/AnalystView.tsx",
+        anchor="        {collection.historical_prediction_caveat}",
+        replacement='        {"Caveat omitted"}  {/* DELIBERATE BREAK */}',
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 reliability sample sizes must remain visible",
+        path=FRONTEND / "components/analyst/ReliabilityView.tsx",
+        anchor="              <td>{row.count}</td>",
+        replacement="              <td>0</td>  {/* DELIBERATE BREAK */}",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 probability must use the affine-area radius mapping",
+        path=FRONTEND / "lib/model-view.ts",
+        anchor=(
+            "  return Math.sqrt(\n"
+            "    MIN_MARKER_RADIUS ** 2 +\n"
+            "      probability * (MAX_MARKER_RADIUS ** 2 - MIN_MARKER_RADIUS ** 2),\n"
+            "  );"
+        ),
+        replacement="  return MAX_MARKER_RADIUS;  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 provenance mismatches must be rejected before combining responses",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (expected[field] !== actual[field]) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical pagination must reject duplicate shot IDs",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (seen.has(shot.shot_id)) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical pagination must reject an over-limit page",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="  if (first.shots.length > first.limit) {",
+        replacement="  if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical pagination must reject an over-limit later page",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (page.shots.length > page.limit) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 historical pagination must reject a changed page caveat",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="    if (page.historical_prediction_caveat !== historicalPredictionCaveat) {",
+        replacement="    if (false) {  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 publication-gate errors must preserve the exact structured envelope",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "      hasStructuredErrorDetails(detail.details) &&\n"
+            '      (detail.code !== "publication_gate_closed" || detail.details.length === 0)'
+        ),
+        replacement="      true  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 structured error details must validate every entry",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor="  return value.every(isStructuredErrorDetail);",
+        replacement="  return true;  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 structured errors must require string code and message fields",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            '      typeof detail.code === "string" &&\n      typeof detail.message === "string" &&'
+        ),
+        replacement="      true &&  // DELIBERATE BREAK",
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata coordinate bounds must remain structured objects",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "  const locationX = object(\n"
+            "    coordinates.location_x,\n"
+            '    "model metadata.input_contract.coordinates.location_x",\n'
+            "  );\n"
+        ),
+        replacement=(
+            "  const locationX = object(\n"
+            "    coordinates.location_x || { minimum: 0, maximum: 120 },  // DELIBERATE BREAK\n"
+            '    "model metadata.input_contract.coordinates.location_x",\n'
+            "  );\n"
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata y coordinate bounds must remain structured objects",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor=(
+            "  const locationY = object(\n"
+            "    coordinates.location_y,\n"
+            '    "model metadata.input_contract.coordinates.location_y",\n'
+            "  );\n"
+        ),
+        replacement=(
+            "  const locationY = object(\n"
+            "    coordinates.location_y || { minimum: 0, maximum: 80 },  // DELIBERATE BREAK\n"
+            '    "model metadata.input_contract.coordinates.location_y",\n'
+            "  );\n"
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata candidate must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    candidate: literal(source.candidate, "full_minus_presence", "candidate"),',
+        replacement=(
+            '    candidate: source.candidate as "full_minus_presence",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata estimator must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    estimator: literal(source.estimator, "logistic_regression", "estimator"),',
+        replacement=(
+            '    estimator: source.estimator as "logistic_regression",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata calibration must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    calibration: literal(source.calibration, "platt_sigmoid", "calibration"),',
+        replacement=(
+            '    calibration: source.calibration as "platt_sigmoid",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 metadata output must remain the registered literal",
+        path=FRONTEND / "lib/model-api.ts",
+        anchor='    output: literal(source.output, "goal_conversion_probability", "output"),',
+        replacement=(
+            '    output: source.output as "goal_conversion_probability",  // DELIBERATE BREAK'
+        ),
+        command=FRONTEND_TESTS,
+        cwd=FRONTEND,
+    ),
+    Break(
+        contract="WP3.2 negative calibrated-minus-raw effects must not render with a plus sign",
+        path=FRONTEND / "components/analyst/ReliabilityView.tsx",
+        anchor="{formatSignedMetric(effect.log_loss)}",
+        replacement="{`+${effect.log_loss.toFixed(4)}`}  // DELIBERATE BREAK",
         command=FRONTEND_TESTS,
         cwd=FRONTEND,
     ),
@@ -1276,14 +1458,6 @@ BREAKS: list[Break] = [
         replacement="pass  # DELIBERATE BREAK",
         command=SHOTS_TESTS,
         cwd=ROOT,
-    ),
-    Break(
-        contract="a map showing fewer shots than the API reports must disclose the shortfall",
-        path=FRONTEND / "components/HomeView.tsx",
-        anchor="            {missing > 0 && (",
-        replacement="            {false && (  /* DELIBERATE BREAK */",
-        command=FRONTEND_TESTS,
-        cwd=FRONTEND,
     ),
     Break(
         contract="an empty database must raise, not report a conversion rate of zero",
@@ -1797,7 +1971,7 @@ BREAKS: list[Break] = [
     Break(
         contract="WP2.4 published notes must not point readers at unpublished docs/**",
         path=ROOT / "backend/src/touchline/modeling/train.py",
-        anchor='        "- `reports/wp2.4-baselines-evidence.md` — the reviewable WP2.4 evidence '
+        anchor='        "- `reports/wp2.4-baselines-evidence.md` ? the reviewable WP2.4 evidence '
         'report.\\n\\n"\n',
         replacement=(
             '        "- see docs/modeling/wp2_4-baselines-and-logistic-contract.md\\n\\n"'
@@ -3084,10 +3258,10 @@ def _invalidate_bytecode(path: Path) -> None:
     A break's test run compiles the mutated source and writes a pyc whose header records the
     source's integer-second mtime. Restoring the original within the same second leaves that pyc
     looking fresh, so a later import silently runs the mutated code while the file shows the
-    original — the test suite then fails for reasons that no longer exist. Deleting the pyc makes
+    original ? the test suite then fails for reasons that no longer exist. Deleting the pyc makes
     the restore real.
-    Python cache files are named for the module plus an interpreter tag — ``splits.cpython-313.pyc``
-    — so the glob must be keyed off ``path.stem`` (``splits``), never off ``path.name``
+    Python cache files are named for the module plus an interpreter tag ? ``splits.cpython-313.pyc``
+    ? so the glob must be keyed off ``path.stem`` (``splits``), never off ``path.name``
     (``splits.py``), which would match nothing. See ``backend/tests/test_verify_tests_fail.py``.
     """
     cache = path.parent / "__pycache__"

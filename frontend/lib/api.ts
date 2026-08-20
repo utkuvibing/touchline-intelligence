@@ -1,9 +1,9 @@
 /**
  * Types and fetching for the read-only shot endpoint.
  *
- * These mirror the FastAPI response models. There is deliberately no probability, rating or
- * estimate anywhere in this file — the API does not serve one, and adding a placeholder here
- * would be the first step towards rendering a number nothing has evaluated.
+ * These mirror the legacy FastAPI recorded-shot response models. This adapter intentionally carries
+ * no model probability; model-aware WP3.1 responses live in `model-api.ts` and have their own
+ * provenance, validation, and publication-gate contract.
  */
 
 /** Local development default. Deployments must set `NEXT_PUBLIC_API_BASE` and are not given one. */
