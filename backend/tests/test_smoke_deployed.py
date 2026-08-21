@@ -18,6 +18,9 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from fastapi.testclient import TestClient
+
+from touchline.main import app
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "smoke_deployed.py"
@@ -604,6 +607,40 @@ def test_operational_leakage_guard_is_recursive(smoke: Any) -> None:
     assert smoke._operational_leaks({"status": "ready", "database": "reachable"}) == []
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"url": "redacted"},
+        {"callbackUri": "redacted"},
+        {"database_uri": "redacted"},
+        {"connection_uri": "redacted"},
+        {"postgres_host": "db.internal"},
+        {"detail": "password=not-for-public-output"},
+        {"detail": "host=db.internal user=touchline dbname=touchline"},
+    ],
+)
+def test_operational_leakage_guard_catches_connection_vocabulary(
+    smoke: Any, payload: dict[str, Any]
+) -> None:
+    assert smoke._operational_leaks(payload)
+
+
+def test_operational_leakage_guard_allows_public_readiness_values(smoke: Any) -> None:
+    assert (
+        smoke._operational_leaks(
+            {
+                "status": "ready",
+                "database": "reachable",
+                "database_schema": "current",
+                "model_runtime": "ready",
+                "model_version": smoke.EXPECTED_RELEASE_ID,
+                "detail": None,
+            }
+        )
+        == []
+    )
+
+
 def _baseline_body(smoke: Any) -> dict[str, Any]:
     return {
         "method": "descriptive-prevalence",
@@ -688,6 +725,11 @@ def test_score_name_detection_catches_variants_without_flagging_shot_facts(smoke
         "quality_rating",
         "chance score",
         "x_g",
+        "prob",
+        "goal_prob",
+        "shotProb",
+        "chance_quality",
+        "Chance-Quality",
     ):
         assert smoke._probability_like_fields({field: 0.2})
 
@@ -738,15 +780,85 @@ def test_disallowed_preflight_requires_exact_rejection_headers(smoke: Any) -> No
 
 def test_simple_cors_requires_exact_tokens_and_no_credentials(smoke: Any) -> None:
     origin = "https://touchline-intelligence.vercel.app"
+    request_id = str(uuid.uuid4())
     headers = {
         "access-control-allow-origin": origin,
         "access-control-expose-headers": "X-Request-ID",
         "vary": "Origin",
+        "x-request-id": request_id,
     }
-    assert smoke.simple_cors_problems(smoke.Response(200, "", headers), origin) == []
+    assert smoke.simple_cors_problems(smoke.Response(200, "", headers), origin, request_id) == []
     for broken in (
         {**headers, "access-control-expose-headers": "not-x-request-id"},
         {**headers, "access-control-expose-headers": "X-Request-ID, Authorization"},
         {**headers, "access-control-allow-credentials": "true"},
     ):
-        assert smoke.simple_cors_problems(smoke.Response(200, "", broken), origin)
+        assert smoke.simple_cors_problems(smoke.Response(200, "", broken), origin, request_id)
+    disallowed_headers = {
+        "access-control-expose-headers": "X-Request-ID",
+        "x-request-id": request_id,
+    }
+    assert (
+        smoke.simple_cors_problems(
+            smoke.Response(200, "", disallowed_headers), origin, request_id, allowed=False
+        )
+        == []
+    )
+    assert smoke.simple_cors_problems(
+        smoke.Response(200, "", {"x-request-id": request_id}),
+        origin,
+        request_id,
+        allowed=False,
+    )
+
+
+def test_simple_cors_matches_actual_allowed_and_disallowed_starlette_shapes() -> None:
+    request_id = "00000000-0000-4000-8000-000000000019"
+    with TestClient(app) as client:
+        allowed = client.get(
+            "/health", headers={"Origin": "http://localhost:3000", "X-Request-ID": request_id}
+        )
+        disallowed = client.get(
+            "/health", headers={"Origin": "https://bad.invalid", "X-Request-ID": request_id}
+        )
+    smoke = _load_script()
+    assert (
+        smoke.simple_cors_problems(
+            smoke.Response(allowed.status_code, allowed.text, dict(allowed.headers)),
+            "http://localhost:3000",
+            request_id,
+        )
+        == []
+    )
+    assert (
+        smoke.simple_cors_problems(
+            smoke.Response(disallowed.status_code, disallowed.text, dict(disallowed.headers)),
+            "https://bad.invalid",
+            request_id,
+            allowed=False,
+        )
+        == []
+    )
+
+
+def test_error_simple_cors_requires_allow_origin_and_exact_status(smoke: Any) -> None:
+    origin = "https://touchline-intelligence.vercel.app"
+    request_id = str(uuid.uuid4())
+    headers = {
+        "access-control-allow-origin": origin,
+        "access-control-expose-headers": "X-Request-ID",
+        "vary": "Origin",
+        "x-request-id": request_id,
+    }
+    assert (
+        smoke.simple_cors_problems(
+            smoke.Response(403, "", headers), origin, request_id, expected_status=403
+        )
+        == []
+    )
+    without_origin = {
+        key: value for key, value in headers.items() if key != "access-control-allow-origin"
+    }
+    assert smoke.simple_cors_problems(
+        smoke.Response(403, "", without_origin), origin, request_id, expected_status=403
+    )

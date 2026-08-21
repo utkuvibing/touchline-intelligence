@@ -404,7 +404,9 @@ def _operational_leaks(value: Any, path: str = "$") -> list[str]:
     found: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+            words = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(key))
+            tokens = re.findall(r"[a-z0-9]+", words.lower())
+            normalized = "".join(tokens)
             if any(
                 marker in normalized
                 for marker in (
@@ -416,8 +418,11 @@ def _operational_leaks(value: Any, path: str = "$") -> list[str]:
                     "databaseurl",
                     "migrationurl",
                     "connectionstring",
+                    "databaseuri",
+                    "connectionuri",
+                    "postgreshost",
                 )
-            ):
+            ) or any(token in {"url", "uri"} for token in tokens):
                 found.append(f"{path}.{key}")
             found.extend(_operational_leaks(child, f"{path}.{key}"))
     elif isinstance(value, list):
@@ -425,7 +430,17 @@ def _operational_leaks(value: Any, path: str = "$") -> list[str]:
             found.extend(_operational_leaks(child, f"{path}[{index}]"))
     elif isinstance(value, str):
         lowered = value.lower()
-        if "://" in value or "traceback" in lowered or "postgresql" in lowered:
+        libpq_parts = re.findall(
+            r"(?:^|\s)(?:host|hostaddr|port|dbname|user|password|sslmode)\s*=\s*\S+", lowered
+        )
+        contains_libpq_password = re.search(r"(?:^|\s)password\s*=\s*\S+", lowered) is not None
+        if (
+            "://" in value
+            or "traceback" in lowered
+            or "postgresql" in lowered
+            or contains_libpq_password
+            or len(libpq_parts) >= 2
+        ):
             found.append(path)
     return found
 
@@ -613,8 +628,13 @@ def _probability_like_fields(value: Any, path: str = "$") -> list[str]:
                 "confidence",
                 "rating",
                 "score",
+                "chancequality",
             )
-            if "xg" in tokens or any(marker in normalized for marker in markers):
+            if (
+                "xg" in tokens
+                or "prob" in tokens
+                or any(marker in normalized for marker in markers)
+            ):
                 found.append(f"{path}.{key}")
             found.extend(_probability_like_fields(child, f"{path}.{key}"))
     elif isinstance(value, list):
@@ -1035,12 +1055,7 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
     for path, expected_status in (("/model/shots", 403), ("/__wp34_missing", 404)):
         sent = str(uuid.uuid4())
         response = _get(f"{api}{path}", {"X-Request-ID": sent, "Origin": frontend})
-        exposed = response.headers.get("access-control-expose-headers", "")
-        problems = request_id_echo_problems(sent, response.headers.get("x-request-id"))
-        if response.status != expected_status:
-            problems.append(f"status={response.status}, expected {expected_status}")
-        if _header_tokens(exposed) != {"x-request-id"}:
-            problems.append("X-Request-ID is not browser-readable")
+        problems = simple_cors_problems(response, frontend, sent, expected_status=expected_status)
         results.check(
             f"{path} error response preserves browser-readable X-Request-ID",
             not problems,
@@ -1052,9 +1067,18 @@ def _header_tokens(value: str | None) -> set[str]:
     return {item.strip().lower() for item in (value or "").split(",") if item.strip()}
 
 
-def simple_cors_problems(response: Response, origin: str, *, allowed: bool = True) -> list[str]:
+def simple_cors_problems(
+    response: Response,
+    origin: str,
+    request_id: str,
+    *,
+    allowed: bool = True,
+    expected_status: int = 200,
+) -> list[str]:
     """Pin the exact CORS headers relevant to browser access on a simple response."""
     problems: list[str] = []
+    if response.status != expected_status:
+        problems.append(f"status={response.status}, expected {expected_status}")
     allow_origin = response.headers.get("access-control-allow-origin")
     if allowed and allow_origin != origin:
         problems.append("allowed origin not echoed exactly")
@@ -1062,14 +1086,17 @@ def simple_cors_problems(response: Response, origin: str, *, allowed: bool = Tru
         problems.append("disallowed origin received an allow-origin grant")
     if allow_origin == "*":
         problems.append("wildcard origin weakens the allow-list")
-    expected_exposed = {"x-request-id"} if allowed else set()
-    if _header_tokens(response.headers.get("access-control-expose-headers")) != expected_exposed:
+    exposed = _header_tokens(response.headers.get("access-control-expose-headers"))
+    if allowed and exposed != {"x-request-id"}:
+        problems.append("exposed-header token set differs from the simple-response contract")
+    if not allowed and exposed != {"x-request-id"}:
         problems.append("exposed-header token set differs from the simple-response contract")
     expected_vary = {"origin"} if allowed else set()
     if _header_tokens(response.headers.get("vary")) != expected_vary:
         problems.append("Vary token set differs from the simple-response contract")
     if "access-control-allow-credentials" in response.headers:
         problems.append("credentials were enabled despite the no-credentials contract")
+    problems.extend(request_id_echo_problems(request_id, response.headers.get("x-request-id")))
     return problems
 
 
@@ -1119,16 +1146,22 @@ def check_cors(api: str, frontend: str, results: Results) -> None:
     """
     print("\nCORS")
 
-    allowed = _get(f"{api}/health", {"Origin": frontend})
-    allowed_problems = simple_cors_problems(allowed, frontend)
+    allowed_request_id = str(uuid.uuid4())
+    allowed = _get(f"{api}/health", {"Origin": frontend, "X-Request-ID": allowed_request_id})
+    allowed_problems = simple_cors_problems(allowed, frontend, allowed_request_id)
     results.check(
         "the deployed frontend origin is allowed",
         not allowed_problems,
         "; ".join(allowed_problems),
     )
 
-    refused = _get(f"{api}/health", {"Origin": DISALLOWED_ORIGIN})
-    refused_problems = simple_cors_problems(refused, DISALLOWED_ORIGIN, allowed=False)
+    refused_request_id = str(uuid.uuid4())
+    refused = _get(
+        f"{api}/health", {"Origin": DISALLOWED_ORIGIN, "X-Request-ID": refused_request_id}
+    )
+    refused_problems = simple_cors_problems(
+        refused, DISALLOWED_ORIGIN, refused_request_id, allowed=False
+    )
     results.check(
         "an unknown origin is refused",
         not refused_problems,

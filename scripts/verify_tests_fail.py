@@ -3505,7 +3505,11 @@ BREAKS: list[Break] = [
         contract="WP3.4 deployed smoke recursively rejects probability-like fields",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor=(
-            '            if "xg" in tokens or any(marker in normalized for marker in markers):\n'
+            "            if (\n"
+            '                "xg" in tokens\n'
+            '                or "prob" in tokens\n'
+            "                or any(marker in normalized for marker in markers)\n"
+            "            ):\n"
         ),
         replacement="            if False:  # DELIBERATE BREAK: model-score fields accepted\n",
         command=WP34_SMOKE_TESTS,
@@ -3661,10 +3665,7 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 simple CORS exposure uses exact header tokens",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor=(
-            '    if _header_tokens(response.headers.get("access-control-expose-headers")) '
-            "!= expected_exposed:\n"
-        ),
+        anchor='    if allowed and exposed != {"x-request-id"}:\n',
         replacement="    if False:  # DELIBERATE BREAK: expose-header impostors accepted\n",
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
@@ -3681,12 +3682,84 @@ BREAKS: list[Break] = [
         contract="WP3.4 deployed preflight correlates X-Request-ID",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor=(
+            '    expected_body = "OK" if allowed else "Disallowed CORS origin"\n'
+            "    if response.body != expected_body:\n"
+            '        problems.append(f"preflight body={response.body!r}, expected '
+            '{expected_body!r}")\n'
             "    problems.extend(request_id_echo_problems(request_id, "
             'response.headers.get("x-request-id")))\n'
         ),
         replacement=(
+            '    expected_body = "OK" if allowed else "Disallowed CORS origin"\n'
+            "    if response.body != expected_body:\n"
+            '        problems.append(f"preflight body={response.body!r}, expected '
+            '{expected_body!r}")\n'
             "    problems.extend([])  # DELIBERATE BREAK: preflight request correlation ignored\n"
         ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 score vocabulary rejects token-level prob aliases",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='                or "prob" in tokens\n',
+        replacement="                or False  # DELIBERATE BREAK: prob aliases accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 score vocabulary rejects chance-quality aliases",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='                "chancequality",\n',
+        replacement='                "not-chance-quality",  # DELIBERATE BREAK\n',
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 operational leakage rejects generic URL and URI keys",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='            ) or any(token in {"url", "uri"} for token in tokens):\n',
+        replacement="):\n  # DELIBERATE BREAK: generic URL/URI keys accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 operational leakage rejects PostgreSQL host keys",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='                    "postgreshost",\n',
+        replacement='                    "notpostgreshost",  # DELIBERATE BREAK\n',
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 operational leakage rejects libpq connection strings",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="            or len(libpq_parts) >= 2\n",
+        replacement="            or False  # DELIBERATE BREAK: libpq string accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 operational leakage rejects isolated libpq passwords",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="            or contains_libpq_password\n",
+        replacement="            or False  # DELIBERATE BREAK: libpq password accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 disallowed simple CORS preserves the exact exposed header",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if not allowed and exposed != {"x-request-id"}:\n',
+        replacement="    if False:  # DELIBERATE BREAK: exposed request ID may disappear\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 allowed error responses require their CORS origin grant",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    if allowed and allow_origin != origin:\n",
+        replacement="    if False:  # DELIBERATE BREAK: missing error ACAO accepted\n",
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
