@@ -270,7 +270,7 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
     <main className="analyst-page">
       <header className="hero-header">
         <div>
-          <p className="eyebrow">TOUCHLINE INTELLIGENCE · M3.2</p>
+          <p className="eyebrow">TOUCHLINE INTELLIGENCE · M3 / DEPLOYED VALIDATION</p>
           <h1>Shot quality, made inspectable.</h1>
           <p className="hero-lede">
             Explore how a calibrated goal-conversion model behaves on a pinned football event-data
