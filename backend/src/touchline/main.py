@@ -33,6 +33,7 @@ from touchline.model_api import (
 from touchline.model_api import (
     router as model_router,
 )
+from touchline.observability import RequestLoggingMiddleware
 from touchline.serving import ModelRuntime, ServingInputError
 
 
@@ -50,6 +51,7 @@ app = FastAPI(
     summary="Football research and decision-support on StatsBomb Open Data.",
     lifespan=lifespan,
 )
+app.state.environment = get_settings().environment
 
 # Restricted to named origins, never `*`. The deployed frontend is one known origin, so allowing
 # any page on the internet to read this API from a visitor's browser would buy nothing.
@@ -60,7 +62,12 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+# Middleware is applied in reverse registration order. Logging is outermost so CORS preflight
+# responses receive the same request ID and completion record as every other HTTP response. The
+# logger mirrors the small CORS error-header subset for the generic 500 response it creates.
+app.add_middleware(RequestLoggingMiddleware, allowed_origins=get_settings().allowed_origins)
 
 
 class Health(BaseModel):

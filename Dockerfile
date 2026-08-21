@@ -47,4 +47,4 @@ EXPOSE 8000
 # `sh -c` so ${PORT} is expanded at runtime rather than baked in at build time, and `exec` so
 # uvicorn replaces the shell as PID 1. Without the exec, SIGTERM would go to sh and uvicorn would
 # be killed rather than shut down, which is how a platform redeploy turns into dropped requests.
-CMD ["sh", "-c", "exec uvicorn touchline.main:app --host 0.0.0.0 --port ${PORT} --app-dir backend/src"]
+CMD ["sh", "-c", "exec uvicorn touchline.main:app --host 0.0.0.0 --port ${PORT} --app-dir backend/src --no-access-log"]

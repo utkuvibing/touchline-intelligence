@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import ipaddress
 import os
+from typing import Any
 
-from pydantic import Field, PostgresDsn, ValidationError
+from pydantic import Field, PostgresDsn, TypeAdapter, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,6 +52,17 @@ class Settings(BaseSettings):
         ),
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _exclude_migration_configuration(cls, values: Any) -> Any:
+        """Keep migration-only input out of serving validation and runtime settings."""
+        if not isinstance(values, dict):
+            return values
+        filtered = dict(values)
+        filtered.pop("migration_db_url", None)
+        filtered.pop("touchline_migration_db_url", None)
+        return filtered
+
     @property
     def allowed_origins(self) -> list[str]:
         """The CORS allow-list, parsed.
@@ -77,6 +89,27 @@ class Settings(BaseSettings):
         return str(self.db_url)
 
 
+class MigrationSettings(BaseSettings):
+    """Migration-only configuration, loaded only by the migration command path.
+
+    The serving application deliberately does not model this variable. That keeps a missing or
+    malformed migration credential from preventing a correctly configured API worker from
+    starting; ``migration_database_url`` validates it when a migration is explicitly requested.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="TOUCHLINE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    migration_db_url: str | None = Field(
+        default=None,
+        description="Direct PostgreSQL connection string used only for schema migrations.",
+    )
+
+
 class MissingConfigurationError(RuntimeError):
     """A required environment variable is not set.
 
@@ -90,7 +123,21 @@ class DirectDatabaseUrlRequiredError(RuntimeError):
     """A write-heavy operator command was given Neon's transaction-pooled endpoint."""
 
 
-def require_direct_database_url(db_url: PostgresDsn) -> None:
+class MigrationDatabaseUrlRequiredError(RuntimeError):
+    """A migration run lacks the dedicated direct URL required by its environment."""
+
+
+class MigrationDatabaseUrlInvalidError(RuntimeError):
+    """The dedicated migration URL is malformed and must not be echoed in operator output."""
+
+
+class RuntimeDatabaseUrlInvalidError(RuntimeError):
+    """The runtime database URL is malformed and must not be echoed in operator output."""
+
+
+def require_direct_database_url(
+    db_url: PostgresDsn, *, variable_name: str = "TOUCHLINE_DB_URL"
+) -> None:
     """Reject Neon's known ``-pooler`` host without exposing any DSN credentials."""
     for authority in db_url.hosts():
         host = authority.get("host")
@@ -99,12 +146,46 @@ def require_direct_database_url(db_url: PostgresDsn) -> None:
         normalized = host.rstrip(".").lower()
         first_label = normalized.partition(".")[0]
         if normalized.endswith(".neon.tech") and first_label.endswith("-pooler"):
-            raise DirectDatabaseUrlRequiredError(
-                "Migration and ingestion require Neon's direct connection URL; "
-                "TOUCHLINE_DB_URL currently uses a pooled '-pooler' hostname. Set "
-                "TOUCHLINE_DB_URL to the direct Neon URL for this command, and keep the pooled "
-                "URL configured for the Railway API."
+            remediation = (
+                "Set TOUCHLINE_MIGRATION_DB_URL to Neon's direct URL and keep TOUCHLINE_DB_URL "
+                "as the pooled URL used by the Railway API."
+                if variable_name == "TOUCHLINE_MIGRATION_DB_URL"
+                else "Set TOUCHLINE_DB_URL to Neon's direct URL for this local/test migration."
             )
+            raise DirectDatabaseUrlRequiredError(
+                f"This command requires a direct Neon URL; {variable_name} currently "
+                f"uses a pooled '-pooler' hostname. {remediation}"
+            )
+
+
+def migration_database_url(settings: Settings) -> PostgresDsn:
+    """Select the migration endpoint while preserving pooled runtime traffic.
+
+    A deployed service must explicitly provide a direct URL. The fallback exists only for local
+    development and tests, where one Docker Compose connection is intentionally sufficient.
+    """
+    raw_migration_url = MigrationSettings().migration_db_url
+    if raw_migration_url is not None:
+        try:
+            return TypeAdapter(PostgresDsn).validate_python(raw_migration_url)
+        except ValidationError:
+            raise MigrationDatabaseUrlInvalidError(
+                "TOUCHLINE_MIGRATION_DB_URL must be a valid PostgreSQL connection URL. "
+                "Configure Neon's direct connection URL for migrations."
+            ) from None
+    environment = settings.environment.strip().lower()
+    if environment in {"local", "test"} and is_local_write_target(settings.db_url):
+        return settings.db_url
+    raise MigrationDatabaseUrlRequiredError(
+        "TOUCHLINE_MIGRATION_DB_URL is required unless this is a local/test environment and "
+        "TOUCHLINE_DB_URL points to a local database. Configure Neon's direct connection URL for "
+        "migrations; TOUCHLINE_DB_URL remains the pooled runtime URL."
+    )
+
+
+def migration_uses_dedicated_url() -> bool:
+    """Whether the migration-only variable is configured, without validating its value."""
+    return MigrationSettings().migration_db_url is not None
 
 
 class RemoteWriteBlockedError(RuntimeError):
@@ -231,9 +312,15 @@ def get_settings() -> Settings:
     try:
         return Settings()  # type: ignore[call-arg]  # values come from the environment
     except ValidationError as exc:
+        errors = exc.errors()
+        if any(error["loc"] == ("db_url",) and error["type"] != "missing" for error in errors):
+            raise RuntimeDatabaseUrlInvalidError(
+                "TOUCHLINE_DB_URL must be a valid PostgreSQL connection URL. Configure Neon's "
+                "pooled connection URL for the serving API."
+            ) from None
         missing = [
             f"{Settings.model_config['env_prefix']}{error['loc'][0]}".upper()
-            for error in exc.errors()
+            for error in errors
             if error["type"] == "missing" and error["loc"]
         ]
         if not missing:
@@ -242,4 +329,4 @@ def get_settings() -> Settings:
             f"Missing required environment variable(s): {', '.join(missing)}. "
             "Set them in the deployment platform's variables, or copy .env.example to .env "
             "for local development. See README.md."
-        ) from exc
+        ) from None

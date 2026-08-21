@@ -280,6 +280,8 @@ WP31_SHOTS_TESTS = "uv run pytest backend/tests/test_wp3_1_model_shots_integrati
 WP31_DOCKER_TESTS = "uv run python scripts/verify_wp3_1_docker.py"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
+WP33_OBSERVABILITY_TESTS = "uv run pytest backend/tests/test_observability.py -q"
+WP33_RAILWAY_TESTS = "uv run pytest backend/tests/test_railway_config.py -q"
 
 
 @dataclass(frozen=True)
@@ -898,6 +900,115 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP3.3 migrations must select the dedicated migration URL when configured",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor="            return TypeAdapter(PostgresDsn).validate_python(raw_migration_url)",
+        replacement="            return settings.db_url  # DELIBERATE BREAK",
+        command=CONFIG_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 an unlabelled remote runtime URL must not gain migration fallback",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=(
+            '    if environment in {"local", "test"} and is_local_write_target(settings.db_url):'
+        ),
+        replacement=('    if environment in {"local", "test"}:  # DELIBERATE BREAK'),
+        command=CONFIG_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 serving settings must ignore migration-only configuration",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=(
+            '        filtered.pop("migration_db_url", None)\n'
+            '        filtered.pop("touchline_migration_db_url", None)'
+        ),
+        replacement='        filtered.pop("migration_db_url", None)  # DELIBERATE BREAK',
+        command=CONFIG_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 malformed runtime credentials must be sanitized by the migration CLI",
+        path=ROOT / "backend/src/touchline/config.py",
+        anchor=(
+            '        if any(error["loc"] == ("db_url",) and error["type"] != "missing" '
+            "for error in errors):"
+        ),
+        replacement="        if False:  # DELIBERATE BREAK",
+        command=DIRECT_DATABASE_COMMAND_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 request IDs must reject untrusted malformed or oversized values",
+        path=ROOT / "backend/src/touchline/observability.py",
+        anchor=(
+            "    if raw is not None and len(raw) <= MAX_INBOUND_REQUEST_ID_LENGTH:\n        try:"
+        ),
+        replacement=(
+            "    if raw is not None:\n"
+            "        return raw  # DELIBERATE BREAK\n"
+            "    if raw is not None and len(raw) <= MAX_INBOUND_REQUEST_ID_LENGTH:\n"
+            "        try:"
+        ),
+        command=WP33_OBSERVABILITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 unmatched request logs must use one bounded route label",
+        path=ROOT / "backend/src/touchline/observability.py",
+        anchor='    return path if isinstance(path, str) else "<unmatched>"',
+        replacement=(
+            "    return path if isinstance(path, str) else request.url.path # DELIBERATE BREAK"
+        ),
+        command=WP33_OBSERVABILITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 CORS must not bypass request logging for preflight responses",
+        path=ROOT / "backend/src/touchline/main.py",
+        anchor=(
+            "app.add_middleware(\n"
+            "    CORSMiddleware,\n"
+            "    allow_origins=get_settings().allowed_origins,\n"
+            "    allow_credentials=False,\n"
+            '    allow_methods=["GET", "POST", "OPTIONS"],\n'
+            '    allow_headers=["*"],\n'
+            '    expose_headers=["X-Request-ID"],\n'
+            ")\n"
+            "# Middleware is applied in reverse registration order. Logging is outermost so CORS "
+            "preflight\n"
+            "# responses receive the same request ID and completion record as every other HTTP "
+            "response. The\n"
+            "# logger mirrors the small CORS error-header subset for the generic 500 response it "
+            "creates.\n"
+            "app.add_middleware(RequestLoggingMiddleware, "
+            "allowed_origins=get_settings().allowed_origins)"
+        ),
+        replacement=(
+            "app.add_middleware(RequestLoggingMiddleware, "
+            "allowed_origins=get_settings().allowed_origins)\n"
+            "app.add_middleware(\n"
+            "    CORSMiddleware,\n"
+            "    allow_origins=get_settings().allowed_origins,\n"
+            "    allow_credentials=False,\n"
+            '    allow_methods=["GET", "POST", "OPTIONS"],\n'
+            '    allow_headers=["*"],\n'
+            '    expose_headers=["X-Request-ID"],\n'
+            ")  # DELIBERATE BREAK"
+        ),
+        command=WP33_OBSERVABILITY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 Railway admission must use readiness rather than liveness",
+        path=ROOT / "railway.json",
+        anchor='    "healthcheckPath": "/ready",',
+        replacement='    "healthcheckPath": "/health",',
+        command=WP33_RAILWAY_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="migration and ingestion commands must reject Neon pooled endpoints before work",
         path=ROOT / "backend/src/touchline/config.py",
         anchor=(
@@ -1472,6 +1583,17 @@ BREAKS: list[Break] = [
         path=ROOT / "backend/src/touchline/ingest/migrate.py",
         anchor="    migrations = read_migrations()",
         replacement=("    migrations = tuple(reversed(read_migrations()))  # DELIBERATE BREAK"),
+        command=MIGRATION_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.3 concurrent migration attempts must retain transaction advisory locking",
+        path=ROOT / "backend/src/touchline/ingest/migrate.py",
+        anchor=(
+            '            "SELECT pg_advisory_xact_lock(hashtext(current_database()), '
+            'hashtext(current_schema()))"'
+        ),
+        replacement='            "SELECT 1"  # DELIBERATE BREAK',
         command=MIGRATION_TESTS,
         cwd=ROOT,
     ),
