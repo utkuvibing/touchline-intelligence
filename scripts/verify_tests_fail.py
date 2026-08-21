@@ -278,6 +278,7 @@ WP31_RUNTIME_TESTS = "uv run pytest backend/tests/test_wp3_1_runtime.py -q"
 WP31_API_TESTS = "uv run pytest backend/tests/test_wp3_1_model_api.py -q"
 WP31_SHOTS_TESTS = "uv run pytest backend/tests/test_wp3_1_model_shots_integration.py -q"
 WP31_DOCKER_TESTS = "uv run python scripts/verify_wp3_1_docker.py"
+WP34_SMOKE_TESTS = "uv run pytest backend/tests/test_smoke_deployed.py -q"
 FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 WP33_OBSERVABILITY_TESTS = "uv run pytest backend/tests/test_observability.py -q"
@@ -3354,6 +3355,99 @@ BREAKS: list[Break] = [
             "RUN rm -rf /app/backend/model-release  # DELIBERATE BREAK: serving bundle omitted\n"
         ),
         command=WP31_DOCKER_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke reads the golden comparison tolerance from the fixture",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    return fixture["absolute_tolerance"]\n',
+        replacement=(
+            "    return 1e-6  # DELIBERATE BREAK: tolerance no longer follows the fixture\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke gates golden predictions on the served model digest",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if metadata.get("artifact_sha256") != fixture.get("model_sha256"):\n',
+        replacement=("    if False:  # DELIBERATE BREAK: served model digest no longer compared\n"),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke gates golden predictions on the served calibration decision",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    if metadata.get("calibration_decision_sha256") '
+            '!= fixture.get("calibration_decision_sha256"):\n'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK: served calibration decision no longer compared\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke rejects fields outside the public prediction contract",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    unexpected = sorted(keys - PUBLIC_PREDICT_KEYS)\n",
+        replacement=(
+            "    unexpected: list[str] = []  # DELIBERATE BREAK: internal-field leak accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke scores golden predictions within the fixture tolerance",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    elif abs(float(actual) - float(expected_probability)) > tolerance:\n",
+        replacement="    elif False:  # DELIBERATE BREAK: golden probability deviation accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke requires HTTP 403 from the closed publication gate",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    if status != 403:\n",
+        replacement=(
+            "    if status not in (200, 403):  # DELIBERATE BREAK: open response tolerated\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke scans the closed-gate body for leaked probabilities",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if "calibrated_probability" in serialized:\n',
+        replacement="    if False:  # DELIBERATE BREAK: probability leak scan removed\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke requires database_schema current in /ready",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if body.get("database_schema") != "current":\n',
+        replacement="    if False:  # DELIBERATE BREAK: schema-behind readiness accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke requires malformed request IDs to be replaced",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    if received == sent:\n",
+        replacement="    if False:  # DELIBERATE BREAK: malformed request ID echoed\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke requires StatsBomb attribution on the deployed page",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    "Qualified evidence",\n    "Data provided by",\n)',
+        replacement=(
+            '    "Qualified evidence",\n)  # DELIBERATE BREAK: attribution no longer required'
+        ),
+        command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
 ]
