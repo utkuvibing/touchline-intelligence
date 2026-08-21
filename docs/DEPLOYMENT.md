@@ -28,9 +28,36 @@ Railway's lower tiers are not a stable home for a service that should stay up:
 
 Verify current pricing on each provider's own page before committing — these change.
 
-If a paid plan is not wanted, the backend can go to another container host instead; nothing in the
-image or `railway.json` is Railway-specific beyond the healthcheck declaration, and the `PORT`
-environment variable is the only platform contract the container relies on.
+If a paid plan is not wanted, the backend can move to another container host, but the Docker image
+is only the portable build artifact. `railway.json` is Railway's encoding of release semantics that
+another host must reproduce with its own mechanisms; copying the image and setting `PORT` is not a
+complete deployment.
+
+An alternate backend host must satisfy this deployment contract:
+
+- **Build and startup:** build and run the repository `Dockerfile`, provide the listening port (or
+  adapt the container invocation), preserve the model bundle's fail-fast startup validation, and
+  provide every required production runtime variable.
+- **Separate database paths:** provide the pooled `TOUCHLINE_DB_URL` to the serving API and the
+  direct, non-pooler `TOUCHLINE_MIGRATION_DB_URL` to migrations. Never silently substitute the
+  pooled runtime URL into a migration path.
+- **Migration ordering:** run the packaged migration command against the direct DSN before the new
+  release receives production traffic, and fail the release if migration fails. A host without a
+  pre-deploy hook needs an explicit operator or release-job migration step before activation.
+- **Readiness admission:** admit traffic only after `GET /ready` returns HTTP 200 and the complete
+  ready contract. Where staged or blue-green activation is available, keep the current release on
+  production traffic until the candidate is ready.
+- **Liveness and restart:** use `/health` for process liveness and restart decisions, and `/ready`
+  only for traffic admission. Dependency-readiness failure must not restart an otherwise healthy
+  process; in particular, a database outage must not create an application restart storm.
+- **Public configuration:** set `TOUCHLINE_ENVIRONMENT=production`, configure the exact CORS
+  origin allow-list, keep the historical `/model/shots` publication gate closed, and activate the
+  qualified `exp-20260810-wp2_8-release` runtime model.
+- **Rollback:** activate only an application/configuration release explicitly verified compatible
+  with the current forward-only schema and data. Never downgrade schema automatically; if
+  compatibility cannot be proven, forward-fix instead.
+
+These obligations, rather than the Railway file itself, are the portability boundary.
 
 ## Environment variables
 
@@ -279,8 +306,50 @@ Then rehearse, in order:
 5. Rerun the full deployed smoke from section 5 and record N/N checks alongside the commit SHAs,
    deployment IDs, and redacted configuration identities. Do not expose secrets in evidence.
 
-Vercel's instant rollback redeploys a prior build; the frontend has no schema, so the redeploy is
-the entire procedure there. The first backend rollback rehearsal is part of the WP3.4 evidence.
+## Rolling back a frontend release
+
+Vercel [**Instant Rollback**](https://vercel.com/docs/instant-rollback) does not redeploy or rebuild
+source. It repoints the production domains to an existing immutable deployment that previously
+served production traffic. That deployment retains the artifact and public configuration built
+into it; changing current project environment variables does not retroactively rebuild the older
+deployment. Instant Rollback also disables automatic assignment of production domains until the
+rollback is undone by promoting a deployment. A fresh redeploy/rebuild and a promotion are distinct
+operations.
+
+Before a frontend rollback rehearsal, record without secret values:
+
+- the exact eligible prior Vercel deployment ID and URL, its Git commit SHA, and its production
+  configuration identity;
+- the exact intended current WP3.4 Vercel deployment ID and URL, its Git commit SHA, and its
+  production configuration identity;
+- the production domain;
+- each build's public `NEXT_PUBLIC_API_BASE` identity and the Railway deployment/API identity that
+  frontend is expected to call.
+
+Then rehearse, in order:
+
+1. Verify the current frontend and backend are healthy, and record the current full deployed-smoke
+   result. Confirm the eligible prior frontend's built `NEXT_PUBLIC_API_BASE`, expected API schema,
+   and CORS origin remain compatible with the current backend. If compatibility cannot be proven,
+   abort the rollback rehearsal and forward-fix instead.
+2. In the user-owned Vercel console, use **Instant Rollback** to send production traffic to the
+   exact recorded prior known-good deployment. On the Hobby plan this is limited to the immediately
+   previous eligible production deployment.
+3. Verify the production domain now resolves to and serves that exact rollback deployment, then
+   verify the rolled-back frontend against the current backend and CORS contract. Run the applicable
+   deployed smoke (use the full smoke when the older public contract supports it) and record the
+   result.
+4. Roll forward with **Undo Rollback** / **Promote**, selecting the exact recorded intended current
+   WP3.4 deployment. This repoints production to that deployment and restores automatic production-
+   domain assignment; it is not a rebuild.
+5. Verify the production domain serves the exact intended current deployment again, confirm
+   automatic production-domain assignment is enabled, and rerun the full deployed smoke.
+6. Record deployment IDs/URLs, commit SHAs, public configuration identities, domain observations,
+   and smoke results without copying any secret values into evidence.
+
+Platform-console actions remain manual and user-owned. The first backend and frontend recovery
+rehearsals are Step 5 WP3.4 evidence and are intentionally not performed before post-merge
+activation.
 
 ## Writing to a non-local database
 

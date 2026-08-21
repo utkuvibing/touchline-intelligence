@@ -3505,8 +3505,7 @@ BREAKS: list[Break] = [
         contract="WP3.4 deployed smoke recursively rejects probability-like fields",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor=(
-            '            if "xg" in normalized or "probabil" in normalized '
-            'or "predict" in normalized:\n'
+            '            if "xg" in tokens or any(marker in normalized for marker in markers):\n'
         ),
         replacement="            if False:  # DELIBERATE BREAK: model-score fields accepted\n",
         command=WP34_SMOKE_TESTS,
@@ -3529,20 +3528,23 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP3.4 deployed preflight requires POST",
+        contract="WP3.4 deployed preflight requires the exact method token set",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor='    if "POST" not in methods:\n',
-        replacement="    if False:  # DELIBERATE BREAK: POST need not be allowed\n",
+        anchor=(
+            '    if _header_tokens(response.headers.get("access-control-allow-methods")) != {\n'
+            '        "get",\n'
+            '        "post",\n'
+            '        "options",\n'
+            "    }:\n"
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: method drift accepted\n",
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
     Break(
         contract="WP3.4 deployed preflight requires the exact allowed origin",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor=(
-            '    if response.headers.get("access-control-allow-origin") != origin:\n'
-            '        problems.append("allowed origin not echoed exactly")\n'
-        ),
+        anchor="    if allowed is True and allow_origin != origin:\n",
         replacement=(
             "    if False:  # DELIBERATE BREAK: preflight origin grant ignored\n"
             '        problems.append("allowed origin not echoed exactly")\n'
@@ -3553,8 +3555,125 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 deployed preflight requires both requested headers",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor='    if not {"content-type", "x-request-id"}.issubset(headers):\n',
+        anchor=(
+            '    if _header_tokens(response.headers.get("access-control-allow-headers")) != {\n'
+            '        "content-type",\n'
+            '        "x-request-id",\n'
+            "    }:\n"
+        ),
         replacement="    if False:  # DELIBERATE BREAK: requested headers ignored\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 health smoke requires the exact public envelope",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "    problems = (\n"
+            '        [] if body == expected else [f"body={body!r}, expected exact health '
+            'envelope {expected!r}"]\n'
+            "    )\n"
+        ),
+        replacement="    problems = []  # DELIBERATE BREAK: health drift accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 ready smoke rejects operational detail leakage",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if body.get("detail") is not None:\n',
+        replacement="    if False:  # DELIBERATE BREAK: readiness detail leakage accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 operational leakage guard recursively rejects configuration data",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "            if any(\n"
+            "                marker in normalized\n"
+            "                for marker in (\n"
+        ),
+        replacement=(
+            "            if any(  # DELIBERATE BREAK: secret-key vocabulary removed\n"
+            "                False\n"
+            "                for marker in (\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 baseline smoke pins the exact descriptive contract",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    if set(body) != EXPECTED_BASELINE_KEYS:\n",
+        replacement="    if False:  # DELIBERATE BREAK: baseline key drift accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 legacy shots smoke pins the exact Shot key set",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    if set(shot) != SHOT_KEYS:\n",
+        replacement="    if False:  # DELIBERATE BREAK: Shot field drift accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 frontend anchors must come from visible rendered text",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="        if not (self._hidden and self._hidden[-1]):\n",
+        replacement="        if True:  # DELIBERATE BREAK: hidden text accepted as visible\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 preflight forbids credentialed CORS",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    if "access-control-allow-credentials" in response.headers:\n'
+            '        problems.append("credentials were enabled despite the '
+            'no-credentials contract")\n'
+            '    if response.headers.get("access-control-max-age") != "600":\n'
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: credentials accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 preflight requires the exact Vary Origin token set",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    if _header_tokens(response.headers.get("vary")) != {"origin"}:\n'
+            '        problems.append("Vary token set differs from Origin")\n'
+        ),
+        replacement=("    if False:  # DELIBERATE BREAK: Vary drift accepted\n        pass\n"),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 rejected preflight pins HTTP 400",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    expected_status = 200 if allowed else 400\n",
+        replacement="    expected_status = 200  # DELIBERATE BREAK: rejection status accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 simple CORS exposure uses exact header tokens",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    if _header_tokens(response.headers.get("access-control-expose-headers")) '
+            "!= expected_exposed:\n"
+        ),
+        replacement="    if False:  # DELIBERATE BREAK: expose-header impostors accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 preflight pins the middleware max-age",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if response.headers.get("access-control-max-age") != "600":\n',
+        replacement="    if False:  # DELIBERATE BREAK: max-age drift accepted\n",
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),

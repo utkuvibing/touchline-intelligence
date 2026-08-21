@@ -47,6 +47,8 @@ import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
+from datetime import date
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +56,46 @@ from typing import Any
 EXPECTED_TOTAL_SHOTS = 1494
 EXPECTED_COHORT_SHOTS = 1430
 EXPECTED_COHORT_GOALS = 152
+EXPECTED_API_ENVIRONMENT = "production"
+EXPECTED_API_VERSION = "0.1.0"
+EXPECTED_BASELINE_KEYS = frozenset(
+    {"method", "conversion_rate", "shots", "goals", "cohort", "caveat"}
+)
+EXPECTED_BASELINE_COHORT = (
+    "Shots in the public FIFA World Cup 2022 (competition 43, season 106) scope with a known shot "
+    "type, period and outcome, excluding penalties and penalty-shootout kicks. Shots missing any "
+    "of those three fields are excluded from both the numerator and the denominator rather than "
+    "being counted as misses. No filtering by team, player or location."
+)
+EXPECTED_BASELINE_CAVEAT = (
+    "This is a descriptive summary of the shots currently loaded, not a model and not a "
+    "prediction. Nothing has been fitted, no split was used, and no performance claim is made. "
+    "It is also NOT the baseline that models are compared against: that baseline is estimated "
+    "from the training split alone and scored on validation and holdout rows under the same log "
+    "loss, Brier score and calibration protocol as every candidate model. Using this full-cohort "
+    "rate as a prediction on holdout rows would leak those rows' own outcomes into it."
+)
+SHOT_PAGE_KEYS = frozenset({"shots", "total", "limit", "offset"})
+SHOT_KEYS = frozenset(
+    {
+        "shot_id",
+        "match_id",
+        "match_date",
+        "competition_stage",
+        "team",
+        "opponent",
+        "player",
+        "period",
+        "minute",
+        "second",
+        "location_x",
+        "location_y",
+        "outcome",
+        "shot_type",
+        "body_part",
+        "technique",
+    }
+)
 
 # The one qualified serving release (WP2.8). Every model-aware endpoint must identify it.
 EXPECTED_RELEASE_ID = "exp-20260810-wp2_8-release"
@@ -290,14 +332,47 @@ def _get(url: str, headers: dict[str, str] | None = None) -> Response:
     return _request(url, headers=headers)
 
 
-def _visible_text(html: str) -> str:
-    """Strip the comment markers React emits between adjacent text nodes.
+class _VisibleTextParser(HTMLParser):
+    _NON_VISIBLE = frozenset({"head", "script", "style", "template", "noscript"})
 
-    Server-rendered React writes `2872<!-- --> shots` for `{count} shots`, so a naive substring
-    search for "2872 shots" fails against correct output. Removing the markers compares what a
-    reader sees rather than how React framed it.
-    """
-    return re.sub(r"<!--.*?-->", "", html)
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._hidden: list[bool] = []
+        self.fragments: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {name.lower(): (value or "") for name, value in attrs}
+        style = re.sub(r"\s+", "", values.get("style", "").lower())
+        hidden = (
+            (self._hidden[-1] if self._hidden else False)
+            or tag.lower() in self._NON_VISIBLE
+            or "hidden" in values
+            or values.get("aria-hidden", "").lower() == "true"
+            or "display:none" in style
+            or "visibility:hidden" in style
+        )
+        self._hidden.append(hidden)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        self._hidden.pop()
+
+    def handle_endtag(self, tag: str) -> None:
+        del tag
+        if self._hidden:
+            self._hidden.pop()
+
+    def handle_data(self, data: str) -> None:
+        if not (self._hidden and self._hidden[-1]):
+            self.fragments.append(data)
+
+
+def _visible_text(html: str) -> str:
+    """Extract rendered text, excluding metadata, executable content, and hidden subtrees."""
+    parser = _VisibleTextParser()
+    parser.feed(html)
+    parser.close()
+    return " ".join(" ".join(parser.fragments).split())
 
 
 def _is_canonical_uuid(value: str) -> bool:
@@ -322,6 +397,136 @@ def _is_finite_real(value: Any) -> bool:
 
 def _is_strict_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _operational_leaks(value: Any, path: str = "$") -> list[str]:
+    """Find configuration/credential-shaped diagnostics in public operational payloads."""
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+            if any(
+                marker in normalized
+                for marker in (
+                    "password",
+                    "secret",
+                    "token",
+                    "credential",
+                    "dsn",
+                    "databaseurl",
+                    "migrationurl",
+                    "connectionstring",
+                )
+            ):
+                found.append(f"{path}.{key}")
+            found.extend(_operational_leaks(child, f"{path}.{key}"))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            found.extend(_operational_leaks(child, f"{path}[{index}]"))
+    elif isinstance(value, str):
+        lowered = value.lower()
+        if "://" in value or "traceback" in lowered or "postgresql" in lowered:
+            found.append(path)
+    return found
+
+
+def health_problems(body: Any) -> list[str]:
+    expected = {
+        "status": "ok",
+        "environment": EXPECTED_API_ENVIRONMENT,
+        "version": EXPECTED_API_VERSION,
+    }
+    problems = (
+        [] if body == expected else [f"body={body!r}, expected exact health envelope {expected!r}"]
+    )
+    leaked = _operational_leaks(body)
+    if leaked:
+        problems.append(f"operational configuration leaked at: {', '.join(leaked)}")
+    return problems
+
+
+def baseline_problems(body: Any) -> list[str]:
+    if not isinstance(body, dict):
+        return ["response body is not a JSON object"]
+    problems: list[str] = []
+    if set(body) != EXPECTED_BASELINE_KEYS:
+        problems.append("baseline key set differs from the public contract")
+    expected_values = {
+        "method": "descriptive-prevalence",
+        "shots": EXPECTED_COHORT_SHOTS,
+        "goals": EXPECTED_COHORT_GOALS,
+        "cohort": EXPECTED_BASELINE_COHORT,
+        "caveat": EXPECTED_BASELINE_CAVEAT,
+    }
+    for field_name, expected in expected_values.items():
+        actual = body.get(field_name)
+        if field_name in {"shots", "goals"} and not _is_strict_int(actual):
+            problems.append(f"{field_name}={actual!r} is not an integer count")
+        elif actual != expected:
+            problems.append(f"{field_name}={actual!r}, expected {expected!r}")
+    rate = body.get("conversion_rate")
+    expected_rate = EXPECTED_COHORT_GOALS / EXPECTED_COHORT_SHOTS
+    if not _is_finite_real(rate) or not 0 <= float(rate) <= 1:
+        problems.append(f"conversion_rate={rate!r} is not a finite probability")
+    elif float(rate) != expected_rate:
+        problems.append(f"conversion_rate={rate!r}, expected exact quotient {expected_rate!r}")
+    return problems
+
+
+def _nullable(value: Any, predicate: Any) -> bool:
+    return value is None or bool(predicate(value))
+
+
+def shot_page_problems(body: Any) -> list[str]:
+    if not isinstance(body, dict):
+        return ["response body is not a JSON object"]
+    problems: list[str] = []
+    if set(body) != SHOT_PAGE_KEYS:
+        problems.append("shot-page key set differs from the public contract")
+    for field_name, expected in (("total", EXPECTED_TOTAL_SHOTS), ("limit", 1), ("offset", 0)):
+        actual = body.get(field_name)
+        if not _is_strict_int(actual) or actual != expected:
+            problems.append(f"{field_name}={actual!r}, expected integer {expected}")
+    rows = body.get("shots")
+    if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict):
+        return [*problems, "shots must contain exactly one object"]
+    shot = rows[0]
+    if set(shot) != SHOT_KEYS:
+        problems.append("shot key set differs from the public Shot contract")
+    required_strings = ("shot_id", "team", "opponent")
+    for field_name in required_strings:
+        if not isinstance(shot.get(field_name), str):
+            problems.append(f"shot.{field_name} is not a string")
+    if not _is_strict_int(shot.get("match_id")):
+        problems.append("shot.match_id is not an integer")
+    for field_name in (
+        "competition_stage",
+        "player",
+        "outcome",
+        "shot_type",
+        "body_part",
+        "technique",
+    ):
+        if not _nullable(shot.get(field_name), lambda value: isinstance(value, str)):
+            problems.append(f"shot.{field_name} is neither string nor null")
+    for field_name in ("period", "minute", "second"):
+        if not _nullable(shot.get(field_name), _is_strict_int):
+            problems.append(f"shot.{field_name} is neither integer nor null")
+    for field_name in ("location_x", "location_y"):
+        if not _nullable(shot.get(field_name), _is_finite_real):
+            problems.append(f"shot.{field_name} is neither finite number nor null")
+    match_date = shot.get("match_date")
+    if match_date is not None:
+        try:
+            parsed_date = date.fromisoformat(match_date) if isinstance(match_date, str) else None
+        except ValueError:
+            parsed_date = None
+        if parsed_date is None or parsed_date.isoformat() != match_date:
+            problems.append("shot.match_date is neither canonical ISO date nor null")
+    leaked = _probability_like_fields(rows)
+    if leaked:
+        problems.append(f"probability or model-score fields leaked: {', '.join(leaked)}")
+    return problems
 
 
 def _exact_contract_problems(
@@ -388,8 +593,28 @@ def _probability_like_fields(value: Any, path: str = "$") -> list[str]:
     found: list[str] = []
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
-            if "xg" in normalized or "probabil" in normalized or "predict" in normalized:
+            words = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(key))
+            tokens = re.findall(r"[a-z0-9]+", words.lower())
+            normalized = "".join(tokens)
+            markers = (
+                "xg",
+                "expectedgoal",
+                "goalprobabil",
+                "goalchance",
+                "modelscore",
+                "modelrating",
+                "modelestimate",
+                "modeloutput",
+                "shotquality",
+                "probabil",
+                "predict",
+                "likelihood",
+                "estimate",
+                "confidence",
+                "rating",
+                "score",
+            )
+            if "xg" in tokens or any(marker in normalized for marker in markers):
                 found.append(f"{path}.{key}")
             found.extend(_probability_like_fields(child, f"{path}.{key}"))
     elif isinstance(value, list):
@@ -429,6 +654,16 @@ def ready_problems(body: Any) -> list[str]:
     problems: list[str] = []
     if not isinstance(body, dict):
         return ["response body is not a JSON object"]
+    expected_keys = {
+        "status",
+        "database",
+        "database_schema",
+        "model_runtime",
+        "model_version",
+        "detail",
+    }
+    if set(body) != expected_keys:
+        problems.append("readiness key set differs from the public contract")
     if body.get("status") != "ready":
         problems.append(f"status={body.get('status')!r}, expected 'ready'")
     if body.get("database") != "reachable":
@@ -441,6 +676,11 @@ def ready_problems(body: Any) -> list[str]:
         problems.append(
             f"model_version={body.get('model_version')!r}, expected {EXPECTED_RELEASE_ID!r}"
         )
+    if body.get("detail") is not None:
+        problems.append("detail must be null while ready; operational detail must not leak")
+    leaked = _operational_leaks(body)
+    if leaked:
+        problems.append(f"operational configuration leaked at: {', '.join(leaked)}")
     return problems
 
 
@@ -637,10 +877,11 @@ def check_api(api: str, results: Results) -> None:
 
     response = _get(f"{api}/health")
     body = response.json()
+    problems = health_problems(body)
     results.check(
-        "/health returns ok",
-        response.status == 200 and bool(body) and body.get("status") == "ok",
-        f"status={response.status}",
+        "/health returns its exact liveness envelope",
+        response.status == 200 and not problems,
+        "; ".join(problems) or f"status={response.status}",
     )
 
     response = _get(f"{api}/ready")
@@ -654,40 +895,20 @@ def check_api(api: str, results: Results) -> None:
 
     response = _get(f"{api}/baseline")
     body = response.json()
-    if response.status != 200 or not body:
+    problems = baseline_problems(body)
+    if response.status != 200 or problems:
         results.check("/baseline returns the cohort rate", False, f"status={response.status}")
     else:
-        results.check(
-            "/baseline matches the pinned snapshot",
-            body.get("shots") == EXPECTED_COHORT_SHOTS
-            and body.get("goals") == EXPECTED_COHORT_GOALS,
-            f"{body.get('goals')}/{body.get('shots')} "
-            f"(expected {EXPECTED_COHORT_GOALS}/{EXPECTED_COHORT_SHOTS})",
-        )
-        results.check(
-            "/baseline still says it is not a model",
-            "not a model" in body.get("caveat", ""),
-        )
+        results.check("/baseline exactly matches the pinned descriptive contract", True)
 
     response = _get(f"{api}/shots?limit=1")
     body = response.json()
-    if response.status != 200 or not body:
-        results.check("/shots returns a page", False, f"status={response.status}")
-    else:
-        results.check(
-            "/shots reports the full pinned snapshot",
-            body.get("total") == EXPECTED_TOTAL_SHOTS,
-            f"total={body.get('total')} (expected {EXPECTED_TOTAL_SHOTS})",
-        )
-        shot = (body.get("shots") or [{}])[0]
-        results.check(
-            "/shots returns recorded facts",
-            all(shot.get(k) is not None for k in ("shot_id", "team", "outcome")),
-        )
-        leaked = _probability_like_fields(body.get("shots", []))
-        results.check(
-            "/shots carries no probability or model-score field", not leaked, "; ".join(leaked)
-        )
+    problems = shot_page_problems(body)
+    results.check(
+        "/shots exactly matches the bounded recorded-facts contract",
+        response.status == 200 and not problems,
+        "; ".join(problems) or f"status={response.status}",
+    )
 
 
 def check_model_surface(api: str, results: Results, fixture: dict[str, Any]) -> None:
@@ -807,7 +1028,7 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
     )
     results.check(
         "X-Request-ID is an exposed CORS header",
-        exposed is not None and "x-request-id" in exposed.lower(),
+        _header_tokens(exposed) == {"x-request-id"},
         f"access-control-expose-headers={exposed!r}",
     )
 
@@ -818,7 +1039,7 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
         problems = request_id_echo_problems(sent, response.headers.get("x-request-id"))
         if response.status != expected_status:
             problems.append(f"status={response.status}, expected {expected_status}")
-        if "x-request-id" not in exposed.lower():
+        if _header_tokens(exposed) != {"x-request-id"}:
             problems.append("X-Request-ID is not browser-readable")
         results.check(
             f"{path} error response preserves browser-readable X-Request-ID",
@@ -827,26 +1048,65 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
         )
 
 
-def preflight_problems(response: Response, origin: str, request_id: str) -> list[str]:
+def _header_tokens(value: str | None) -> set[str]:
+    return {item.strip().lower() for item in (value or "").split(",") if item.strip()}
+
+
+def simple_cors_problems(response: Response, origin: str, *, allowed: bool = True) -> list[str]:
+    """Pin the exact CORS headers relevant to browser access on a simple response."""
     problems: list[str] = []
-    if response.status != 200:
-        problems.append(f"status={response.status}, expected 200")
-    if response.headers.get("access-control-allow-origin") != origin:
+    allow_origin = response.headers.get("access-control-allow-origin")
+    if allowed and allow_origin != origin:
         problems.append("allowed origin not echoed exactly")
-    if response.headers.get("access-control-allow-origin") == "*":
+    if not allowed and allow_origin is not None:
+        problems.append("disallowed origin received an allow-origin grant")
+    if allow_origin == "*":
         problems.append("wildcard origin weakens the allow-list")
-    methods = {
-        item.strip().upper()
-        for item in response.headers.get("access-control-allow-methods", "").split(",")
-    }
-    if "POST" not in methods:
-        problems.append("POST is not allowed")
-    headers = {
-        item.strip().lower()
-        for item in response.headers.get("access-control-allow-headers", "").split(",")
-    }
-    if not {"content-type", "x-request-id"}.issubset(headers):
-        problems.append("requested Content-Type and X-Request-ID headers are not allowed")
+    expected_exposed = {"x-request-id"} if allowed else set()
+    if _header_tokens(response.headers.get("access-control-expose-headers")) != expected_exposed:
+        problems.append("exposed-header token set differs from the simple-response contract")
+    expected_vary = {"origin"} if allowed else set()
+    if _header_tokens(response.headers.get("vary")) != expected_vary:
+        problems.append("Vary token set differs from the simple-response contract")
+    if "access-control-allow-credentials" in response.headers:
+        problems.append("credentials were enabled despite the no-credentials contract")
+    return problems
+
+
+def preflight_problems(
+    response: Response, origin: str, request_id: str, *, allowed: bool = True
+) -> list[str]:
+    problems: list[str] = []
+    expected_status = 200 if allowed else 400
+    if response.status != expected_status:
+        problems.append(f"status={response.status}, expected {expected_status}")
+    allow_origin = response.headers.get("access-control-allow-origin")
+    if allowed is True and allow_origin != origin:
+        problems.append("allowed origin not echoed exactly")
+    if not allowed and allow_origin is not None:
+        problems.append("disallowed origin received an allow-origin grant")
+    if allow_origin == "*":
+        problems.append("wildcard origin weakens the allow-list")
+    if _header_tokens(response.headers.get("access-control-allow-methods")) != {
+        "get",
+        "post",
+        "options",
+    }:
+        problems.append("allowed-method token set differs from GET, POST, OPTIONS")
+    if _header_tokens(response.headers.get("access-control-allow-headers")) != {
+        "content-type",
+        "x-request-id",
+    }:
+        problems.append("allowed-header token set differs from Content-Type, X-Request-ID")
+    if _header_tokens(response.headers.get("vary")) != {"origin"}:
+        problems.append("Vary token set differs from Origin")
+    if "access-control-allow-credentials" in response.headers:
+        problems.append("credentials were enabled despite the no-credentials contract")
+    if response.headers.get("access-control-max-age") != "600":
+        problems.append("preflight max-age differs from the middleware contract")
+    expected_body = "OK" if allowed else "Disallowed CORS origin"
+    if response.body != expected_body:
+        problems.append(f"preflight body={response.body!r}, expected {expected_body!r}")
     problems.extend(request_id_echo_problems(request_id, response.headers.get("x-request-id")))
     return problems
 
@@ -860,24 +1120,19 @@ def check_cors(api: str, frontend: str, results: Results) -> None:
     print("\nCORS")
 
     allowed = _get(f"{api}/health", {"Origin": frontend})
-    header = allowed.headers.get("access-control-allow-origin")
+    allowed_problems = simple_cors_problems(allowed, frontend)
     results.check(
         "the deployed frontend origin is allowed",
-        header == frontend,
-        f"access-control-allow-origin={header!r}, expected {frontend!r}",
+        not allowed_problems,
+        "; ".join(allowed_problems),
     )
 
     refused = _get(f"{api}/health", {"Origin": DISALLOWED_ORIGIN})
-    refused_header = refused.headers.get("access-control-allow-origin")
+    refused_problems = simple_cors_problems(refused, DISALLOWED_ORIGIN, allowed=False)
     results.check(
         "an unknown origin is refused",
-        refused_header is None,
-        f"access-control-allow-origin={refused_header!r}, expected absent",
-    )
-    results.check(
-        "the allow-list is not a wildcard",
-        refused_header != "*",
-        "a wildcard lets any page on the internet read this API from a visitor's browser",
+        not refused_problems,
+        "; ".join(refused_problems),
     )
     request_id = str(uuid.uuid4())
     preflight_headers = {
@@ -898,10 +1153,13 @@ def check_cors(api: str, frontend: str, results: Results) -> None:
         method="OPTIONS",
         headers={**preflight_headers, "Origin": DISALLOWED_ORIGIN},
     )
+    refused_problems = preflight_problems(
+        refused_preflight, DISALLOWED_ORIGIN, request_id, allowed=False
+    )
     results.check(
-        "disallowed prediction preflight receives no allow-origin grant",
-        refused_preflight.headers.get("access-control-allow-origin") is None,
-        f"access-control-allow-origin={refused_preflight.headers.get('access-control-allow-origin')!r}",
+        "disallowed prediction preflight preserves the rejection contract",
+        not refused_problems,
+        "; ".join(refused_problems),
     )
 
 

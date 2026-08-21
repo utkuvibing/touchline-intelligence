@@ -133,6 +133,7 @@ def test_ready_problems_accepts_the_full_admission_state(smoke: Any) -> None:
         "database_schema": "current",
         "model_runtime": "ready",
         "model_version": smoke.EXPECTED_RELEASE_ID,
+        "detail": None,
     }
     assert smoke.ready_problems(body) == []
 
@@ -156,11 +157,24 @@ def test_ready_problems_rejects_each_degraded_field(
         "database_schema": "current",
         "model_runtime": "ready",
         "model_version": smoke.EXPECTED_RELEASE_ID,
+        "detail": None,
         field_name: wrong_value,
     }
     problems = smoke.ready_problems(body)
     assert len(problems) == 1
     assert field_name in problems[0]
+
+
+def test_ready_problems_rejects_operational_detail_while_ready(smoke: Any) -> None:
+    body = {
+        "status": "ready",
+        "database": "reachable",
+        "database_schema": "current",
+        "model_runtime": "ready",
+        "model_version": smoke.EXPECTED_RELEASE_ID,
+        "detail": "unexpected healthy detail",
+    }
+    assert any("detail" in problem for problem in smoke.ready_problems(body))
 
 
 def test_model_metadata_problems_accepts_the_qualified_release(
@@ -547,8 +561,10 @@ def test_preflight_validator_requires_exact_origin_method_headers_and_request_id
     request_id = str(uuid.uuid4())
     headers = {
         "access-control-allow-origin": origin,
-        "access-control-allow-methods": "POST",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
         "access-control-allow-headers": "Content-Type, X-Request-ID",
+        "access-control-max-age": "600",
+        "vary": "Origin",
         "x-request-id": request_id,
     }
     assert smoke.preflight_problems(smoke.Response(200, "OK", headers), origin, request_id) == []
@@ -556,6 +572,8 @@ def test_preflight_validator_requires_exact_origin_method_headers_and_request_id
         "access-control-allow-origin",
         "access-control-allow-methods",
         "access-control-allow-headers",
+        "access-control-max-age",
+        "vary",
         "x-request-id",
     ):
         broken = {**headers}
@@ -570,3 +588,165 @@ def test_uuid_and_digest_helpers(smoke: Any) -> None:
     assert smoke._is_sha256_hex("a" * 64)
     assert not smoke._is_sha256_hex("a" * 63)
     assert not smoke._is_sha256_hex(None)
+
+
+def test_health_requires_the_exact_public_envelope(smoke: Any) -> None:
+    valid = {"status": "ok", "environment": "production", "version": "0.1.0"}
+    assert smoke.health_problems(valid) == []
+    for broken in ({**valid, "extra": "secret"}, {**valid, "environment": True}):
+        assert smoke.health_problems(broken)
+
+
+def test_operational_leakage_guard_is_recursive(smoke: Any) -> None:
+    assert smoke._operational_leaks({"nested": {"password": "secret"}})
+    assert smoke._operational_leaks({"detail": "postgresql://user:secret@example/db"})
+    assert smoke._operational_leaks({"detail": "Traceback: driver failure"})
+    assert smoke._operational_leaks({"status": "ready", "database": "reachable"}) == []
+
+
+def _baseline_body(smoke: Any) -> dict[str, Any]:
+    return {
+        "method": "descriptive-prevalence",
+        "conversion_rate": smoke.EXPECTED_COHORT_GOALS / smoke.EXPECTED_COHORT_SHOTS,
+        "shots": smoke.EXPECTED_COHORT_SHOTS,
+        "goals": smoke.EXPECTED_COHORT_GOALS,
+        "cohort": smoke.EXPECTED_BASELINE_COHORT,
+        "caveat": smoke.EXPECTED_BASELINE_CAVEAT,
+    }
+
+
+def test_baseline_requires_exact_keys_values_types_and_quotient(smoke: Any) -> None:
+    valid = _baseline_body(smoke)
+    assert smoke.baseline_problems(valid) == []
+    for broken in (
+        {**valid, "extra": 1},
+        {**valid, "shots": True},
+        {**valid, "conversion_rate": float("nan")},
+        {**valid, "conversion_rate": valid["conversion_rate"] + 1e-12},
+        {**valid, "cohort": "close enough"},
+        {**valid, "caveat": "not a model"},
+    ):
+        assert smoke.baseline_problems(broken)
+
+
+def _shot_page(smoke: Any) -> dict[str, Any]:
+    shot = {
+        "shot_id": "shot-1",
+        "match_id": 1,
+        "match_date": "2022-11-20",
+        "competition_stage": "Group Stage",
+        "team": "A",
+        "opponent": "B",
+        "player": None,
+        "period": 1,
+        "minute": 3,
+        "second": 4,
+        "location_x": 100.0,
+        "location_y": 40.0,
+        "outcome": "Saved",
+        "shot_type": "Open Play",
+        "body_part": None,
+        "technique": None,
+    }
+    return {"shots": [shot], "total": smoke.EXPECTED_TOTAL_SHOTS, "limit": 1, "offset": 0}
+
+
+def test_shots_requires_exact_page_and_shot_contract(smoke: Any) -> None:
+    valid = _shot_page(smoke)
+    assert smoke.shot_page_problems(valid) == []
+    mutations = [{**valid, "total": True}, {**valid, "limit": 2}, {**valid, "offset": 1}]
+    for field, value in (
+        ("match_id", True),
+        ("location_x", float("inf")),
+        ("match_date", "20/11/2022"),
+    ):
+        body = json.loads(json.dumps(valid))
+        body["shots"][0][field] = value
+        mutations.append(body)
+    extra = json.loads(json.dumps(valid))
+    extra["shots"][0]["expected_goals"] = 0.3
+    mutations.append(extra)
+    benign_extra = json.loads(json.dumps(valid))
+    benign_extra["shots"][0]["new_fact"] = "unexpected"
+    mutations.append(benign_extra)
+    for broken in mutations:
+        assert smoke.shot_page_problems(broken)
+
+
+def test_score_name_detection_catches_variants_without_flagging_shot_facts(smoke: Any) -> None:
+    legitimate = {key: None for key in smoke.SHOT_KEYS}
+    assert smoke._probability_like_fields(legitimate) == []
+    for field in (
+        "expectedGoals",
+        "goal_chance",
+        "modelScore",
+        "model_output",
+        "shot-quality",
+        "scoringLikelihood",
+        "estimated_probability",
+        "confidence",
+        "quality_rating",
+        "chance score",
+        "x_g",
+    ):
+        assert smoke._probability_like_fields({field: 0.2})
+
+
+def test_visible_text_excludes_nonrendered_sources_and_joins_react_fragments(smoke: Any) -> None:
+    html = """
+      <head><title>Qualified evidence</title></head>
+      <script>Data provided by StatsBomb</script><style>.x{}</style>
+      <template>publication_gate_closed</template><noscript>One-time tournament holdout</noscript>
+      <!-- What this view does not claim -->
+      <div hidden>Historical shot map is not publicly enabled</div>
+      <div aria-hidden="true">Shot quality, made inspectable.</div>
+      <div style="display: none">secret</div><div style="visibility:hidden">secret2</div>
+      <p>2872<!-- --> shots</p><p>Data provided by <strong>StatsBomb</strong></p>
+    """
+    text = smoke._visible_text(html)
+    assert "2872 shots" in text
+    assert "Data provided by StatsBomb" in text
+    for hidden in ("Qualified evidence", "publication_gate_closed", "secret", "made inspectable"):
+        assert hidden not in text
+
+
+def test_disallowed_preflight_requires_exact_rejection_headers(smoke: Any) -> None:
+    request_id = str(uuid.uuid4())
+    headers = {
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "Content-Type, X-Request-ID",
+        "access-control-max-age": "600",
+        "vary": "Origin",
+        "x-request-id": request_id,
+    }
+    response = smoke.Response(400, "Disallowed CORS origin", headers)
+    assert (
+        smoke.preflight_problems(response, "https://bad.invalid", request_id, allowed=False) == []
+    )
+    assert smoke.preflight_problems(
+        smoke.Response(200, "OK", headers), "https://bad.invalid", request_id, allowed=False
+    )
+    credentialed = {**headers, "access-control-allow-credentials": "true"}
+    assert smoke.preflight_problems(
+        smoke.Response(400, "", credentialed), "https://bad.invalid", request_id, allowed=False
+    )
+    granted = {**headers, "access-control-allow-origin": "https://bad.invalid"}
+    assert smoke.preflight_problems(
+        smoke.Response(400, "", granted), "https://bad.invalid", request_id, allowed=False
+    )
+
+
+def test_simple_cors_requires_exact_tokens_and_no_credentials(smoke: Any) -> None:
+    origin = "https://touchline-intelligence.vercel.app"
+    headers = {
+        "access-control-allow-origin": origin,
+        "access-control-expose-headers": "X-Request-ID",
+        "vary": "Origin",
+    }
+    assert smoke.simple_cors_problems(smoke.Response(200, "", headers), origin) == []
+    for broken in (
+        {**headers, "access-control-expose-headers": "not-x-request-id"},
+        {**headers, "access-control-expose-headers": "X-Request-ID, Authorization"},
+        {**headers, "access-control-allow-credentials": "true"},
+    ):
+        assert smoke.simple_cors_problems(smoke.Response(200, "", broken), origin)
