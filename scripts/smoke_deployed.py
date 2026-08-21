@@ -334,42 +334,169 @@ def _get(url: str, headers: dict[str, str] | None = None) -> Response:
 
 class _VisibleTextParser(HTMLParser):
     _NON_VISIBLE = frozenset({"head", "script", "style", "template", "noscript"})
+    # HTML void elements never establish a persistent subtree, even when serialized as `<meta>`
+    # rather than XHTML-style `<meta />`. Next.js emits several of these inside `<head>`.
+    _VOID = frozenset(
+        {
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr",
+        }
+    )
 
-    def __init__(self) -> None:
+    def __init__(self, promoted_segments: frozenset[str] = frozenset()) -> None:
         super().__init__(convert_charrefs=True)
-        self._hidden: list[bool] = []
+        self._stack: list[tuple[str, bool]] = []
+        self._promoted_segments = promoted_segments
         self.fragments: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
         values = {name.lower(): (value or "") for name, value in attrs}
         style = re.sub(r"\s+", "", values.get("style", "").lower())
+        promoted_segment = (
+            tag == "div"
+            and values.get("id") in self._promoted_segments
+            and "hidden" in values
+            and values.get("aria-hidden", "").lower() != "true"
+            and "display:none" not in style
+            and "visibility:hidden" not in style
+        )
         hidden = (
-            (self._hidden[-1] if self._hidden else False)
-            or tag.lower() in self._NON_VISIBLE
-            or "hidden" in values
+            (self._stack[-1][1] if self._stack else False)
+            or tag in self._NON_VISIBLE
+            or ("hidden" in values and not promoted_segment)
             or values.get("aria-hidden", "").lower() == "true"
             or "display:none" in style
             or "visibility:hidden" in style
         )
-        self._hidden.append(hidden)
+        if tag not in self._VOID:
+            self._stack.append((tag, hidden))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self.handle_starttag(tag, attrs)
-        self._hidden.pop()
+        # Self-closing tags have no descendants, so their own visibility never affects later text.
+        del tag, attrs
 
     def handle_endtag(self, tag: str) -> None:
-        del tag
-        if self._hidden:
-            self._hidden.pop()
+        tag = tag.lower()
+        for index in range(len(self._stack) - 1, -1, -1):
+            if self._stack[index][0] == tag:
+                del self._stack[index:]
+                break
 
     def handle_data(self, data: str) -> None:
-        if not (self._hidden and self._hidden[-1]):
+        if not (self._stack and self._stack[-1][1]):
             self.fragments.append(data)
+
+
+class _ReactStreamInventoryParser(HTMLParser):
+    """Identify segments React explicitly promotes into matching Suspense boundaries."""
+
+    _ID = re.compile(r"^[BPS]:(\d+)$")
+    _REPLACEMENT = re.compile(r"\$RC\(\s*[\"'](B:\d+)[\"']\s*,\s*[\"'](S:\d+)[\"']\s*\)")
+    _INSERTION = re.compile(r"\$RS\(\s*[\"'](S:\d+)[\"']\s*,\s*[\"'](P:\d+)[\"']\s*\)")
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.boundaries: set[str] = set()
+        self.segments: set[str] = set()
+        self.replacements: set[tuple[str, str]] = set()
+        self.placeholders: dict[str, str] = {}
+        self.insertions: set[tuple[str, str]] = set()
+        self._stack: list[tuple[str, str | None]] = []
+        self._script_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        values = {name.lower(): (value or "") for name, value in attrs}
+        element_id = values.get("id", "")
+        owner = self._stack[-1][1] if self._stack else None
+        if tag == "template" and element_id.startswith("B:") and self._ID.fullmatch(element_id):
+            self.boundaries.add(element_id)
+        if (
+            tag == "div"
+            and "hidden" in values
+            and element_id.startswith("S:")
+            and self._ID.fullmatch(element_id)
+        ):
+            self.segments.add(element_id)
+            owner = element_id
+        if (
+            tag == "template"
+            and element_id.startswith("P:")
+            and self._ID.fullmatch(element_id)
+            and owner is not None
+        ):
+            self.placeholders[element_id] = owner
+        if tag == "script":
+            self._script_depth += 1
+        if tag not in _VisibleTextParser._VOID:
+            self._stack.append((tag, owner))
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag == "script" and self._script_depth:
+            self._script_depth -= 1
+        for index in range(len(self._stack) - 1, -1, -1):
+            if self._stack[index][0] == tag:
+                del self._stack[index:]
+                break
+
+    def handle_data(self, data: str) -> None:
+        if self._script_depth:
+            self.replacements.update(self._REPLACEMENT.findall(data))
+            self.insertions.update(self._INSERTION.findall(data))
+
+    def promoted_segments(self) -> frozenset[str]:
+        promoted: set[str] = set()
+        for boundary, segment in self.replacements:
+            boundary_match = self._ID.fullmatch(boundary)
+            segment_match = self._ID.fullmatch(segment)
+            if (
+                boundary in self.boundaries
+                and segment in self.segments
+                and boundary_match is not None
+                and segment_match is not None
+                and boundary_match.group(1) == segment_match.group(1)
+            ):
+                promoted.add(segment)
+        changed = True
+        while changed:
+            changed = False
+            for segment, placeholder in self.insertions:
+                segment_match = self._ID.fullmatch(segment)
+                placeholder_match = self._ID.fullmatch(placeholder)
+                owner = self.placeholders.get(placeholder)
+                if (
+                    segment in self.segments
+                    and owner in promoted
+                    and segment_match is not None
+                    and placeholder_match is not None
+                    and segment_match.group(1) == placeholder_match.group(1)
+                    and segment not in promoted
+                ):
+                    promoted.add(segment)
+                    changed = True
+        return frozenset(promoted)
 
 
 def _visible_text(html: str) -> str:
     """Extract rendered text, excluding metadata, executable content, and hidden subtrees."""
-    parser = _VisibleTextParser()
+    inventory = _ReactStreamInventoryParser()
+    inventory.feed(html)
+    inventory.close()
+    parser = _VisibleTextParser(inventory.promoted_segments())
     parser.feed(html)
     parser.close()
     return " ".join(" ".join(parser.fragments).split())
@@ -1041,8 +1168,8 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
         f"x-request-id={generated!r}",
     )
 
-    # CORSMiddleware emits Access-Control-Expose-Headers only on responses carrying an allowed
-    # Origin, so the probe must look like the browser that is supposed to read the header.
+    # Probe with the allowed browser origin because this check covers browser readability together
+    # with the separate simple-CORS validators that pin both allowed and disallowed shapes.
     exposed = _get(f"{api}/ready", {"Origin": frontend}).headers.get(
         "access-control-expose-headers"
     )

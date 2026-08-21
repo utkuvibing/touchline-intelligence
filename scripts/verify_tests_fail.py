@@ -3625,8 +3625,100 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 frontend anchors must come from visible rendered text",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor="        if not (self._hidden and self._hidden[-1]):\n",
+        anchor="        if not (self._stack and self._stack[-1][1]):\n",
         replacement="        if True:  # DELIBERATE BREAK: hidden text accepted as visible\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 visible-text extraction does not persist HTML void elements",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="        if tag not in self._VOID:\n            self._stack.append((tag, hidden))\n",
+        replacement=(
+            "        if True:  # DELIBERATE BREAK: void elements poison nesting\n"
+            "            self._stack.append((tag, hidden))\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 visible-text extraction restores visibility after a hidden subtree",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "            if self._stack[index][0] == tag:\n"
+            "                del self._stack[index:]\n"
+            "                break\n\n"
+            "    def handle_data(self, data: str) -> None:\n"
+            "        if not (self._stack and self._stack[-1][1]):\n"
+        ),
+        replacement=(
+            "            if False:  # DELIBERATE BREAK: closed hidden subtree stays active\n"
+            "                del self._stack[index:]\n"
+            "                break\n\n"
+            "    def handle_data(self, data: str) -> None:\n"
+            "        if not (self._stack and self._stack[-1][1]):\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 visible text recognizes React-promoted streamed segments",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='            or ("hidden" in values and not promoted_segment)\n',
+        replacement=('            or "hidden" in values  # DELIBERATE BREAK: promotion ignored\n'),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 arbitrary hidden React segments require a replacement instruction",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="        return frozenset(promoted)\n",
+        replacement=(
+            "        return frozenset(self.segments)  "
+            "# DELIBERATE BREAK: instruction not required\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 React stream boundary and segment identities must match",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="                and boundary_match.group(1) == segment_match.group(1)\n",
+        replacement=(
+            "                and True  # DELIBERATE BREAK: mismatched identities accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 React stream inventory recognizes RS placeholder insertion",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="            self.insertions.update(self._INSERTION.findall(data))\n",
+        replacement=(
+            "            self.insertions.update(())  # DELIBERATE BREAK: RS insertion ignored\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 inserted React segment must be reachable from a promoted owner",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="                    and owner in promoted\n",
+        replacement=(
+            "                    and False  "
+            "# DELIBERATE BREAK: reachable insertion never promoted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 smoke CLI returns nonzero when any gate fails",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        return 1\n    print("Deployment smoke test passed.")\n',
+        replacement=(
+            "        return 0  # DELIBERATE BREAK: failed smoke exits successfully\n"
+            '    print("Deployment smoke test passed.")\n'
+        ),
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
