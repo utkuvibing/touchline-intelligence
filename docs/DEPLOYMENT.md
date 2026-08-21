@@ -115,16 +115,17 @@ need it.
    migrations 0006–0007 add the manifest lifecycle and measured raw event-x boundary. A subsequent
    normal `uv run poe ingest` fills the complete pinned source without rewriting identical facts.
 
-    A Railway code deploy runs the packaged migration command through the `preDeployCommand` in
-    `railway.json`, before the new container can pass its deployment healthcheck. It uses
-    `TOUCHLINE_MIGRATION_DB_URL`; a non-zero migration exit blocks activation. This migrates schema
-    only. Ingestion remains a separate, deliberate operator command and is never run by deploy.
+   A Railway code deploy runs the packaged migration command through the `preDeployCommand` in
+   `railway.json`, before the new container can pass its deployment healthcheck. It uses
+   `TOUCHLINE_MIGRATION_DB_URL`; a non-zero migration exit blocks activation. This migrates schema
+   only. Ingestion remains a separate, deliberate operator command and is never run by deploy.
 
    **This is a release-ordering obligation, not a note.** Any release whose queries reach a
-    relation the deployed database does not have is blocked by the pre-deploy migration and `/ready` <!--
-   is run against it, and it has already done so once — see the first row of *Failure modes worth
-    --> Merging a migration and activating the code that depends on it are one ordered Railway
-    release path; ingestion remains a separate operator action.
+   relation the deployed database does not have must apply the packaged migration successfully
+   before the new container can pass `/ready`. Merging a migration and activating the code that
+   depends on it are one ordered Railway release path; ingestion remains a separate operator
+   action. The first row of *Failure modes worth recognising* describes the fail-closed response
+   when that ordering does not complete.
    The internal database then holds four tournaments, while the current public `/baseline` and
    `/shots` endpoints remain explicitly restricted to WC 2022.
 
@@ -239,25 +240,44 @@ is the right rehearsal shape.
 
 ## Rolling back a backend release
 
-Rollback means redeploying the previous application release — never downgrading the schema or
-the data. Migrations are forward-only by design: they are additive and preserve existing rows, so
-an older image keeps working against a newer schema, while a newer image against an older schema
-is blocked by the pre-deploy migration and `/ready`. There is deliberately no schema-downgrade
-path to maintain or rehearse.
+Rollback never downgrades the schema or data. Migrations are forward-only, and no schema/data
+downgrade is performed during an application rollback. An application rollback is allowed only
+after the chosen prior release has been explicitly verified compatible with the currently deployed
+schema and data. The expand-compatible migration policy reduces rollback risk; it does not prove
+that an arbitrary older image remains compatible forever. If compatibility cannot be established,
+do not roll back the application: keep the current deployment admitted and forward-fix instead.
+
+Railway's [**Rollback** action](https://docs.railway.com/deployments/deployment-actions#rollback)
+restores the selected successful deployment's Docker image **and its custom variables**. It is
+therefore not an application-code-only operation. [**Redeploy**](https://docs.railway.com/deployments/deployment-actions#redeploy)
+is a different action: it creates a new deployment from the selected deployment's same code and
+build/deploy configuration. Choose the action deliberately, and account for the selected
+deployment's configuration before activation.
 
 Record before touching anything:
 
 - the exact prior release commit SHA and its Railway deployment ID;
 - the exact current release commit SHA and its Railway deployment ID;
+- a non-secret identity/inventory of the operational variables and configuration required by the
+  current service and carried by the candidate prior deployment (variable names, referenced
+  resource identities, and a redacted configuration fingerprint are sufficient; never print or
+  persist secret values);
 - the observed `GET /ready` body of the healthy current deployment.
 
 Then rehearse, in order:
 
-1. Redeploy the prior commit (Railway retains previous deployments and can pin one).
-2. Wait for its healthcheck admission and confirm `GET /ready` reports the full ready state.
-3. Roll forward to the exact current release SHA recorded above.
-4. Rerun the full deployed smoke from section 5 and record N/N checks alongside the four
-   identifiers.
+1. Before selecting a target, verify that the prior application is compatible with the current
+   production schema/data and that the target deployment's restored custom variables reference the
+   intended current production dependencies. If either cannot be established, stop and forward-fix.
+2. Use Railway **Rollback** on the verified prior deployment, acknowledging that this restores both
+   its Docker image and its custom variables. Do not copy secret values into the rehearsal evidence.
+3. Wait for healthcheck admission, confirm `GET /ready` reports the full ready state, and verify the
+   required configuration behavior and dependency identities through non-secret operational checks.
+4. Roll forward by restoring or activating the exact intended current deployment **and** its
+   intended current configuration recorded above. Do not use **Redeploy** as though it were
+   synonymous with **Rollback**.
+5. Rerun the full deployed smoke from section 5 and record N/N checks alongside the commit SHAs,
+   deployment IDs, and redacted configuration identities. Do not expose secrets in evidence.
 
 Vercel's instant rollback redeploys a prior build; the frontend has no schema, so the redeploy is
 the entire procedure there. The first backend rollback rehearsal is part of the WP3.4 evidence.
@@ -310,8 +330,10 @@ environment provides.
 - **No environment-name allow-list.** The write-target guard classifies from the DSN host alone. A
   list of "safe" environment names is a second source of truth that drifts from the DSN it is meant
   to describe, and it drifts silently.
-- **No drift or model monitoring.** There is no model. Structured request logging and health
-  endpoints are the whole observability story, recorded as an accepted gap in ADR 0006.
+- **No drift or model monitoring.** The qualified calibrated model is served, but automated model
+  drift and performance monitoring are not implemented. Structured request logging, health and
+  readiness endpoints, immutable model provenance, and pinned evaluation evidence are the current
+  observability boundary; the monitoring gap remains recorded in ADR 0006.
 - **No custom domain, no CDN configuration, no autoscaling.** Smallest paid/free plans, portfolio
   traffic.
 

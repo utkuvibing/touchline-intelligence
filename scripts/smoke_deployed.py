@@ -32,10 +32,15 @@ come from the checked-in fixture, never from the deployment being tested.
 Exit code is 0 only if every check passes.
 """
 
+# The immutable public metrics packet below is kept as readable JSON; several rows exceed the
+# Python line-length limit so the evidence remains directly comparable with the served payload.
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 import urllib.error
@@ -52,6 +57,15 @@ EXPECTED_COHORT_GOALS = 152
 
 # The one qualified serving release (WP2.8). Every model-aware endpoint must identify it.
 EXPECTED_RELEASE_ID = "exp-20260810-wp2_8-release"
+EXPECTED_PROVENANCE = {
+    "model_version": EXPECTED_RELEASE_ID,
+    "release_id": EXPECTED_RELEASE_ID,
+    "serving_manifest_sha256": "68cee3ab4f06c280421f848de36d59b3db39d8c3ea7ece7765a4ba29e3a7ae5c",
+    "release_manifest_sha256": "bad64e5972938335e62b98d694f24961117e5f46034518f38b61209e2c3ca87d",
+    "release_manifest_file_sha256": "5c2e4016291c6ebe99ba69b37884f38791b4b6b1440c81107ed2a44db95645d4",
+    "artifact_sha256": "9aeac9468c00bd1b93c771e454e48ca29e2eb759cf71836182a782d674bfadca",
+    "calibration_decision_sha256": "f5c9ccf665924069f755fbd669d4a9abada1e5791e957d3d436d42d500277e89",
+}
 
 # Scope identities baked into the qualified release packet and asserted by the runtime loader.
 EXPECTED_DEVELOPMENT_SHOTS = 2872
@@ -71,6 +85,113 @@ EXPECTED_HOLDOUT_BRIER = 0.066029980705
 EXPECTED_HOLDOUT_ROC_AUC = 0.744677970691
 EXPECTED_HOLDOUT_PR_AUC = 0.223985679737
 METRICS_FLOAT_TOLERANCE = 1e-9
+
+EXPECTED_MODEL_METADATA = {
+    **EXPECTED_PROVENANCE,
+    "release_status": "m2_qualified",
+    "qualification_serving_status": "not_served",
+    "runtime_status": "ready",
+    "candidate": "full_minus_presence",
+    "estimator": "logistic_regression",
+    "calibration": "platt_sigmoid",
+    "adopted_variant": "calibrated",
+    "output": "goal_conversion_probability",
+    "scopes": {
+        "development": {
+            "competitions": ["FIFA World Cup 2018", "UEFA Euro 2020"],
+            "shots": 2872,
+            "matches": 115,
+            "role": "model_development",
+        },
+        "calibration": {
+            "competition": "FIFA World Cup 2022",
+            "shots": 1430,
+            "matches": 64,
+            "role": "platt_calibration_and_adoption",
+        },
+        "tournament_holdout": {
+            "competition": "UEFA Euro 2024",
+            "shots": 1304,
+            "matches": 51,
+            "role": "one_time_final_evaluation",
+        },
+    },
+    "input_contract": {
+        "coordinates": {
+            "system": "StatsBomb",
+            "location_x": {"minimum": 0.0, "maximum": 120.0},
+            "location_y": {"minimum": 0.0, "maximum": 80.0},
+        },
+        "categorical_policy": "exact_frozen_vocabulary_with_unseen_as_reference",
+        "fields": {
+            "body_part": {
+                "reference": "Right Foot",
+                "retained": ["Head", "Left Foot"],
+                "rare_members": ["Other"],
+            },
+            "technique": {
+                "reference": "Normal",
+                "retained": ["Half Volley", "Volley"],
+                "rare_members": ["Backheel", "Diving Header", "Lob", "Overhead Kick"],
+            },
+            "play_pattern": {
+                "reference": "Regular Play",
+                "retained": [
+                    "From Corner",
+                    "From Counter",
+                    "From Free Kick",
+                    "From Goal Kick",
+                    "From Keeper",
+                    "From Kick Off",
+                    "From Throw In",
+                ],
+                "rare_members": ["Other"],
+            },
+        },
+    },
+}
+
+EXPECTED_METRICS_CONTENT = json.loads(
+    r"""
+{
+  "evidence_source": {"evidence_status": "qualified_m2_evidence", "holdout_metrics_sha256": "3443b4a5e19fd87b1ee599502152a7dcfe1af3d8466c09ad7cbf2bb8cae2e674", "recomputed_at_request_time": false},
+  "calibration_adoption": {
+    "adopted_variant": "calibrated",
+    "calibrated": {"brier": 0.08204252640613116, "log_loss": 0.2839359330006713, "max_supported_calibration_deviation": 0.004302015683183724},
+    "matches": 64,
+    "raw": {"brier": 0.08321574985457875, "log_loss": 0.2874904814912322, "max_supported_calibration_deviation": 0.012247769393666633},
+    "raw_anchor_reliability": [
+      {"bin": 0, "calibrated_mean_prediction": 0.07953484232285857, "count": 1324, "lower": 0.0, "observed_rate": 0.08383685800604229, "positive_count": 111, "raw_mean_prediction": 0.07158908861237566, "upper": 0.2},
+      {"bin": 1, "calibrated_mean_prediction": 0.370930124495372, "count": 84, "lower": 0.2, "observed_rate": 0.32142857142857145, "positive_count": 27, "raw_mean_prediction": 0.2707363079266444, "upper": 0.4},
+      {"bin": 2, "calibrated_mean_prediction": 0.6688679303179884, "count": 18, "lower": 0.4, "observed_rate": 0.6666666666666666, "positive_count": 12, "raw_mean_prediction": 0.4986862919388754, "upper": 0.6},
+      {"bin": 3, "calibrated_mean_prediction": 0.8480942340530411, "count": 3, "lower": 0.6, "observed_rate": 0.3333333333333333, "positive_count": 1, "raw_mean_prediction": 0.6886531740738474, "upper": 0.8},
+      {"bin": 4, "calibrated_mean_prediction": 0.9538328590062717, "count": 1, "lower": 0.8, "observed_rate": 1.0, "positive_count": 1, "raw_mean_prediction": 0.862365274994754, "upper": 1.0}
+    ],
+    "role": "calibration", "shots": 1430, "split": "FIFA World Cup 2022", "supported_raw_anchor_bins": 1
+  },
+  "tournament_holdout": {
+    "adopted_variant": "calibrated",
+    "discrimination": {"pr_auc": 0.223985679737, "roc_auc": 0.744677970691},
+    "goals": 98, "matches": 51, "observed_prevalence": 0.075153374233,
+    "proper_scoring": {"brier": 0.066029980705, "log_loss": 0.243112806225},
+    "raw_comparator": {
+      "calibrated_minus_raw": {"brier": 0.00132258148, "brier_interval": {"lower": -1.3107008e-05, "upper": 0.002806020149}, "log_loss": 0.003805297954, "log_loss_interval": {"lower": 9.5442006e-05, "upper": 0.007815706219}},
+      "discrimination": {"pr_auc": 0.223985679737, "roc_auc": 0.744677970691},
+      "proper_scoring": {"brier": 0.064707399225, "log_loss": 0.239307508271}
+    },
+    "reliability": [
+      {"bin": 0, "count": 1151, "lower": 0.0, "mean_prediction": 0.069758641267, "observed_rate": 0.054735013032, "positive_count": 63, "upper": 0.2},
+      {"bin": 1, "count": 123, "lower": 0.2, "mean_prediction": 0.268785359657, "observed_rate": 0.19512195122, "positive_count": 24, "upper": 0.4},
+      {"bin": 2, "count": 25, "lower": 0.4, "mean_prediction": 0.493646033883, "observed_rate": 0.32, "positive_count": 8, "upper": 0.6},
+      {"bin": 3, "count": 4, "lower": 0.6, "mean_prediction": 0.723563254555, "observed_rate": 0.75, "positive_count": 3, "upper": 0.8},
+      {"bin": 4, "count": 1, "lower": 0.8, "mean_prediction": 0.904238036674, "observed_rate": 0.0, "positive_count": 0, "upper": 1.0}
+    ],
+    "role": "one_time_tournament_holdout", "shots": 1304, "split": "UEFA Euro 2024",
+    "uncertainty": {"brier": {"lower": 0.055641037736, "upper": 0.075907318637}, "confidence_level": 0.95, "log_loss": {"lower": 0.210598611086, "upper": 0.273303673707}, "method": "match_clustered_paired_bootstrap", "repetitions": 2000, "seed": 0}
+  }
+}
+"""
+)
 
 # The public /model/predict contract: the seven provenance fields plus the one output field.
 # Anything else in a response - base logits, selected vectors, internal column names - is the
@@ -127,9 +248,19 @@ class Response:
             return None
 
 
-def _get(url: str, headers: dict[str, str] | None = None) -> Response:
+def _request(
+    url: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    payload: dict[str, Any] | None = None,
+) -> Response:
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = urllib.request.Request(
-        url, headers={"User-Agent": "touchline-smoke/1.0", **(headers or {})}
+        url,
+        data=data,
+        method=method,
+        headers={"User-Agent": "touchline-smoke/1.0", **(headers or {})},
     )
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
@@ -145,27 +276,18 @@ def _get(url: str, headers: dict[str, str] | None = None) -> Response:
 
 
 def _post_json(url: str, payload: dict[str, Any]) -> Response:
-    data = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
+    return _request(
         url,
-        data=data,
         method="POST",
+        payload=payload,
         headers={
             "Content-Type": "application/json",
-            "User-Agent": "touchline-smoke/1.0",
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            body = response.read().decode("utf-8", errors="replace")
-            return Response(
-                response.status, body, {k.lower(): v for k, v in response.headers.items()}
-            )
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        return Response(exc.code, body, {k.lower(): v for k, v in exc.headers.items()})
-    except urllib.error.URLError as exc:
-        return Response(0, str(exc), {})
+
+
+def _get(url: str, headers: dict[str, str] | None = None) -> Response:
+    return _request(url, headers=headers)
 
 
 def _visible_text(html: str) -> str:
@@ -190,6 +312,92 @@ def _is_sha256_hex(value: Any) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
 
+def _is_finite_real(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
+
+
+def _is_strict_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _exact_contract_problems(
+    actual: Any,
+    expected: Any,
+    *,
+    path: str = "$",
+    float_tolerance: float = 0.0,
+) -> list[str]:
+    """Compare a public JSON contract recursively with strict numeric semantics."""
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return [f"{path}={actual!r} is not an object"]
+        problems: list[str] = []
+        missing = sorted(set(expected) - set(actual))
+        unexpected = sorted(set(actual) - set(expected))
+        if missing:
+            problems.append(f"{path} is missing fields: {', '.join(missing)}")
+        if unexpected:
+            problems.append(f"{path} has unexpected fields: {', '.join(unexpected)}")
+        for key in expected.keys() & actual.keys():
+            problems.extend(
+                _exact_contract_problems(
+                    actual[key],
+                    expected[key],
+                    path=f"{path}.{key}",
+                    float_tolerance=float_tolerance,
+                )
+            )
+        return problems
+    if isinstance(expected, list):
+        if not isinstance(actual, list):
+            return [f"{path}={actual!r} is not a list"]
+        problems = []
+        if len(actual) != len(expected):
+            problems.append(f"{path} has {len(actual)} rows, expected {len(expected)}")
+        for index, (actual_item, expected_item) in enumerate(zip(actual, expected, strict=False)):
+            problems.extend(
+                _exact_contract_problems(
+                    actual_item,
+                    expected_item,
+                    path=f"{path}[{index}]",
+                    float_tolerance=float_tolerance,
+                )
+            )
+        return problems
+    if isinstance(expected, bool):
+        return [] if actual is expected else [f"{path}={actual!r}, expected {expected!r}"]
+    if isinstance(expected, int):
+        if not _is_strict_int(actual) or actual != expected:
+            return [f"{path}={actual!r}, expected integer {expected!r}"]
+        return []
+    if isinstance(expected, float):
+        if not _is_finite_real(actual):
+            return [f"{path}={actual!r} is not a finite real number"]
+        if abs(float(actual) - expected) > float_tolerance:
+            return [f"{path}={actual!r}, expected {expected!r}"]
+        return []
+    return [] if actual == expected else [f"{path}={actual!r}, expected {expected!r}"]
+
+
+def _probability_like_fields(value: Any, path: str = "$") -> list[str]:
+    """Find conservative model-score field names recursively without inspecting fact values."""
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+            if "xg" in normalized or "probabil" in normalized or "predict" in normalized:
+                found.append(f"{path}.{key}")
+            found.extend(_probability_like_fields(child, f"{path}.{key}"))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            found.extend(_probability_like_fields(child, f"{path}[{index}]"))
+    return found
+
+
 def load_golden_fixture(
     path: Path = GOLDEN_FIXTURE_PATH,
 ) -> tuple[dict[str, Any] | None, str | None]:
@@ -205,8 +413,14 @@ def load_golden_fixture(
     if not isinstance(fixture.get("cases"), list) or not fixture["cases"]:
         return None, f"{path} carries no golden cases"
     tolerance = fixture.get("absolute_tolerance")
-    if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or tolerance <= 0:
+    if not _is_finite_real(tolerance) or float(tolerance) <= 0:
         return None, f"{path} does not declare a usable absolute_tolerance"
+    for index, case in enumerate(fixture["cases"]):
+        if not isinstance(case, dict):
+            return None, f"{path} case {index} is not an object"
+        expected_probability = (case.get("expected") or {}).get("calibrated_probability")
+        if not _is_finite_real(expected_probability) or not 0 <= float(expected_probability) <= 1:
+            return None, f"{path} case {index} has no finite bounded calibrated_probability"
     return fixture, None
 
 
@@ -232,59 +446,9 @@ def ready_problems(body: Any) -> list[str]:
 
 def model_metadata_problems(body: Any) -> list[str]:
     """The qualified release identity: names, statuses, and scope membership counts."""
-    problems: list[str] = []
     if not isinstance(body, dict):
         return ["response body is not a JSON object"]
-
-    for field_name in ("model_version", "release_id"):
-        if body.get(field_name) != EXPECTED_RELEASE_ID:
-            problems.append(
-                f"{field_name}={body.get(field_name)!r}, expected {EXPECTED_RELEASE_ID!r}"
-            )
-    expected_statuses = {
-        "release_status": "m2_qualified",
-        "qualification_serving_status": "not_served",
-        "runtime_status": "ready",
-        "candidate": "full_minus_presence",
-        "estimator": "logistic_regression",
-        "calibration": "platt_sigmoid",
-        "adopted_variant": "calibrated",
-        "output": "goal_conversion_probability",
-    }
-    for field_name, expected in expected_statuses.items():
-        if body.get(field_name) != expected:
-            problems.append(f"{field_name}={body.get(field_name)!r}, expected {expected!r}")
-    for field_name in (
-        "serving_manifest_sha256",
-        "release_manifest_sha256",
-        "release_manifest_file_sha256",
-        "artifact_sha256",
-        "calibration_decision_sha256",
-    ):
-        if not _is_sha256_hex(body.get(field_name)):
-            problems.append(f"{field_name} is not a SHA-256 hex digest")
-
-    scopes = body.get("scopes")
-    if not isinstance(scopes, dict):
-        problems.append("scopes block missing")
-    else:
-        expected_scopes = {
-            "development": (EXPECTED_DEVELOPMENT_SHOTS, EXPECTED_DEVELOPMENT_MATCHES),
-            "calibration": (EXPECTED_CALIBRATION_SHOTS, EXPECTED_CALIBRATION_MATCHES),
-            "tournament_holdout": (EXPECTED_HOLDOUT_SHOTS, EXPECTED_HOLDOUT_MATCHES),
-        }
-        for scope_name, (shots, matches) in expected_scopes.items():
-            scope = scopes.get(scope_name)
-            if not isinstance(scope, dict):
-                problems.append(f"scopes.{scope_name} missing")
-                continue
-            if scope.get("shots") != shots or scope.get("matches") != matches:
-                problems.append(
-                    f"scopes.{scope_name}=(shots={scope.get('shots')!r}, "
-                    f"matches={scope.get('matches')!r}), expected (shots={shots!r}, "
-                    f"matches={matches!r})"
-                )
-    return problems
+    return _exact_contract_problems(body, EXPECTED_MODEL_METADATA)
 
 
 def golden_tolerance(fixture: dict[str, Any]) -> float:
@@ -313,7 +477,9 @@ def provenance_mismatches(fixture: dict[str, Any], metadata: dict[str, Any]) -> 
     return problems
 
 
-def predict_case_problems(case: dict[str, Any], body: Any, tolerance: float) -> list[str]:
+def predict_case_problems(
+    case: dict[str, Any], body: Any, tolerance: float, metadata: dict[str, Any]
+) -> list[str]:
     """Compare only the public prediction-contract outputs for one golden case.
 
     The fixture's internal oracle fields (base_logit, selected_vector, ...) are deliberately not
@@ -334,15 +500,33 @@ def predict_case_problems(case: dict[str, Any], body: Any, tolerance: float) -> 
         problems.append(
             f"case {name}: fields outside the public prediction contract: {', '.join(unexpected)}"
         )
-    if body.get("release_id") != EXPECTED_RELEASE_ID:
-        problems.append(f"case {name}: release_id={body.get('release_id')!r}")
+    for identity in ("model_version", "release_id"):
+        if body.get(identity) != EXPECTED_RELEASE_ID:
+            problems.append(f"case {name}: {identity}={body.get(identity)!r}")
+    for field_name in (
+        "serving_manifest_sha256",
+        "release_manifest_sha256",
+        "release_manifest_file_sha256",
+        "artifact_sha256",
+        "calibration_decision_sha256",
+    ):
+        if body.get(field_name) != metadata.get(field_name):
+            problems.append(f"case {name}: {field_name} disagrees with /model provenance")
     expected_probability = (case.get("expected") or {}).get("calibrated_probability")
     actual = body.get("calibrated_probability")
-    if not isinstance(actual, (int, float)) or isinstance(actual, bool):
-        problems.append(f"case {name}: calibrated_probability={actual!r} is not a number")
-    elif not isinstance(expected_probability, (int, float)):
-        problems.append(f"case {name}: fixture carries no numeric calibrated_probability")
-    elif abs(float(actual) - float(expected_probability)) > tolerance:
+    if not _is_finite_real(tolerance) or float(tolerance) <= 0:
+        problems.append(f"case {name}: tolerance={tolerance!r} is not finite and positive")
+    if not _is_finite_real(actual) or not 0 <= float(actual) <= 1:
+        problems.append(
+            f"case {name}: calibrated_probability={actual!r} is not a finite probability"
+        )
+    elif not _is_finite_real(expected_probability) or not 0 <= float(expected_probability) <= 1:
+        problems.append(f"case {name}: fixture carries no finite bounded calibrated_probability")
+    elif (
+        _is_finite_real(tolerance)
+        and float(tolerance) > 0
+        and abs(float(actual) - float(expected_probability)) > float(tolerance)
+    ):
         problems.append(
             f"case {name}: calibrated_probability={actual!r} differs from the golden oracle "
             f"{expected_probability!r} beyond the fixture tolerance {tolerance!r}"
@@ -355,29 +539,32 @@ def closed_model_shots_problems(status: int, body: Any) -> list[str]:
     problems: list[str] = []
     if status != 403:
         problems.append(f"status={status}, expected 403")
-    error = body.get("error") if isinstance(body, dict) else None
-    error_code = error.get("code") if isinstance(error, dict) else None
-    if error_code != "publication_gate_closed":
-        problems.append(f"error.code={error_code!r}, expected 'publication_gate_closed'")
-    if isinstance(body, dict) and "shots" in body:
-        problems.append("a 'shots' collection was returned while the gate is closed")
-    serialized = json.dumps(body) if isinstance(body, dict) else ""
-    if "calibrated_probability" in serialized:
-        problems.append("historical probabilities leaked into the closed-gate response body")
+    expected = {
+        "error": {
+            "code": "publication_gate_closed",
+            "message": "public historical model shots are not enabled",
+            "details": [],
+        }
+    }
+    if body != expected:
+        problems.append(f"body does not exactly match the closed-gate error envelope: {body!r}")
+    leaked = _probability_like_fields(body)
+    if leaked:
+        locations = ", ".join(leaked)
+        problems.append(
+            f"probability or prediction fields leaked into the closed-gate response: {locations}"
+        )
     return problems
 
 
 def metrics_problems(body: Any, metadata: dict[str, Any]) -> list[str]:
     """Immutable evaluation evidence plus cross-endpoint provenance agreement."""
-    problems: list[str] = []
     if not isinstance(body, dict):
         return ["response body is not a JSON object"]
-
-    for field_name in ("model_version", "release_id"):
-        if body.get(field_name) != EXPECTED_RELEASE_ID:
-            problems.append(
-                f"{field_name}={body.get(field_name)!r}, expected {EXPECTED_RELEASE_ID!r}"
-            )
+    expected_body = {**EXPECTED_PROVENANCE, **EXPECTED_METRICS_CONTENT}
+    problems = _exact_contract_problems(
+        body, expected_body, float_tolerance=METRICS_FLOAT_TOLERANCE
+    )
     for field_name in (
         "serving_manifest_sha256",
         "release_manifest_sha256",
@@ -387,92 +574,6 @@ def metrics_problems(body: Any, metadata: dict[str, Any]) -> list[str]:
     ):
         if body.get(field_name) != metadata.get(field_name):
             problems.append(f"{field_name} disagrees with /model provenance")
-
-    evidence_source = body.get("evidence_source")
-    if not isinstance(evidence_source, dict):
-        problems.append("evidence_source block missing")
-    else:
-        if evidence_source.get("holdout_metrics_sha256") != EXPECTED_HOLDOUT_METRICS_SHA256:
-            problems.append(
-                f"evidence_source.holdout_metrics_sha256="
-                f"{evidence_source.get('holdout_metrics_sha256')!r}, expected the qualified "
-                "WP2.7 packet digest"
-            )
-        if evidence_source.get("evidence_status") != "qualified_m2_evidence":
-            problems.append(
-                f"evidence_source.evidence_status={evidence_source.get('evidence_status')!r}"
-            )
-        if evidence_source.get("recomputed_at_request_time") is not False:
-            problems.append("evidence_source.recomputed_at_request_time is not false")
-
-    adoption = body.get("calibration_adoption")
-    if not isinstance(adoption, dict):
-        problems.append("calibration_adoption block missing")
-    else:
-        if adoption.get("split") != "FIFA World Cup 2022":
-            problems.append(f"calibration_adoption.split={adoption.get('split')!r}")
-        if adoption.get("shots") != EXPECTED_CALIBRATION_SHOTS:
-            problems.append(f"calibration_adoption.shots={adoption.get('shots')!r}")
-        if adoption.get("matches") != EXPECTED_CALIBRATION_MATCHES:
-            problems.append(f"calibration_adoption.matches={adoption.get('matches')!r}")
-        if adoption.get("adopted_variant") != "calibrated":
-            problems.append(
-                f"calibration_adoption.adopted_variant={adoption.get('adopted_variant')!r}"
-            )
-
-    holdout = body.get("tournament_holdout")
-    if not isinstance(holdout, dict):
-        problems.append("tournament_holdout block missing")
-    else:
-        if holdout.get("split") != "UEFA Euro 2024":
-            problems.append(f"tournament_holdout.split={holdout.get('split')!r}")
-        if holdout.get("shots") != EXPECTED_HOLDOUT_SHOTS:
-            problems.append(f"tournament_holdout.shots={holdout.get('shots')!r}")
-        if holdout.get("matches") != EXPECTED_HOLDOUT_MATCHES:
-            problems.append(f"tournament_holdout.matches={holdout.get('matches')!r}")
-        if holdout.get("goals") != EXPECTED_HOLDOUT_GOALS:
-            problems.append(f"tournament_holdout.goals={holdout.get('goals')!r}")
-        if holdout.get("adopted_variant") != "calibrated":
-            problems.append(
-                f"tournament_holdout.adopted_variant={holdout.get('adopted_variant')!r}"
-            )
-
-        pinned_floats = {
-            "observed_prevalence": (
-                holdout.get("observed_prevalence"),
-                EXPECTED_HOLDOUT_PREVALENCE,
-            ),
-            "proper_scoring.log_loss": (
-                (holdout.get("proper_scoring") or {}).get("log_loss"),
-                EXPECTED_HOLDOUT_LOG_LOSS,
-            ),
-            "proper_scoring.brier": (
-                (holdout.get("proper_scoring") or {}).get("brier"),
-                EXPECTED_HOLDOUT_BRIER,
-            ),
-            "discrimination.roc_auc": (
-                (holdout.get("discrimination") or {}).get("roc_auc"),
-                EXPECTED_HOLDOUT_ROC_AUC,
-            ),
-            "discrimination.pr_auc": (
-                (holdout.get("discrimination") or {}).get("pr_auc"),
-                EXPECTED_HOLDOUT_PR_AUC,
-            ),
-        }
-        for field_name, (actual, expected) in pinned_floats.items():
-            if not isinstance(actual, (int, float)) or isinstance(actual, bool):
-                problems.append(f"tournament_holdout.{field_name}={actual!r} is not a number")
-            elif abs(float(actual) - expected) > METRICS_FLOAT_TOLERANCE:
-                problems.append(
-                    f"tournament_holdout.{field_name}={actual!r} differs from the qualified "
-                    f"packet value {expected!r}"
-                )
-
-        uncertainty = holdout.get("uncertainty")
-        if not isinstance(uncertainty, dict):
-            problems.append("tournament_holdout.uncertainty block missing")
-        elif uncertainty.get("method") != "match_clustered_paired_bootstrap":
-            problems.append(f"tournament_holdout.uncertainty.method={uncertainty.get('method')!r}")
     return problems
 
 
@@ -508,7 +609,7 @@ REQUIRED_FRONTEND_TEXT = (
     "What this view does not claim",
     "One-time tournament holdout",
     "Qualified evidence",
-    "Data provided by",
+    "Data provided by StatsBomb",
 )
 
 FORBIDDEN_FRONTEND_TEXT = (
@@ -583,9 +684,9 @@ def check_api(api: str, results: Results) -> None:
             "/shots returns recorded facts",
             all(shot.get(k) is not None for k in ("shot_id", "team", "outcome")),
         )
+        leaked = _probability_like_fields(body.get("shots", []))
         results.check(
-            "/shots carries no probability field",
-            not any(k.lower() in {"xg", "statsbomb_xg", "probability", "prediction"} for k in shot),
+            "/shots carries no probability or model-score field", not leaked, "; ".join(leaked)
         )
 
 
@@ -629,7 +730,7 @@ def check_model_surface(api: str, results: Results, fixture: dict[str, Any]) -> 
         for case in fixture["cases"]:
             response = _post_json(f"{api}/model/predict", case["request"])
             case_problems = (
-                predict_case_problems(case, response.json(), tolerance)
+                predict_case_problems(case, response.json(), tolerance, metadata)
                 if response.status == 200
                 else [f"HTTP {response.status}: {response.body[:120]}"]
             )
@@ -710,6 +811,45 @@ def check_request_id(api: str, frontend: str, results: Results) -> None:
         f"access-control-expose-headers={exposed!r}",
     )
 
+    for path, expected_status in (("/model/shots", 403), ("/__wp34_missing", 404)):
+        sent = str(uuid.uuid4())
+        response = _get(f"{api}{path}", {"X-Request-ID": sent, "Origin": frontend})
+        exposed = response.headers.get("access-control-expose-headers", "")
+        problems = request_id_echo_problems(sent, response.headers.get("x-request-id"))
+        if response.status != expected_status:
+            problems.append(f"status={response.status}, expected {expected_status}")
+        if "x-request-id" not in exposed.lower():
+            problems.append("X-Request-ID is not browser-readable")
+        results.check(
+            f"{path} error response preserves browser-readable X-Request-ID",
+            not problems,
+            "; ".join(problems),
+        )
+
+
+def preflight_problems(response: Response, origin: str, request_id: str) -> list[str]:
+    problems: list[str] = []
+    if response.status != 200:
+        problems.append(f"status={response.status}, expected 200")
+    if response.headers.get("access-control-allow-origin") != origin:
+        problems.append("allowed origin not echoed exactly")
+    if response.headers.get("access-control-allow-origin") == "*":
+        problems.append("wildcard origin weakens the allow-list")
+    methods = {
+        item.strip().upper()
+        for item in response.headers.get("access-control-allow-methods", "").split(",")
+    }
+    if "POST" not in methods:
+        problems.append("POST is not allowed")
+    headers = {
+        item.strip().lower()
+        for item in response.headers.get("access-control-allow-headers", "").split(",")
+    }
+    if not {"content-type", "x-request-id"}.issubset(headers):
+        problems.append("requested Content-Type and X-Request-ID headers are not allowed")
+    problems.extend(request_id_echo_problems(request_id, response.headers.get("x-request-id")))
+    return problems
+
 
 def check_cors(api: str, frontend: str, results: Results) -> None:
     """Verify the allow-list from the outside, with the origin the browser will actually send.
@@ -738,6 +878,30 @@ def check_cors(api: str, frontend: str, results: Results) -> None:
         "the allow-list is not a wildcard",
         refused_header != "*",
         "a wildcard lets any page on the internet read this API from a visitor's browser",
+    )
+    request_id = str(uuid.uuid4())
+    preflight_headers = {
+        "Origin": frontend,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "Content-Type, X-Request-ID",
+        "X-Request-ID": request_id,
+    }
+    preflight = _request(f"{api}/model/predict", method="OPTIONS", headers=preflight_headers)
+    problems = preflight_problems(preflight, frontend, request_id)
+    results.check(
+        "allowed POST prediction preflight preserves the WP3.3 CORS contract",
+        not problems,
+        "; ".join(problems),
+    )
+    refused_preflight = _request(
+        f"{api}/model/predict",
+        method="OPTIONS",
+        headers={**preflight_headers, "Origin": DISALLOWED_ORIGIN},
+    )
+    results.check(
+        "disallowed prediction preflight receives no allow-origin grant",
+        refused_preflight.headers.get("access-control-allow-origin") is None,
+        f"access-control-allow-origin={refused_preflight.headers.get('access-control-allow-origin')!r}",
     )
 
 

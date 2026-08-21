@@ -313,6 +313,33 @@ QUALITY_DENOMINATOR_MUTATIONS = (
 
 BREAKS: list[Break] = [
     Break(
+        contract="WP3.4 golden tolerance must be finite and strictly positive",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    tolerance = fixture.get("absolute_tolerance")\n'
+            "    if not _is_finite_real(tolerance) or float(tolerance) <= 0:\n"
+        ),
+        replacement=(
+            '    tolerance = fixture.get("absolute_tolerance")\n'
+            "    if tolerance is None:  # DELIBERATE BREAK: NaN/infinity accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 golden fixture probabilities must be finite and bounded",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "        if not _is_finite_real(expected_probability) "
+            "or not 0 <= float(expected_probability) <= 1:\n"
+        ),
+        replacement=(
+            "        if expected_probability is None:  # DELIBERATE BREAK: NaN/infinity accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP2.1 model cohort must exclude Penalty shot types",
         path=ROOT / "backend/sql/wp2_1/01_model_shot_cohort.sql",
         anchor="  AND s.shot_type_name <> 'Penalty'\n",
@@ -3401,8 +3428,58 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 deployed smoke scores golden predictions within the fixture tolerance",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor="    elif abs(float(actual) - float(expected_probability)) > tolerance:\n",
+        anchor=(
+            "    elif (\n"
+            "        _is_finite_real(tolerance)\n"
+            "        and float(tolerance) > 0\n"
+            "        and abs(float(actual) - float(expected_probability)) > float(tolerance)\n"
+            "    ):\n"
+        ),
         replacement="    elif False:  # DELIBERATE BREAK: golden probability deviation accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke rejects non-finite golden prediction values",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    actual = body.get("calibrated_probability")\n'
+            "    if not _is_finite_real(tolerance) or float(tolerance) <= 0:\n"
+            '        problems.append(f"case {name}: tolerance={tolerance!r} is not finite '
+            'and positive")\n'
+            "    if not _is_finite_real(actual) or not 0 <= float(actual) <= 1:\n"
+        ),
+        replacement=(
+            '    actual = body.get("calibrated_probability")\n'
+            "    if not _is_finite_real(tolerance) or float(tolerance) <= 0:\n"
+            '        problems.append(f"case {name}: tolerance={tolerance!r} is not finite '
+            'and positive")\n'
+            "    if actual is None:  # DELIBERATE BREAK: NaN/infinity accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 model metadata exactly matches the pinned public contract",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="    return _exact_contract_problems(body, EXPECTED_MODEL_METADATA)\n",
+        replacement=(
+            "    return []  # DELIBERATE BREAK: metadata drift and extra fields accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 metrics exactly match the complete pinned public packet",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "    problems = _exact_contract_problems(\n"
+            "        body, expected_body, float_tolerance=METRICS_FLOAT_TOLERANCE\n"
+            "    )\n"
+        ),
+        replacement=(
+            "    problems = []  # DELIBERATE BREAK: metrics drift and extra fields accepted\n"
+        ),
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
@@ -3417,10 +3494,80 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP3.4 deployed smoke scans the closed-gate body for leaked probabilities",
+        contract="WP3.4 deployed smoke enforces the exact closed-gate error envelope",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor='    if "calibrated_probability" in serialized:\n',
-        replacement="    if False:  # DELIBERATE BREAK: probability leak scan removed\n",
+        anchor="    if body != expected:\n",
+        replacement="    if False:  # DELIBERATE BREAK: error-envelope drift accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed smoke recursively rejects probability-like fields",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '            if "xg" in normalized or "probabil" in normalized '
+            'or "predict" in normalized:\n'
+        ),
+        replacement="            if False:  # DELIBERATE BREAK: model-score fields accepted\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 golden prediction provenance agrees with /model",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "        if body.get(field_name) != metadata.get(field_name):\n"
+            '            problems.append(f"case {name}: {field_name} disagrees with /model '
+            'provenance")\n'
+        ),
+        replacement=(
+            "        if False:  # DELIBERATE BREAK: cross-endpoint provenance drift accepted\n"
+            '            problems.append(f"case {name}: {field_name} disagrees with /model '
+            'provenance")\n'
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed preflight requires POST",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if "POST" not in methods:\n',
+        replacement="    if False:  # DELIBERATE BREAK: POST need not be allowed\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed preflight requires the exact allowed origin",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            '    if response.headers.get("access-control-allow-origin") != origin:\n'
+            '        problems.append("allowed origin not echoed exactly")\n'
+        ),
+        replacement=(
+            "    if False:  # DELIBERATE BREAK: preflight origin grant ignored\n"
+            '        problems.append("allowed origin not echoed exactly")\n'
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed preflight requires both requested headers",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='    if not {"content-type", "x-request-id"}.issubset(headers):\n',
+        replacement="    if False:  # DELIBERATE BREAK: requested headers ignored\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 deployed preflight correlates X-Request-ID",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor=(
+            "    problems.extend(request_id_echo_problems(request_id, "
+            'response.headers.get("x-request-id")))\n'
+        ),
+        replacement=(
+            "    problems.extend([])  # DELIBERATE BREAK: preflight request correlation ignored\n"
+        ),
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
@@ -3443,7 +3590,7 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 deployed smoke requires StatsBomb attribution on the deployed page",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor='    "Qualified evidence",\n    "Data provided by",\n)',
+        anchor='    "Qualified evidence",\n    "Data provided by StatsBomb",\n)',
         replacement=(
             '    "Qualified evidence",\n)  # DELIBERATE BREAK: attribution no longer required'
         ),

@@ -15,7 +15,7 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -49,28 +49,12 @@ def fixture() -> dict[str, Any]:
 
 def _metadata(smoke: Any, fixture: dict[str, Any]) -> dict[str, Any]:
     """A /model body consistent with the fixture's recorded provenance."""
-    return {
-        "model_version": smoke.EXPECTED_RELEASE_ID,
-        "release_id": smoke.EXPECTED_RELEASE_ID,
-        "serving_manifest_sha256": "a" * 64,
-        "release_manifest_sha256": "b" * 64,
-        "release_manifest_file_sha256": "c" * 64,
-        "artifact_sha256": fixture["model_sha256"],
-        "calibration_decision_sha256": fixture["calibration_decision_sha256"],
-        "release_status": "m2_qualified",
-        "qualification_serving_status": "not_served",
-        "runtime_status": "ready",
-        "candidate": "full_minus_presence",
-        "estimator": "logistic_regression",
-        "calibration": "platt_sigmoid",
-        "adopted_variant": "calibrated",
-        "output": "goal_conversion_probability",
-        "scopes": {
-            "development": {"shots": 2872, "matches": 115},
-            "calibration": {"shots": 1430, "matches": 64},
-            "tournament_holdout": {"shots": 1304, "matches": 51},
-        },
-    }
+    assert smoke.EXPECTED_PROVENANCE["artifact_sha256"] == fixture["model_sha256"]
+    assert (
+        smoke.EXPECTED_PROVENANCE["calibration_decision_sha256"]
+        == fixture["calibration_decision_sha256"]
+    )
+    return cast(dict[str, Any], json.loads(json.dumps(smoke.EXPECTED_MODEL_METADATA)))
 
 
 @pytest.fixture(scope="module")
@@ -110,6 +94,36 @@ def test_golden_fixture_loader_rejects_unusable_inputs(smoke: Any, tmp_path: Pat
     no_tolerance.write_text(json.dumps({"cases": [{"name": "x"}]}), encoding="utf-8")
     untolerated, untolerated_error = smoke.load_golden_fixture(no_tolerance)
     assert untolerated is None and untolerated_error
+
+    for index, tolerance in enumerate((float("nan"), float("inf"), float("-inf"), True, 0, -1)):
+        bad = tmp_path / f"bad-tolerance-{index}.json"
+        bad.write_text(
+            json.dumps(
+                {
+                    "absolute_tolerance": tolerance,
+                    "cases": [{"name": "x", "expected": {"calibrated_probability": 0.5}}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        loaded, error = smoke.load_golden_fixture(bad)
+        assert loaded is None and error
+
+    for index, probability in enumerate(
+        (float("nan"), float("inf"), float("-inf"), True, -0.1, 1.1)
+    ):
+        bad = tmp_path / f"bad-expected-probability-{index}.json"
+        bad.write_text(
+            json.dumps(
+                {
+                    "absolute_tolerance": 1e-12,
+                    "cases": [{"name": "x", "expected": {"calibrated_probability": probability}}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        loaded, error = smoke.load_golden_fixture(bad)
+        assert loaded is None and error
 
 
 def test_ready_problems_accepts_the_full_admission_state(smoke: Any) -> None:
@@ -177,6 +191,19 @@ def test_model_metadata_problems_rejects_identity_drift(
         "artifact_sha256" in problem for problem in smoke.model_metadata_problems(undigested)
     )
 
+    boolean_count = json.loads(json.dumps(metadata))
+    boolean_count["scopes"]["development"]["shots"] = True
+    assert smoke.model_metadata_problems(boolean_count)
+
+    unexpected = {**metadata, "provider_xg": 0.4}
+    assert any(
+        "unexpected fields" in problem for problem in smoke.model_metadata_problems(unexpected)
+    )
+
+    non_finite_bound = json.loads(json.dumps(metadata))
+    non_finite_bound["input_contract"]["coordinates"]["location_x"]["maximum"] = float("nan")
+    assert smoke.model_metadata_problems(non_finite_bound)
+
 
 def test_provenance_gate_passes_on_matching_identities(
     smoke: Any, fixture: dict[str, Any], metadata: dict[str, Any]
@@ -204,13 +231,7 @@ def test_provenance_gate_fails_when_the_calibration_decision_differs(
 
 def _predict_response(smoke: Any, case: dict[str, Any], probability: float) -> dict[str, Any]:
     return {
-        "model_version": smoke.EXPECTED_RELEASE_ID,
-        "release_id": smoke.EXPECTED_RELEASE_ID,
-        "serving_manifest_sha256": "a" * 64,
-        "release_manifest_sha256": "b" * 64,
-        "release_manifest_file_sha256": "c" * 64,
-        "artifact_sha256": "d" * 64,
-        "calibration_decision_sha256": "e" * 64,
+        **smoke.EXPECTED_PROVENANCE,
         "calibrated_probability": probability,
     }
 
@@ -220,7 +241,9 @@ def test_predict_case_matches_the_public_contract_only(smoke: Any, fixture: dict
     expected_probability = case["expected"]["calibrated_probability"]
     response = _predict_response(smoke, case, expected_probability)
     tolerance = smoke.golden_tolerance(fixture)
-    assert smoke.predict_case_problems(case, response, tolerance) == []
+    assert (
+        smoke.predict_case_problems(case, response, tolerance, smoke.EXPECTED_MODEL_METADATA) == []
+    )
 
 
 def test_predict_case_tolerates_only_the_declared_deviation(
@@ -231,8 +254,8 @@ def test_predict_case_tolerates_only_the_declared_deviation(
     tolerance = float(smoke.golden_tolerance(fixture))
     near = _predict_response(smoke, case, expected_probability + (tolerance / 2))
     far = _predict_response(smoke, case, expected_probability + (tolerance * 10))
-    assert smoke.predict_case_problems(case, near, tolerance) == []
-    problems = smoke.predict_case_problems(case, far, tolerance)
+    assert smoke.predict_case_problems(case, near, tolerance, smoke.EXPECTED_MODEL_METADATA) == []
+    problems = smoke.predict_case_problems(case, far, tolerance, smoke.EXPECTED_MODEL_METADATA)
     assert len(problems) == 1
     assert "beyond the fixture tolerance" in problems[0]
 
@@ -242,7 +265,9 @@ def test_predict_case_rejects_internal_oracle_leakage(smoke: Any, fixture: dict[
     expected_probability = case["expected"]["calibrated_probability"]
     leaking = _predict_response(smoke, case, expected_probability)
     leaking["base_logit"] = case["expected"]["base_logit"]
-    problems = smoke.predict_case_problems(case, leaking, smoke.golden_tolerance(fixture))
+    problems = smoke.predict_case_problems(
+        case, leaking, smoke.golden_tolerance(fixture), smoke.EXPECTED_MODEL_METADATA
+    )
     assert len(problems) == 1
     assert "outside the public prediction contract" in problems[0]
     assert "base_logit" in problems[0]
@@ -252,17 +277,52 @@ def test_predict_case_rejects_a_missing_public_field(smoke: Any, fixture: dict[s
     case = fixture["cases"][0]
     response = _predict_response(smoke, case, case["expected"]["calibrated_probability"])
     del response["serving_manifest_sha256"]
-    problems = smoke.predict_case_problems(case, response, smoke.golden_tolerance(fixture))
-    assert len(problems) == 1
-    assert "public contract fields absent" in problems[0]
+    problems = smoke.predict_case_problems(
+        case, response, smoke.golden_tolerance(fixture), smoke.EXPECTED_MODEL_METADATA
+    )
+    assert any("public contract fields absent" in problem for problem in problems)
 
 
 def test_predict_case_rejects_a_foreign_release(smoke: Any, fixture: dict[str, Any]) -> None:
     case = fixture["cases"][0]
     response = _predict_response(smoke, case, case["expected"]["calibrated_probability"])
     response["release_id"] = "exp-19700101-someone-elses-model"
-    problems = smoke.predict_case_problems(case, response, smoke.golden_tolerance(fixture))
+    problems = smoke.predict_case_problems(
+        case, response, smoke.golden_tolerance(fixture), smoke.EXPECTED_MODEL_METADATA
+    )
     assert any("release_id" in problem for problem in problems)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf"), True, -0.1, 1.1])
+def test_predict_case_rejects_non_finite_or_unbounded_probabilities(
+    smoke: Any, fixture: dict[str, Any], bad: Any
+) -> None:
+    case = fixture["cases"][0]
+    response = _predict_response(smoke, case, bad)
+    assert smoke.predict_case_problems(
+        case, response, smoke.golden_tolerance(fixture), smoke.EXPECTED_MODEL_METADATA
+    )
+
+
+def test_predict_case_requires_exact_model_provenance(
+    smoke: Any, fixture: dict[str, Any], metadata: dict[str, Any]
+) -> None:
+    case = fixture["cases"][0]
+    response = {**metadata, "calibrated_probability": case["expected"]["calibrated_probability"]}
+    for field in (
+        "serving_manifest_sha256",
+        "release_manifest_sha256",
+        "release_manifest_file_sha256",
+        "artifact_sha256",
+        "calibration_decision_sha256",
+    ):
+        drifted = {**response, field: "9" * 64}
+        assert any(
+            field in problem
+            for problem in smoke.predict_case_problems(
+                case, drifted, smoke.golden_tolerance(fixture), metadata
+            )
+        )
 
 
 def _closed_gate_body() -> dict[str, Any]:
@@ -288,7 +348,7 @@ def test_closed_model_shots_flags_the_wrong_code_alone(smoke: Any) -> None:
     wrong_code = {"error": {"code": "not_found", "message": "nope", "details": []}}
     problems = smoke.closed_model_shots_problems(403, wrong_code)
     assert len(problems) == 1
-    assert "publication_gate_closed" in problems[0]
+    assert "closed-gate error envelope" in problems[0]
 
 
 def test_closed_model_shots_flags_leaked_probabilities_alone(smoke: Any) -> None:
@@ -300,8 +360,7 @@ def test_closed_model_shots_flags_leaked_probabilities_alone(smoke: Any) -> None
         }
     }
     problems = smoke.closed_model_shots_problems(403, leaking_message)
-    assert len(problems) == 1
-    assert "leaked" in problems[0]
+    assert any("closed-gate error envelope" in problem for problem in problems)
 
 
 def test_closed_model_shots_rejects_an_open_response(smoke: Any) -> None:
@@ -316,94 +375,46 @@ def test_closed_model_shots_rejects_an_open_response(smoke: Any) -> None:
     problems = smoke.closed_model_shots_problems(200, open_body)
     assert any("status=200" in problem for problem in problems)
     assert any("leaked" in problem for problem in problems)
-    assert any(
-        "shots' collection" in problem or 'shots" collection' in problem for problem in problems
-    )
+    assert any("closed-gate error envelope" in problem for problem in problems)
 
 
 def test_closed_model_shots_rejects_the_wrong_code(smoke: Any) -> None:
     wrong_code = {"error": {"code": "not_found", "message": "nope", "details": []}}
     problems = smoke.closed_model_shots_problems(403, wrong_code)
-    assert any("publication_gate_closed" in problem for problem in problems)
+    assert any("closed-gate error envelope" in problem for problem in problems)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {**_closed_gate_body(), "extra": "field"},
+        {"error": {**_closed_gate_body()["error"], "extra": "field"}},
+        {"error": {**_closed_gate_body()["error"], "message": "wrong"}},
+        {"error": {**_closed_gate_body()["error"], "details": [{"field": "x"}]}},
+        {"error": _closed_gate_body()["error"], "nested": {"model_prediction": 0.2}},
+        {"error": _closed_gate_body()["error"], "statsbomb_xg": 0.2},
+    ],
+)
+def test_closed_model_shots_rejects_any_envelope_drift_or_score_leak(
+    smoke: Any, body: dict[str, Any]
+) -> None:
+    assert smoke.closed_model_shots_problems(403, body)
+
+
+def _metrics_body(smoke: Any) -> dict[str, Any]:
+    return {
+        **smoke.EXPECTED_PROVENANCE,
+        **json.loads(json.dumps(smoke.EXPECTED_METRICS_CONTENT)),
+    }
 
 
 def test_metrics_problems_accept_the_qualified_packet(smoke: Any, metadata: dict[str, Any]) -> None:
-    body = {
-        **metadata,
-        "evidence_source": {
-            "holdout_metrics_sha256": smoke.EXPECTED_HOLDOUT_METRICS_SHA256,
-            "evidence_status": "qualified_m2_evidence",
-            "recomputed_at_request_time": False,
-        },
-        "calibration_adoption": {
-            "split": "FIFA World Cup 2022",
-            "role": "calibration",
-            "shots": 1430,
-            "matches": 64,
-            "adopted_variant": "calibrated",
-        },
-        "tournament_holdout": {
-            "split": "UEFA Euro 2024",
-            "role": "one_time_tournament_holdout",
-            "shots": 1304,
-            "matches": 51,
-            "goals": 98,
-            "observed_prevalence": smoke.EXPECTED_HOLDOUT_PREVALENCE,
-            "adopted_variant": "calibrated",
-            "proper_scoring": {
-                "log_loss": smoke.EXPECTED_HOLDOUT_LOG_LOSS,
-                "brier": smoke.EXPECTED_HOLDOUT_BRIER,
-            },
-            "discrimination": {
-                "roc_auc": smoke.EXPECTED_HOLDOUT_ROC_AUC,
-                "pr_auc": smoke.EXPECTED_HOLDOUT_PR_AUC,
-            },
-            "uncertainty": {"method": "match_clustered_paired_bootstrap"},
-        },
-    }
+    body = _metrics_body(smoke)
     assert smoke.metrics_problems(body, metadata) == []
 
 
 def test_metrics_problems_reject_packet_drift(smoke: Any, metadata: dict[str, Any]) -> None:
-    base = {
-        "model_version": smoke.EXPECTED_RELEASE_ID,
-        "release_id": smoke.EXPECTED_RELEASE_ID,
-        "serving_manifest_sha256": metadata["serving_manifest_sha256"],
-        "release_manifest_sha256": metadata["release_manifest_sha256"],
-        "release_manifest_file_sha256": metadata["release_manifest_file_sha256"],
-        "artifact_sha256": metadata["artifact_sha256"],
-        "calibration_decision_sha256": metadata["calibration_decision_sha256"],
-        "evidence_source": {
-            "holdout_metrics_sha256": smoke.EXPECTED_HOLDOUT_METRICS_SHA256,
-            "evidence_status": "qualified_m2_evidence",
-            "recomputed_at_request_time": False,
-        },
-        "calibration_adoption": {
-            "split": "FIFA World Cup 2022",
-            "role": "calibration",
-            "shots": 1430,
-            "matches": 64,
-            "adopted_variant": "calibrated",
-        },
-        "tournament_holdout": {
-            "split": "UEFA Euro 2024",
-            "role": "one_time_tournament_holdout",
-            "shots": 1304,
-            "matches": 51,
-            "goals": 98,
-            "observed_prevalence": smoke.EXPECTED_HOLDOUT_PREVALENCE,
-            "adopted_variant": "calibrated",
-            "proper_scoring": {
-                "log_loss": smoke.EXPECTED_HOLDOUT_LOG_LOSS,
-                "brier": smoke.EXPECTED_HOLDOUT_BRIER,
-            },
-            "discrimination": {
-                "roc_auc": smoke.EXPECTED_HOLDOUT_ROC_AUC,
-                "pr_auc": smoke.EXPECTED_HOLDOUT_PR_AUC,
-            },
-            "uncertainty": {"method": "match_clustered_paired_bootstrap"},
-        },
-    }
+    base = _metrics_body(smoke)
 
     def with_holdout(**changes: Any) -> dict[str, Any]:
         body: dict[str, Any] = json.loads(json.dumps(base))
@@ -431,6 +442,32 @@ def test_metrics_problems_reject_packet_drift(smoke: Any, metadata: dict[str, An
         "disagrees with /model provenance" in problem
         for problem in smoke.metrics_problems(disagreeing_provenance, metadata)
     )
+
+    for bad in (float("nan"), float("inf"), float("-inf"), True):
+        assert smoke.metrics_problems(with_holdout(observed_prevalence=bad), metadata)
+
+    for path in (
+        ("calibration_adoption", "calibrated", "log_loss"),
+        ("calibration_adoption", "raw_anchor_reliability", 0, "raw_mean_prediction"),
+        ("tournament_holdout", "uncertainty", "confidence_level"),
+        ("tournament_holdout", "reliability", 0, "mean_prediction"),
+        ("tournament_holdout", "raw_comparator", "proper_scoring", "brier"),
+    ):
+        broken = json.loads(json.dumps(base))
+        cursor: Any = broken
+        for part in path[:-1]:
+            cursor = cursor[part]
+        cursor[path[-1]] = float("nan")
+        assert smoke.metrics_problems(broken, metadata)
+
+    unexpected = {**base, "provider_xg": 0.3}
+    assert any(
+        "unexpected fields" in problem for problem in smoke.metrics_problems(unexpected, metadata)
+    )
+
+    malformed_nested = json.loads(json.dumps(base))
+    malformed_nested["tournament_holdout"]["proper_scoring"] = []
+    assert smoke.metrics_problems(malformed_nested, metadata)
 
 
 def test_request_id_echo_contract(smoke: Any) -> None:
@@ -478,15 +515,52 @@ def test_frontend_problems_forbid_error_states(smoke: Any) -> None:
 
 
 def test_frontend_requires_the_statsbomb_attribution_anchor(smoke: Any) -> None:
-    assert "Data provided by" in smoke.REQUIRED_FRONTEND_TEXT
+    assert "Data provided by StatsBomb" in smoke.REQUIRED_FRONTEND_TEXT
 
     without_attribution = [
-        fragment for fragment in smoke.REQUIRED_FRONTEND_TEXT if fragment != "Data provided by"
+        fragment
+        for fragment in smoke.REQUIRED_FRONTEND_TEXT
+        if fragment != "Data provided by StatsBomb"
     ]
     html = "<p>" + "</p><p>".join(without_attribution) + "</p>"
     problems = smoke.frontend_problems(html)
     assert len(problems) == 1
-    assert "Data provided by" in problems[0]
+    assert "StatsBomb" in problems[0]
+
+    generic_only = html + "<p>Data provided by</p>"
+    assert smoke.frontend_problems(generic_only)
+
+
+def test_recursive_probability_field_detection_preserves_facts_and_rejects_scores(
+    smoke: Any,
+) -> None:
+    facts = {"shots": [{"shot_id": "x", "outcome": "Goal", "team": "A"}]}
+    assert smoke._probability_like_fields(facts) == []
+    for key in ("calibrated_probability", "goal_probabilities", "statsbomb_xg", "model_prediction"):
+        assert smoke._probability_like_fields({"shots": [{"nested": {key: 0.2}}]})
+
+
+def test_preflight_validator_requires_exact_origin_method_headers_and_request_id(
+    smoke: Any,
+) -> None:
+    origin = "https://touchline.example"
+    request_id = str(uuid.uuid4())
+    headers = {
+        "access-control-allow-origin": origin,
+        "access-control-allow-methods": "POST",
+        "access-control-allow-headers": "Content-Type, X-Request-ID",
+        "x-request-id": request_id,
+    }
+    assert smoke.preflight_problems(smoke.Response(200, "OK", headers), origin, request_id) == []
+    for field in (
+        "access-control-allow-origin",
+        "access-control-allow-methods",
+        "access-control-allow-headers",
+        "x-request-id",
+    ):
+        broken = {**headers}
+        del broken[field]
+        assert smoke.preflight_problems(smoke.Response(200, "OK", broken), origin, request_id)
 
 
 def test_uuid_and_digest_helpers(smoke: Any) -> None:
