@@ -18,6 +18,7 @@ from touchline.config import (
     RuntimeDatabaseUrlInvalidError,
     get_settings,
     migration_database_url,
+    migration_uses_dedicated_url,
     require_direct_database_url,
 )
 
@@ -238,7 +239,7 @@ def main() -> int:
             db_url,
             variable_name=(
                 "TOUCHLINE_MIGRATION_DB_URL"
-                if settings.migration_db_url is not None
+                if migration_uses_dedicated_url()
                 else "TOUCHLINE_DB_URL"
             ),
         )

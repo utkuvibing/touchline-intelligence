@@ -88,7 +88,7 @@ def test_migration_rejects_an_invalid_dedicated_url_without_echoing_it(
     assert secret not in error
 
 
-def test_migration_cli_sanitizes_invalid_dedicated_url_even_when_runtime_url_is_missing(
+def test_migration_cli_reports_missing_runtime_configuration_without_echoing_migration_url(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
@@ -102,7 +102,7 @@ def test_migration_cli_sanitizes_invalid_dedicated_url_even_when_runtime_url_is_
     assert migrate.main() == 1
 
     error = capsys.readouterr().err
-    assert error.startswith("TOUCHLINE_MIGRATION_DB_URL must be a valid")
+    assert error.startswith("Missing required environment variable(s): TOUCHLINE_DB_URL")
     assert secret not in error
 
 

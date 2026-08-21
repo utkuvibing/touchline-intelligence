@@ -70,6 +70,17 @@ def test_valid_request_id_is_returned_and_logged(
     assert isinstance(record["duration_ms"], float)
 
 
+def test_runtime_request_ignores_malformed_migration_configuration(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TOUCHLINE_MIGRATION_DB_URL", "not-a-dsn-with-secret")
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
 @pytest.mark.parametrize("value", ["not-a-uuid", "x" * 129])
 def test_malformed_or_oversized_request_id_is_replaced_without_rejecting_request(
     client: TestClient, value: str
@@ -104,6 +115,53 @@ def test_cors_exposes_request_id_header(client: TestClient) -> None:
     )
 
     assert response.headers["access-control-expose-headers"] == REQUEST_ID_HEADER
+
+
+def test_cors_preflight_is_correlated_and_logged_once(
+    client: TestClient, log_output: io.StringIO
+) -> None:
+    request_id = "00000000-0000-4000-8000-000000000002"
+    origin = "http://localhost:3000"
+
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": REQUEST_ID_HEADER,
+            REQUEST_ID_HEADER: request_id,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers[REQUEST_ID_HEADER] == request_id
+    assert response.headers["access-control-allow-origin"] == origin
+    records = _completion_records(log_output.getvalue())
+    assert len(records) == 1
+    assert records[0]["event"] == "request_completed"
+    assert records[0]["request_id"] == request_id
+    assert records[0]["method"] == "OPTIONS"
+    assert records[0]["status"] == 200
+
+
+def test_rejected_cors_preflight_is_correlated_and_logged_once(
+    client: TestClient, log_output: io.StringIO
+) -> None:
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "https://not-allowed.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 400
+    assert len(response.headers[REQUEST_ID_HEADER]) == 36
+    records = _completion_records(log_output.getvalue())
+    assert len(records) == 1
+    assert records[0]["event"] == "request_completed"
+    assert records[0]["method"] == "OPTIONS"
+    assert records[0]["status"] == 400
 
 
 @pytest.mark.parametrize(

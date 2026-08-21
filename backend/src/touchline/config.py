@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import ipaddress
 import os
+from typing import Any
 
-from pydantic import Field, PostgresDsn, ValidationError
+from pydantic import Field, PostgresDsn, TypeAdapter, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,13 +37,6 @@ class Settings(BaseSettings):
     db_url: PostgresDsn = Field(
         description="PostgreSQL connection string. Required — there is no safe default.",
     )
-    migration_db_url: PostgresDsn | None = Field(
-        default=None,
-        description=(
-            "Direct PostgreSQL connection string for schema migrations. Required outside local "
-            "and test environments; local/test may fall back to db_url."
-        ),
-    )
     cors_origins: str = Field(
         default="http://localhost:3000",
         description=(
@@ -57,6 +51,17 @@ class Settings(BaseSettings):
             "not be enabled publicly until the documented StatsBomb/Hudl question is resolved."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _exclude_migration_configuration(cls, values: Any) -> Any:
+        """Keep migration-only input out of serving validation and runtime settings."""
+        if not isinstance(values, dict):
+            return values
+        filtered = dict(values)
+        filtered.pop("migration_db_url", None)
+        filtered.pop("touchline_migration_db_url", None)
+        return filtered
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -83,10 +88,26 @@ class Settings(BaseSettings):
         """The DSN as a plain string, which is what psycopg expects."""
         return str(self.db_url)
 
-    @property
-    def migration_db_url_str(self) -> str | None:
-        """The dedicated migration DSN, if configured, as a psycopg-ready string."""
-        return str(self.migration_db_url) if self.migration_db_url is not None else None
+
+class MigrationSettings(BaseSettings):
+    """Migration-only configuration, loaded only by the migration command path.
+
+    The serving application deliberately does not model this variable. That keeps a missing or
+    malformed migration credential from preventing a correctly configured API worker from
+    starting; ``migration_database_url`` validates it when a migration is explicitly requested.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="TOUCHLINE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    migration_db_url: str | None = Field(
+        default=None,
+        description="Direct PostgreSQL connection string used only for schema migrations.",
+    )
 
 
 class MissingConfigurationError(RuntimeError):
@@ -143,8 +164,15 @@ def migration_database_url(settings: Settings) -> PostgresDsn:
     A deployed service must explicitly provide a direct URL. The fallback exists only for local
     development and tests, where one Docker Compose connection is intentionally sufficient.
     """
-    if settings.migration_db_url is not None:
-        return settings.migration_db_url
+    raw_migration_url = MigrationSettings().migration_db_url
+    if raw_migration_url is not None:
+        try:
+            return TypeAdapter(PostgresDsn).validate_python(raw_migration_url)
+        except ValidationError:
+            raise MigrationDatabaseUrlInvalidError(
+                "TOUCHLINE_MIGRATION_DB_URL must be a valid PostgreSQL connection URL. "
+                "Configure Neon's direct connection URL for migrations."
+            ) from None
     environment = settings.environment.strip().lower()
     if environment in {"local", "test"} and is_local_write_target(settings.db_url):
         return settings.db_url
@@ -153,6 +181,11 @@ def migration_database_url(settings: Settings) -> PostgresDsn:
         "TOUCHLINE_DB_URL points to a local database. Configure Neon's direct connection URL for "
         "migrations; TOUCHLINE_DB_URL remains the pooled runtime URL."
     )
+
+
+def migration_uses_dedicated_url() -> bool:
+    """Whether the migration-only variable is configured, without validating its value."""
+    return MigrationSettings().migration_db_url is not None
 
 
 class RemoteWriteBlockedError(RuntimeError):
@@ -280,14 +313,6 @@ def get_settings() -> Settings:
         return Settings()  # type: ignore[call-arg]  # values come from the environment
     except ValidationError as exc:
         errors = exc.errors()
-        # Select this error before coexisting missing-field errors. Pydantic's validation detail
-        # contains the rejected input, so neither it nor its exception chain is safe for a
-        # pre-deploy log when the input is a credential-bearing database DSN.
-        if any(error["loc"] == ("migration_db_url",) for error in errors):
-            raise MigrationDatabaseUrlInvalidError(
-                "TOUCHLINE_MIGRATION_DB_URL must be a valid PostgreSQL connection URL. "
-                "Configure Neon's direct connection URL for migrations."
-            ) from None
         if any(error["loc"] == ("db_url",) and error["type"] != "missing" for error in errors):
             raise RuntimeDatabaseUrlInvalidError(
                 "TOUCHLINE_DB_URL must be a valid PostgreSQL connection URL. Configure Neon's "

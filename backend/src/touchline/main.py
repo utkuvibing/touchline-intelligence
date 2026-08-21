@@ -56,10 +56,6 @@ app.state.environment = get_settings().environment
 # Restricted to named origins, never `*`. The deployed frontend is one known origin, so allowing
 # any page on the internet to read this API from a visitor's browser would buy nothing.
 # Read-only API, so no credentials and only the verbs actually used.
-# Middleware is applied in reverse registration order. Logging must be inside CORS so even the
-# generic 500 it creates for an unexpected application exception retains the allowed-origin
-# response headers.
-app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
@@ -68,6 +64,10 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+# Middleware is applied in reverse registration order. Logging is outermost so CORS preflight
+# responses receive the same request ID and completion record as every other HTTP response. The
+# logger mirrors the small CORS error-header subset for the generic 500 response it creates.
+app.add_middleware(RequestLoggingMiddleware, allowed_origins=get_settings().allowed_origins)
 
 
 class Health(BaseModel):

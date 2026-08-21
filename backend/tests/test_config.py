@@ -123,18 +123,19 @@ def test_non_local_migrations_require_a_dedicated_url_without_leaking_runtime_ds
     assert runtime_dsn not in message
 
 
-def test_migration_url_is_independent_of_the_pooled_runtime_url() -> None:
+def test_migration_url_is_independent_of_the_pooled_runtime_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     migration_dsn = "postgresql://operator:secret@direct.example.test:5432/touchline"
+    monkeypatch.setenv("TOUCHLINE_MIGRATION_DB_URL", migration_dsn)
     settings = _settings(
         db_url="postgresql://operator:secret@pooled.example.test:5432/touchline",
-        migration_db_url=migration_dsn,
         environment="production",
     )
-    assert settings.migration_db_url_str == migration_dsn
-    assert migration_database_url(settings) == settings.migration_db_url
+    assert str(migration_database_url(settings)) == migration_dsn
 
 
-def test_invalid_migration_url_has_a_sanitized_configuration_error(
+def test_invalid_migration_url_does_not_break_serving_settings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -142,28 +143,55 @@ def test_invalid_migration_url_has_a_sanitized_configuration_error(
     monkeypatch.setenv("TOUCHLINE_DB_URL", VALID_DSN)
     monkeypatch.setenv("TOUCHLINE_MIGRATION_DB_URL", secret)
 
+    settings = get_settings()
+    assert settings.db_url_str == VALID_DSN
+
     with pytest.raises(MigrationDatabaseUrlInvalidError) as excinfo:
-        get_settings()
+        migration_database_url(settings)
 
     message = str(excinfo.value)
     assert "TOUCHLINE_MIGRATION_DB_URL" in message
     assert secret not in message
 
 
-def test_invalid_migration_url_is_prioritized_and_unchained_when_runtime_url_is_missing(
+def test_invalid_migration_url_does_not_mask_missing_runtime_configuration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
     secret = "postgresql://operator:credential@not a valid host/touchline"
     monkeypatch.setenv("TOUCHLINE_MIGRATION_DB_URL", secret)
 
-    with pytest.raises(MigrationDatabaseUrlInvalidError) as excinfo:
+    with pytest.raises(MissingConfigurationError) as excinfo:
         get_settings()
 
-    assert excinfo.value.__cause__ is None
-    assert excinfo.value.__context__ is not None
-    assert excinfo.value.__suppress_context__ is True
+    assert "TOUCHLINE_DB_URL" in str(excinfo.value)
     assert secret not in str(excinfo.value)
+
+
+def test_missing_migration_url_does_not_break_serving_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TOUCHLINE_DB_URL", VALID_DSN)
+    monkeypatch.delenv("TOUCHLINE_MIGRATION_DB_URL", raising=False)
+
+    settings = get_settings()
+
+    assert settings.db_url_str == VALID_DSN
+
+
+def test_malformed_migration_url_in_dotenv_does_not_break_serving_settings(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        f"TOUCHLINE_DB_URL={VALID_DSN}\nTOUCHLINE_MIGRATION_DB_URL=not-a-dsn\n",
+        encoding="utf-8",
+    )
+
+    settings = Settings(_env_file=env_file)  # type: ignore[call-arg]
+
+    assert settings.db_url_str == VALID_DSN
 
 
 def test_unknown_settings_are_rejected() -> None:

@@ -902,14 +902,8 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.3 migrations must select the dedicated migration URL when configured",
         path=ROOT / "backend/src/touchline/config.py",
-        anchor=(
-            "    if settings.migration_db_url is not None:\n"
-            "        return settings.migration_db_url"
-        ),
-        replacement=(
-            "    if settings.migration_db_url is not None:\n"
-            "        return settings.db_url  # DELIBERATE BREAK"
-        ),
+        anchor="            return TypeAdapter(PostgresDsn).validate_python(raw_migration_url)",
+        replacement="            return settings.db_url  # DELIBERATE BREAK",
         command=CONFIG_TESTS,
         cwd=ROOT,
     ),
@@ -924,10 +918,13 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP3.3 malformed migration credentials must outrank and not chain validation",
+        contract="WP3.3 serving settings must ignore migration-only configuration",
         path=ROOT / "backend/src/touchline/config.py",
-        anchor='        if any(error["loc"] == ("migration_db_url",) for error in errors):',
-        replacement="        if False:  # DELIBERATE BREAK",
+        anchor=(
+            '        filtered.pop("migration_db_url", None)\n'
+            '        filtered.pop("touchline_migration_db_url", None)'
+        ),
+        replacement='        filtered.pop("migration_db_url", None)  # DELIBERATE BREAK',
         command=CONFIG_TESTS,
         cwd=ROOT,
     ),
@@ -968,20 +965,9 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP3.3 CORS must wrap unexpected-error request logging responses",
+        contract="WP3.3 CORS must not bypass request logging for preflight responses",
         path=ROOT / "backend/src/touchline/main.py",
         anchor=(
-            "app.add_middleware(RequestLoggingMiddleware)\n"
-            "app.add_middleware(\n"
-            "    CORSMiddleware,\n"
-            "    allow_origins=get_settings().allowed_origins,\n"
-            "    allow_credentials=False,\n"
-            '    allow_methods=["GET", "POST", "OPTIONS"],\n'
-            '    allow_headers=["*"],\n'
-            '    expose_headers=["X-Request-ID"],\n'
-            ")"
-        ),
-        replacement=(
             "app.add_middleware(\n"
             "    CORSMiddleware,\n"
             "    allow_origins=get_settings().allowed_origins,\n"
@@ -990,7 +976,26 @@ BREAKS: list[Break] = [
             '    allow_headers=["*"],\n'
             '    expose_headers=["X-Request-ID"],\n'
             ")\n"
-            "app.add_middleware(RequestLoggingMiddleware)  # DELIBERATE BREAK"
+            "# Middleware is applied in reverse registration order. Logging is outermost so CORS "
+            "preflight\n"
+            "# responses receive the same request ID and completion record as every other HTTP "
+            "response. The\n"
+            "# logger mirrors the small CORS error-header subset for the generic 500 response it "
+            "creates.\n"
+            "app.add_middleware(RequestLoggingMiddleware, "
+            "allowed_origins=get_settings().allowed_origins)"
+        ),
+        replacement=(
+            "app.add_middleware(RequestLoggingMiddleware, "
+            "allowed_origins=get_settings().allowed_origins)\n"
+            "app.add_middleware(\n"
+            "    CORSMiddleware,\n"
+            "    allow_origins=get_settings().allowed_origins,\n"
+            "    allow_credentials=False,\n"
+            '    allow_methods=["GET", "POST", "OPTIONS"],\n'
+            '    allow_headers=["*"],\n'
+            '    expose_headers=["X-Request-ID"],\n'
+            ")  # DELIBERATE BREAK"
         ),
         command=WP33_OBSERVABILITY_TESTS,
         cwd=ROOT,

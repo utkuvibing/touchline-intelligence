@@ -106,9 +106,19 @@ def _model_version(request: Request) -> str | None:
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Attach a safe request ID and emit one structured completion record per request."""
 
-    def __init__(self, app: Any) -> None:
+    def __init__(self, app: Any, *, allowed_origins: list[str] | None = None) -> None:
         super().__init__(app)
         self.logger = request_logger()
+        self.allowed_origins = frozenset(allowed_origins or ())
+
+    def _apply_cors_headers(self, request: Request, response: Response) -> None:
+        """Preserve the CORS contract when this outer middleware creates a 500 response."""
+        origin = request.headers.get("origin")
+        if origin is None or origin not in self.allowed_origins:
+            return
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Expose-Headers"] = REQUEST_ID_HEADER
+        response.headers["Vary"] = "Origin"
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = _safe_request_id(request.headers.get(REQUEST_ID_HEADER))
@@ -128,6 +138,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Internal server error."},
                 headers={REQUEST_ID_HEADER: request_id},
             )
+            self._apply_cors_headers(request, response)
             return response
         finally:
             fields: dict[str, Any] = {
