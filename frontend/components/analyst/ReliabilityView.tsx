@@ -5,9 +5,9 @@ interface ReliabilityViewProps {
   metrics: ModelMetrics;
 }
 
-const CHART_WIDTH = 420;
-const CHART_HEIGHT = 280;
-const CHART_PADDING = 40;
+const CHART_WIDTH = 480;
+const CHART_HEIGHT = 330;
+const CHART_PADDING = 46;
 
 function percent(value: number | null): string {
   return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
@@ -60,7 +60,7 @@ function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
               key={row.bin}
               cx={point.x}
               cy={point.y}
-              r={4.5}
+              r={5}
               fill="var(--accent)"
               stroke="var(--background)"
               strokeWidth={1.5}
