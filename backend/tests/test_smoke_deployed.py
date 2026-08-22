@@ -951,6 +951,52 @@ def test_inert_javascript_rs_calls_do_not_insert_hidden_segments(smoke: Any, fak
     assert "VISIBLE" in text
 
 
+@pytest.mark.parametrize(
+    "regex_literal",
+    [
+        'const re=/$RC("B:1","S:1")/;',
+        r'const re=/[/$]$RC\("B:1","S:1"\)\/tail/gi;',
+    ],
+)
+def test_javascript_regex_literal_rc_text_does_not_promote_hidden_segments(
+    smoke: Any, regex_literal: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>{regex_literal}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+@pytest.mark.parametrize(
+    "regex_literal",
+    [
+        'const re=/$RS("S:1","P:1")/;',
+        r'const re=/[/$]$RS\("S:1","P:1"\)\/tail/u;',
+    ],
+)
+def test_javascript_regex_literal_rs_text_does_not_insert_hidden_segments(
+    smoke: Any, regex_literal: str
+) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>{regex_literal};$RC("B:0","S:0")</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
+def test_division_does_not_hide_a_following_executable_react_call(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">DIRECT</div>
+      <script>const ratio=10 / $RC("B:1","S:1")</script>
+    """
+    assert smoke._visible_text(html) == "DIRECT"
+
+
 def test_executable_rc_literal_call_remains_supported(smoke: Any) -> None:
     html = """
       <template id="B:1"></template><div hidden id="S:1">DIRECT</div>

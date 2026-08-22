@@ -444,6 +444,13 @@ def _parse_react_call(data: str, start: int) -> tuple[tuple[str, str, str], int]
 
 def _executable_react_calls(data: str) -> list[tuple[str, str, str]]:
     """Scan JavaScript code state only; comments and literal bodies are inert."""
+
+    def regex_can_start(position: int) -> bool:
+        previous = position - 1
+        while previous >= 0 and data[previous].isspace():
+            previous -= 1
+        return previous < 0 or data[previous] in "=(:,![{;?&|+-*%^~<>"
+
     calls: list[tuple[str, str, str]] = []
     index = 0
     while index < len(data):
@@ -454,6 +461,26 @@ def _executable_react_calls(data: str) -> list[tuple[str, str, str]]:
             else:
                 end = data.find("*/", index + 2)
                 index = len(data) if end < 0 else end + 2
+            continue
+        if data[index] == "/" and regex_can_start(index):
+            index += 1
+            in_character_class = False
+            while index < len(data):
+                if data[index] == "\\":
+                    index += 2
+                elif data[index] == "[":
+                    in_character_class = True
+                    index += 1
+                elif data[index] == "]" and in_character_class:
+                    in_character_class = False
+                    index += 1
+                elif data[index] == "/" and not in_character_class:
+                    index += 1
+                    while index < len(data) and data[index].isalpha():
+                        index += 1
+                    break
+                else:
+                    index += 1
             continue
         char = data[index]
         if char in {'"', "'", "`"}:

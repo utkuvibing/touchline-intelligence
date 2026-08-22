@@ -3718,6 +3718,14 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP3.4 React call scanner ignores JavaScript regex literal bodies",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        if data[index] == "/" and regex_can_start(index):\n',
+        replacement="        if False:  # DELIBERATE BREAK: regex bodies scanned as code\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP3.4 inserted React segment must be reachable from a promoted owner",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor="                    and owner in promoted\n",
