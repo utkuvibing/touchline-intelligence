@@ -902,6 +902,73 @@ def test_react_two_stage_script_payload_anchors_stay_nonvisible(smoke: Any) -> N
     assert smoke._visible_text(html) == "ACTUAL"
 
 
+@pytest.mark.parametrize(
+    "fake_call",
+    [
+        '// $RC("B:1","S:1")',
+        '/* $RC("B:1","S:1") */',
+        'const x = \'$RC("B:1","S:1")\';',
+        "const x = \"$RC('B:1','S:1')\";",
+        'const x = `$RC("B:1","S:1")`;',
+    ],
+)
+def test_inert_javascript_rc_calls_do_not_promote_hidden_segments(
+    smoke: Any, fake_call: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>{fake_call}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+def test_mixed_fake_and_real_rc_calls_promote_only_via_executable_call(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">PROMOTED</div>
+      <script>/* $RC("B:9","S:9") */;const fake=`$RC("B:8","S:8")`;$RC("B:1","S:1")</script>
+    """
+    assert smoke._visible_text(html) == "PROMOTED"
+
+
+@pytest.mark.parametrize(
+    "fake_rs",
+    [
+        '// $RS("S:1","P:1")',
+        '/* $RS("S:1","P:1") */',
+        'const x = \'$RS("S:1","P:1")\';',
+        'const x = `$RS("S:1","P:1")`;',
+    ],
+)
+def test_inert_javascript_rs_calls_do_not_insert_hidden_segments(smoke: Any, fake_rs: str) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>{fake_rs};$RC("B:0","S:0")</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
+def test_executable_rc_literal_call_remains_supported(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">DIRECT</div>
+      <script>$RC ( 'B:1' , "S:1" )</script>
+    """
+    assert smoke._visible_text(html) == "DIRECT"
+
+
+def test_executable_rs_then_rc_literal_calls_remain_supported(smoke: Any) -> None:
+    html = """
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">INSERTED</div>
+      <script>$RS("S:1",'P:1');$RC('B:0',"S:0")</script>
+    """
+    assert smoke._visible_text(html) == "INSERTED"
+
+
 def test_main_returns_nonzero_when_any_gate_fails(
     smoke: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

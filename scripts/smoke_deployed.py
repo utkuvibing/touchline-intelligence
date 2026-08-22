@@ -400,12 +400,92 @@ class _VisibleTextParser(HTMLParser):
             self.fragments.append(data)
 
 
+def _parse_react_call(data: str, start: int) -> tuple[tuple[str, str, str], int] | None:
+    """Parse the deliberately tiny `$RC("id","id")` / `$RS(...)` grammar."""
+    name = data[start + 1 : start + 3]
+    if name not in {"RC", "RS"}:
+        return None
+    index = start + 3
+
+    def skip_space(position: int) -> int:
+        while position < len(data) and data[position].isspace():
+            position += 1
+        return position
+
+    def quoted_id(position: int) -> tuple[str, int] | None:
+        position = skip_space(position)
+        if position >= len(data) or data[position] not in {'"', "'"}:
+            return None
+        quote = data[position]
+        end = data.find(quote, position + 1)
+        if end < 0 or "\\" in data[position + 1 : end]:
+            return None
+        return data[position + 1 : end], end + 1
+
+    index = skip_space(index)
+    if index >= len(data) or data[index] != "(":
+        return None
+    first = quoted_id(index + 1)
+    if first is None:
+        return None
+    first_value, index = first
+    index = skip_space(index)
+    if index >= len(data) or data[index] != ",":
+        return None
+    second = quoted_id(index + 1)
+    if second is None:
+        return None
+    second_value, index = second
+    index = skip_space(index)
+    if index >= len(data) or data[index] != ")":
+        return None
+    return (name, first_value, second_value), index + 1
+
+
+def _executable_react_calls(data: str) -> list[tuple[str, str, str]]:
+    """Scan JavaScript code state only; comments and literal bodies are inert."""
+    calls: list[tuple[str, str, str]] = []
+    index = 0
+    while index < len(data):
+        if data.startswith("//", index) or data.startswith("/*", index):
+            if data.startswith("//", index):
+                end = data.find("\n", index + 2)
+                index = len(data) if end < 0 else end + 1
+            else:
+                end = data.find("*/", index + 2)
+                index = len(data) if end < 0 else end + 2
+            continue
+        char = data[index]
+        if char in {'"', "'", "`"}:
+            quote = char
+            index += 1
+            while index < len(data):
+                if data[index] == "\\":
+                    index += 2
+                elif data[index] == quote:
+                    index += 1
+                    break
+                else:
+                    index += 1
+            continue
+        if data.startswith(("$RC", "$RS"), index) and (
+            index == 0
+            or data[index - 1]
+            not in ".abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$"
+        ):
+            parsed = _parse_react_call(data, index)
+            if parsed is not None:
+                call, index = parsed
+                calls.append(call)
+                continue
+        index += 1
+    return calls
+
+
 class _ReactStreamInventoryParser(HTMLParser):
     """Identify segments React explicitly promotes into matching Suspense boundaries."""
 
     _ID = re.compile(r"^[BPS]:(\d+)$")
-    _REPLACEMENT = re.compile(r"\$RC\(\s*[\"'](B:\d+)[\"']\s*,\s*[\"'](S:\d+)[\"']\s*\)")
-    _INSERTION = re.compile(r"\$RS\(\s*[\"'](S:\d+)[\"']\s*,\s*[\"'](P:\d+)[\"']\s*\)")
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -455,8 +535,11 @@ class _ReactStreamInventoryParser(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if self._script_depth:
-            self.replacements.update(self._REPLACEMENT.findall(data))
-            self.insertions.update(self._INSERTION.findall(data))
+            for name, first, second in _executable_react_calls(data):
+                if name == "RC":
+                    self.replacements.add((first, second))
+                else:
+                    self.insertions.add((first, second))
 
     def promoted_segments(self) -> frozenset[str]:
         promoted: set[str] = set()

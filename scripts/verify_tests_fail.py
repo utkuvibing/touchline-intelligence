@@ -3693,10 +3693,27 @@ BREAKS: list[Break] = [
     Break(
         contract="WP3.4 React stream inventory recognizes RS placeholder insertion",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor="            self.insertions.update(self._INSERTION.findall(data))\n",
+        anchor="                else:\n                    self.insertions.add((first, second))\n",
         replacement=(
-            "            self.insertions.update(())  # DELIBERATE BREAK: RS insertion ignored\n"
+            "                else:\n"
+            "                    pass  # DELIBERATE BREAK: RS insertion ignored\n"
         ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 React call scanner ignores JavaScript comments",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        if data.startswith("//", index) or data.startswith("/*", index):\n',
+        replacement="        if False:  # DELIBERATE BREAK: comments scanned as code\n",
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 React call scanner ignores string and template literal bodies",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        if char in {\'"\', "\'", "`"}:\n',
+        replacement="        if False:  # DELIBERATE BREAK: literal bodies scanned as code\n",
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
     ),
