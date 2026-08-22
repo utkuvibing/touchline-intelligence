@@ -23,3 +23,4 @@ def test_backend_ci_installs_a_pinned_verified_uv_release_without_a_manifest() -
     assert "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/" in install_uv_step
     assert "--retry 5 --retry-all-errors" in install_uv_step
     assert "sha256sum --check --strict" in install_uv_step
+    assert 'mkdir --parents "$HOME/.local/bin"' in install_uv_step

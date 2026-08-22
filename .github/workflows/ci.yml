@@ -72,6 +72,7 @@ jobs:
             "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz"
           echo "${UV_ARCHIVE_SHA256}  /tmp/uv.tar.gz" | sha256sum --check --strict
           tar --extract --gzip --file /tmp/uv.tar.gz --directory /tmp
+          mkdir --parents "$HOME/.local/bin"
           install --mode 0755 /tmp/uv-x86_64-unknown-linux-gnu/uv "$HOME/.local/bin/uv"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           "$HOME/.local/bin/uv" --version

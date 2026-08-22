@@ -325,6 +325,14 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="CI creates the user-local binary directory before installing uv",
+        path=ROOT / ".github/workflows/ci.yml",
+        anchor='          mkdir --parents "$HOME/.local/bin"\n',
+        replacement="",
+        command=CI_CONTRACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP3.4 golden tolerance must be finite and strictly positive",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor=(
