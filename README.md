@@ -17,8 +17,6 @@ evidence → an analyst-facing product.
 
 </div>
 
-![Touchline Intelligence dashboard showing the World Cup 2022 shot map and recorded conversion summary](assets/touchline-dashboard.png)
-
 ---
 
 ## What this is
@@ -31,16 +29,14 @@ The project began with raw event data and a question: how do you build an analys
 whose numbers survive technical scrutiny? The answer was to build the data foundation before the
 model, lock the evaluation design before final scoring, and commit the evidence behind each claim.
 
-**M0, M1, and M2 are complete; M3 is in progress.** The repository contains a qualified
-shot-conversion model, calibration and one-time tournament-holdout evidence, a reproducible release
-packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inference API.
+**M0, M1, M2, and M3 are complete.** The deployed backend and frontend serve
+`exp-20260810-wp2_8-release` through the versioned model API and analyst interface, backed by the
+qualified calibration, holdout, reproducibility, and provenance evidence.
 
-> **Current product boundary:** WP3.1 model serving is implemented and Docker-verified in the
-> repository but is not yet deployed. The repository frontend now contains the WP3.2 model-aware
-> analyst view: qualified metadata, holdout evidence, limitations, attribution, and a historical
-> workspace that remains publication-gated. The live API and UI remain the earlier descriptive
-> deployment until WP3.3–WP3.4 hardening and smoke evidence are complete. Historical row-level model
-> predictions remain gated off by default.
+> **Current product boundary:** the qualified model API and WP3.2 analyst view are deployed with
+> qualified metadata, holdout evidence, limitations, attribution, and a historical workspace that
+> remains publication-gated. `/model/shots` stays closed with `publication_gate_closed`. WP3.4
+> closed with 22/22 production smoke plus isolated rebuild and Railway/Vercel recovery evidence.
 
 ## Model at a glance
 
@@ -54,7 +50,8 @@ packet, a canonical [Model Card](MODEL_CARD.md), and the WP3.1 versioned inferen
 | Calibration | WC2022 — 1,430 shots in 64 matches |
 | Final holdout | Euro2024 — 1,304 shots in 51 matches |
 | Lifecycle state | `m2_qualified` |
-| Serving state | WP3.1 implemented in-repository; not yet deployed (`not_served` remains the M2 release record) |
+| Serving release | `exp-20260810-wp2_8-release` |
+| Serving state | Deployed through M3; `not_served` remains only the immutable M2 qualification-packet status |
 | Canonical technical record | [MODEL_CARD.md](MODEL_CARD.md) |
 
 The model estimates eligible non-penalty shot-conversion probability from engineered shot geometry
@@ -73,7 +70,7 @@ second model record.
 |---|---|
 | **Data foundation** | A pinned and hashed 465-file source snapshot, normalized PostgreSQL schema, ordered hand-written migrations, and idempotent ingestion that rejects changed source facts instead of silently rewriting them |
 | **Quality and analysis** | Read-only reconciliation, schema/data-quality contracts, deterministic fixtures, reproducible clean rebuild evidence, and ten documented SQL analyses with measured query plans |
-| **Deployed product** | A FastAPI backend and Next.js analyst interface serving the World Cup 2022 descriptive baseline and recorded shot map, with liveness/readiness checks and explicit data-provider boundaries |
+| **Deployed product** | A FastAPI backend and Next.js analyst interface serving the qualified model identity, metrics and validated predictions alongside the bounded WC 2022 descriptive surface; historical model rows remain publication-gated |
 | **Feature pipeline** | Numerically stable distance-to-goal and visible-angle geometry plus documented categorical coverage, training-only preprocessing, and a fixed 16-column feature contract |
 | **Leak-resistant evaluation** | Locked tournament roles, five deterministic match-grouped development folds, and explicit separation of model selection, calibration, and final holdout permissions |
 | **Controlled model selection** | Constant and geometry references, richer regularized-logistic candidates, a registered HistGradientBoosting challenge, and a bounded deterministic PyTorch MLP qualification |
@@ -147,8 +144,8 @@ chain.
 
 ## Architecture
 
-Solid arrows are implemented in the repository. The WP3.1 inference/API path and WP3.2 analyst UI
-are implemented locally but are not yet deployed; WP3.3–WP3.4 own production hardening and smoke.
+Solid arrows are implemented and the API/analyst-interface path is deployed. WP3.3–WP3.4 provide
+the production hardening, smoke, rebuild, and recovery evidence.
 
 ```mermaid
 flowchart LR
@@ -158,14 +155,12 @@ flowchart LR
     PG --> QA["Quality + SQL analysis<br/><i>reconciled evidence</i>"]
     PG --> FEAT["Feature pipeline<br/><i>geometry + context</i>"]
     FEAT --> LIFE["Qualified M2 lifecycle<br/><i>selection + calibration + holdout</i>"]
-    LIFE --> ART["Qualified release artifact<br/><i>m2_qualified · not_served</i>"]
-
-    PG --> API["Current FastAPI<br/><i>descriptive endpoints</i>"]
-    API --> WEB["Current Next.js UI<br/><i>recorded shot map</i>"]
+    LIFE --> ART["Qualified release artifact<br/><i>m2_qualified · historical not_served record</i>"]
 
     ART --> INF["WP3.1 inference boundary<br/><i>hash validation + feature parity</i>"]
-    INF --> PAPI["WP3.1 model API<br/><i>version + provenance</i>"]
-    PAPI --> MWEB["WP3.2 model-aware analyst UI<br/><i>local + publication-gated</i>"]
+    INF --> API["Deployed FastAPI<br/><i>qualified model + bounded public API</i>"]
+    PG --> API
+    API --> WEB["Deployed Next.js UI<br/><i>analyst interface + publication gate</i>"]
 ```
 
 | Layer | Choice | Why |
@@ -206,26 +201,20 @@ Two important boundaries:
 - **Shot freeze frames are not called tracking data.** They are partial snapshots around individual
   events, not continuous player tracking or StatsBomb 360 data.
 
-## What is live—and what comes next
+## What is live now
 
-Live today:
+Production currently provides:
 
-- the World Cup 2022 descriptive conversion summary and recorded shot map;
-- paginated read-only shot data plus health and readiness endpoints;
-- the Vercel → Railway → Neon deployed path.
+- the Vercel analyst interface and Railway FastAPI backend;
+- model release `exp-20260810-wp2_8-release`, with versioned metadata, qualified metrics and
+  validated calibrated prediction requests;
+- the bounded WC 2022 descriptive API, readiness, request-ID and CORS contracts; and
+- an exact closed gate for historical model rows: `/model/shots` returns
+  `publication_gate_closed`.
 
-Implemented in the repository but not live yet:
-
-- fail-fast loading of the minimal qualified serving bundle;
-- versioned model metadata, curated metrics, and validated calibrated prediction endpoints;
-- independent WP2-to-WP3 golden feature/parity evidence;
-- the WP3.2 model-aware analyst view with qualified metrics, reliability, limitations, and a
-  publication-gated historical workspace;
-- WC2022 historical calibrated predictions, publication-gated off by default.
-
-The deployed live UI remains descriptive and exposes no model probability. The repository
-WP3.2 analyst view is implemented locally but is not a deployment claim; M3.3–M3.4 still own
-production hardening, deployed smoke tests, and rebuild/rollback evidence.
+WP3.4 completed 22/22 production smoke, an isolated fresh-database rebuild, and Railway/Vercel
+recovery rehearsals. The concise results are in the
+[WP3.4 closeout evidence](reports/wp3.4-deployed-smoke-and-recovery-evidence.md).
 
 ## Roadmap
 
@@ -234,11 +223,13 @@ production hardening, deployed smoke tests, and rebuild/rollback evidence.
 | **M0** Walking skeleton | Data → PostgreSQL → descriptive API → recorded-shot UI → deployment | ✅ Complete |
 | **M1** Data foundation | Relational schema, idempotent ingestion, quality audit, SQL pack, and reproducible clean rebuild | ✅ Complete |
 | **M2** Shot quality engine | Fixed cohort and features; locked splits; logistic selection; boosting and PyTorch challengers; calibration; one-time Euro2024 holdout; reproducible release; canonical Model Card | ✅ Complete |
-| **M3** Analyst interface and serving | WP3.1 serving and WP3.2 model-aware UI implemented locally; deployment hardening, smoke tests, and rollback documentation remain | **In progress** |
-| **M4** Release and communication | Technical write-up, stakeholder summary, demo video and screenshots, attribution audit, and application materials | Planned |
+| **M3** Analyst interface and serving | Versioned model serving, deployed analyst UI, hardened delivery, 22/22 smoke, isolated rebuild, and Railway/Vercel recovery rehearsals | ✅ Complete |
+| **M4** Release and communication | Technical write-up, stakeholder summary, demo video and screenshots, attribution audit, and application materials | **Next** |
 
 The detailed work-package sequence remains in [`docs/PLAN.md`](docs/PLAN.md); the milestone states
-above reflect the merged repository at M2 closeout.
+above reflect the WP3.4 closeout.
+
+The current next milestone is **M4 — Release and Communication**.
 
 ## Quick start
 
@@ -307,8 +298,8 @@ MODEL_CARD.md             Canonical M2 model-specific technical record
   breaks protected behavior and verifies that tests detect it.
 - **Measured evidence is committed and content-hashed.** Reports summarize it; immutable JSON and
   manifests own exact machine values.
-- **Qualification is not deployment.** The qualified model is not described as served until M3
-  proves the inference and product boundary.
+- **Qualification is not deployment.** M2's immutable qualification packet is kept distinct from
+  the M3 evidence that now proves the deployed inference and product boundary.
 
 ## Credits and attribution
 
