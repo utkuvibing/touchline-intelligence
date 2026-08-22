@@ -43,6 +43,25 @@ function ErrorNotice({ title, error }: { title: string; error: ModelApiErrorInfo
   );
 }
 
+function HeroFacts({ metadata }: { metadata: ModelMetadata }) {
+  return (
+    <dl className="hero-facts">
+      <div>
+        <dt>Qualified release</dt>
+        <dd>{metadata.release_id}</dd>
+      </div>
+      <div>
+        <dt>Runtime state</dt>
+        <dd>{metadata.runtime_status === "ready" ? "Ready" : metadata.runtime_status}</dd>
+      </div>
+      <div>
+        <dt>Tournament holdout</dt>
+        <dd>{metadata.scopes.tournament_holdout.competition}</dd>
+      </div>
+    </dl>
+  );
+}
+
 function DeliveryStatus() {
   return (
     <section className="delivery-status" aria-labelledby="delivery-status-heading">
@@ -251,16 +270,19 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
     <main className="analyst-page">
       <header className="hero-header">
         <div>
-          <p className="eyebrow">TOUCHLINE INTELLIGENCE · M3.2</p>
+          <p className="eyebrow">TOUCHLINE INTELLIGENCE · M3 / DEPLOYED VALIDATION</p>
           <h1>Shot quality, made inspectable.</h1>
           <p className="hero-lede">
             Explore how a calibrated goal-conversion model behaves on a pinned football event-data
             cohort—without confusing recorded outcomes, calibration evidence, and final evaluation.
           </p>
         </div>
-        <div className="hero-badge" aria-label="Project status">
-          <span>Analyst interface</span>
-          <strong>Model-aware</strong>
+        <div className="hero-side">
+          <div className="hero-badge" aria-label="Project status">
+            <span>Analyst interface</span>
+            <strong>Model-aware</strong>
+          </div>
+          {metadata.status === "ready" && <HeroFacts metadata={metadata.data} />}
         </div>
       </header>
 
