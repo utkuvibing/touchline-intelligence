@@ -283,6 +283,7 @@ FRONTEND_TESTS = "npm test"
 SCHEMA_DRIFT_TESTS = "uv run pytest backend/tests/test_schema_drift_integration.py -q"
 WP33_OBSERVABILITY_TESTS = "uv run pytest backend/tests/test_observability.py -q"
 WP33_RAILWAY_TESTS = "uv run pytest backend/tests/test_railway_config.py -q"
+CI_CONTRACT_TESTS = "uv run pytest backend/tests/test_ci_contract.py -q"
 
 
 @dataclass(frozen=True)
@@ -312,6 +313,25 @@ QUALITY_DENOMINATOR_MUTATIONS = (
 
 
 BREAKS: list[Break] = [
+    Break(
+        contract="CI verifies the pinned uv release before dependency installation",
+        path=ROOT / ".github/workflows/ci.yml",
+        anchor=(
+            "          UV_ARCHIVE_SHA256: "
+            "1db18b5e76fa645a7f3865773139bdec8e2d46adbdbb35e7410b34fa8015ccd2\n"
+        ),
+        replacement="          UV_ARCHIVE_SHA256: unverified\n",
+        command=CI_CONTRACT_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="CI creates the user-local binary directory before installing uv",
+        path=ROOT / ".github/workflows/ci.yml",
+        anchor='          mkdir --parents "$HOME/.local/bin"\n',
+        replacement="",
+        command=CI_CONTRACT_TESTS,
+        cwd=ROOT,
+    ),
     Break(
         contract="WP3.4 golden tolerance must be finite and strictly positive",
         path=ROOT / "scripts/smoke_deployed.py",
