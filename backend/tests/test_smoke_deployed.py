@@ -752,6 +752,371 @@ def test_visible_text_excludes_nonrendered_sources_and_joins_react_fragments(smo
         assert hidden not in text
 
 
+def test_visible_text_survives_nextjs_head_void_elements(smoke: Any) -> None:
+    html = """
+      <html><head><meta charset="utf-8"><link rel="stylesheet" href="app.css"></head>
+      <body>VISIBLE BODY ANCHOR</body></html>
+    """
+    assert smoke._visible_text(html) == "VISIBLE BODY ANCHOR"
+
+
+def test_visible_text_survives_void_elements_in_head_and_body(smoke: Any) -> None:
+    html = """
+      <head><base href="/"><meta><link><source><track></head>
+      <body>before<br>after<img alt="attribute text"><input hidden value="hidden value">
+      after input<hr>wbr<wbr></body>
+    """
+    text = smoke._visible_text(html)
+    assert "before after" in text
+    assert "after input" in text
+    assert "wbr" in text
+    assert "attribute text" not in text
+    assert "hidden value" not in text
+
+
+def test_visible_text_restores_visibility_after_nested_hidden_sibling(smoke: Any) -> None:
+    html = """
+      <main><section hidden><div><span>HIDDEN</span></div></section>
+      <section><p>VISIBLE SIBLING</p></section></main>
+    """
+    assert smoke._visible_text(html) == "VISIBLE SIBLING"
+
+
+def test_realistic_nextjs_analyst_html_satisfies_frontend_contract(smoke: Any) -> None:
+    anchors = "</p><p>".join(smoke.REQUIRED_FRONTEND_TEXT)
+    html = f"""
+      <!doctype html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width">
+      <link rel="preload" href="app.css"><script>window.__next_f=[]</script></head>
+      <body><div id="__next"><main><h1>{smoke.REQUIRED_FRONTEND_TEXT[0]}</h1>
+      <p>{anchors}</p><p>{smoke.EXPECTED_DEVELOPMENT_SHOTS}<!-- --> shots</p>
+      </main></div><script>Model metadata unavailable</script></body></html>
+    """
+    assert smoke.frontend_problems(html) == []
+
+
+def test_react_stream_promoted_hidden_analyst_segment_is_visible(smoke: Any) -> None:
+    anchors = "</p><p>".join(smoke.REQUIRED_FRONTEND_TEXT)
+    html = f"""
+      <html><head><meta><link></head><body>
+      <!--$?--><template id="B:1"></template><div>Loading model evidence...</div><!--/$-->
+      <div hidden id="S:1"><main><h1>Shot quality, made inspectable.</h1>
+      <p>{anchors}</p></main></div>
+      <script>$RC=function(b,c){{/* React replacement implementation */}};$RC("B:1","S:1")</script>
+      </body></html>
+    """
+    assert smoke.frontend_problems(html) == []
+    assert "Loading model evidence" in smoke._visible_text(html)
+
+
+def test_arbitrary_hidden_stream_segment_stays_hidden_without_promotion(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">SECRET ANCHOR</div>
+      <script>const harmless = "S:1";</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "SECRET ANCHOR" not in text
+    assert text == "VISIBLE"
+
+
+@pytest.mark.parametrize(
+    "instruction",
+    [
+        '$RC("B:1","S:2")',
+        '$RC("B:2","S:1")',
+        '$RC("B:1","S:1")',
+    ],
+)
+def test_missing_or_mismatched_react_promotion_does_not_unhide(
+    smoke: Any, instruction: str
+) -> None:
+    boundary = "" if instruction == '$RC("B:1","S:1")' else '<template id="B:1"></template>'
+    html = (
+        f'{boundary}<div hidden id="S:1">HIDDEN</div><script>{instruction}</script><p>VISIBLE</p>'
+    )
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+def test_react_promotion_rejects_existing_but_mismatched_boundary_and_segment(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:2">HIDDEN</div>
+      <script>$RC("B:1","S:2")</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+def test_react_flight_script_anchor_text_never_counts_as_visible(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">ACTUAL SEGMENT</div>
+      <script>
+        self.__next_f.push([1,"Shot quality, made inspectable. Data provided by StatsBomb"]);
+        $RC("B:1","S:1")
+      </script>
+    """
+    text = smoke._visible_text(html)
+    assert text == "ACTUAL SEGMENT"
+    assert "StatsBomb" not in text
+
+
+def test_react_two_stage_stream_insertion_reaches_promoted_outer_segment(smoke: Any) -> None:
+    anchors = "</p><p>".join(smoke.REQUIRED_FRONTEND_TEXT)
+    html = f"""
+      <!--$?--><template id="B:0"></template><div>Loading...</div><!--/$-->
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1"><main><h1>Shot quality, made inspectable.</h1>
+      <p>{anchors}</p></main></div>
+      <script>$RS("S:1","P:1")</script><script>$RC("B:0","S:0")</script>
+    """
+    assert smoke.frontend_problems(html) == []
+
+
+@pytest.mark.parametrize(
+    "instructions",
+    [
+        '$RC("B:0","S:0")',
+        '$RS("S:1","P:1")',
+        '$RS("S:1","P:2");$RC("B:0","S:0")',
+        '$RS("S:2","P:1");$RC("B:0","S:0")',
+    ],
+)
+def test_react_two_stage_stream_rejects_orphan_or_mismatched_links(
+    smoke: Any, instructions: str
+) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">INNER CONTENT</div><script>{instructions}</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "INNER CONTENT" not in text
+    assert "VISIBLE" in text
+
+
+def test_react_two_stage_script_payload_anchors_stay_nonvisible(smoke: Any) -> None:
+    html = """
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">ACTUAL</div>
+      <script>const payload="Data provided by StatsBomb";$RS("S:1","P:1");$RC("B:0","S:0")</script>
+    """
+    assert smoke._visible_text(html) == "ACTUAL"
+
+
+@pytest.mark.parametrize(
+    "fake_call",
+    [
+        '// $RC("B:1","S:1")',
+        '// ignored; $RC("B:1","S:1")',
+        '/* $RC("B:1","S:1") */',
+        'const x = \'$RC("B:1","S:1")\';',
+        "const x = \"$RC('B:1','S:1')\";",
+        'const x = `$RC("B:1","S:1")`;',
+    ],
+)
+def test_inert_javascript_rc_calls_do_not_promote_hidden_segments(
+    smoke: Any, fake_call: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>{fake_call}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+def test_mixed_fake_and_real_rc_calls_promote_only_via_executable_call(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">PROMOTED</div>
+      <script>/* $RC("B:9","S:9") */;const fake=`$RC("B:8","S:8")`;$RC("B:1","S:1")</script>
+    """
+    assert smoke._visible_text(html) == "PROMOTED"
+
+
+@pytest.mark.parametrize(
+    "fake_rs",
+    [
+        '// $RS("S:1","P:1")',
+        '// ignored; $RS("S:1","P:1")',
+        '/* $RS("S:1","P:1") */',
+        'const x = \'$RS("S:1","P:1")\';',
+        'const x = `$RS("S:1","P:1")`;',
+    ],
+)
+def test_inert_javascript_rs_calls_do_not_insert_hidden_segments(smoke: Any, fake_rs: str) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>{fake_rs};$RC("B:0","S:0")</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
+@pytest.mark.parametrize(
+    "regex_literal",
+    [
+        'const re=/$RC("B:1","S:1")/;',
+        r'const re=/[/$]$RC\("B:1","S:1"\)\/tail/gi;',
+    ],
+)
+def test_javascript_regex_literal_rc_text_does_not_promote_hidden_segments(
+    smoke: Any, regex_literal: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>{regex_literal}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+@pytest.mark.parametrize(
+    "regex_literal",
+    [
+        'const re=/$RS("S:1","P:1")/;',
+        r'const re=/[/$]$RS\("S:1","P:1"\)\/tail/u;',
+    ],
+)
+def test_javascript_regex_literal_rs_text_does_not_insert_hidden_segments(
+    smoke: Any, regex_literal: str
+) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>{regex_literal};$RC("B:0","S:0")</script><p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
+@pytest.mark.parametrize("keyword", ["return", "throw", "yield"])
+def test_javascript_keyword_prefixed_regex_rc_text_does_not_promote_hidden_segments(
+    smoke: Any, keyword: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>function f(){{{keyword} /$RC("B:1","S:1")/}}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+@pytest.mark.parametrize("keyword", ["return", "throw", "yield"])
+def test_javascript_keyword_prefixed_regex_rs_text_does_not_insert_hidden_segments(
+    smoke: Any, keyword: str
+) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>function f(){{{keyword} /$RS("S:1","P:1")/}};$RC("B:0","S:0")</script>
+      <p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        'if (true) /$RC("B:1","S:1")/.test("")',
+        'export default /$RS("S:1","P:1")/',
+        'const rc = /$RC("B:1","S:1")/;',
+        'const rs = /$RS("S:1","P:1")/;',
+        'const value = $RC("B:1","S:1");',
+        'consume($RS("S:1","P:1"));',
+        '$RC("B:1","S:1") && publish();',
+    ],
+)
+def test_react_calls_embedded_in_javascript_are_not_stream_instructions(
+    smoke: Any, script: str
+) -> None:
+    assert smoke._executable_react_calls(script) == []
+
+
+@pytest.mark.parametrize(
+    ("script", "expected"),
+    [
+        ('  $RC("B:1", "S:1")  ', [("RC", "B:1", "S:1")]),
+        ("$RS('S:1', 'P:1');  ", [("RS", "S:1", "P:1")]),
+        (
+            '$RS("S:1","P:1"); $RC("B:0","S:0");',
+            [("RS", "S:1", "P:1"), ("RC", "B:0", "S:0")],
+        ),
+        (
+            '$RC=function(b,c){return b+c};$RC("B:1","S:1")',
+            [("RC", "B:1", "S:1")],
+        ),
+    ],
+)
+def test_standalone_production_react_stream_statements_remain_supported(
+    smoke: Any, script: str, expected: list[tuple[str, str, str]]
+) -> None:
+    assert smoke._executable_react_calls(script) == expected
+
+
+def test_react_call_used_as_division_operand_is_not_a_stream_instruction(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>const ratio=10 / $RC("B:1","S:1")</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+def test_executable_rc_literal_call_remains_supported(smoke: Any) -> None:
+    html = """
+      <template id="B:1"></template><div hidden id="S:1">DIRECT</div>
+      <script>$RC ( 'B:1' , "S:1" )</script>
+    """
+    assert smoke._visible_text(html) == "DIRECT"
+
+
+def test_executable_rs_then_rc_literal_calls_remain_supported(smoke: Any) -> None:
+    html = """
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">INSERTED</div>
+      <script>$RS("S:1",'P:1');$RC('B:0',"S:0")</script>
+    """
+    assert smoke._visible_text(html) == "INSERTED"
+
+
+def test_main_returns_nonzero_when_any_gate_fails(
+    smoke: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["smoke_deployed.py", "--api", "https://api", "--frontend", "https://frontend"]
+    )
+    monkeypatch.setattr(
+        smoke, "check_api", lambda api, results: results.check("failed gate", False)
+    )
+    monkeypatch.setattr(smoke, "load_golden_fixture", lambda: ({"cases": []}, None))
+    monkeypatch.setattr(smoke, "check_model_surface", lambda api, results, fixture: None)
+    monkeypatch.setattr(smoke, "check_request_id", lambda api, frontend, results: None)
+    monkeypatch.setattr(smoke, "check_cors", lambda api, frontend, results: None)
+    monkeypatch.setattr(smoke, "check_frontend", lambda frontend, results: None)
+    assert smoke.main() == 1
+
+
+def test_main_returns_zero_when_every_gate_passes(
+    smoke: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["smoke_deployed.py", "--api", "https://api", "--frontend", "https://frontend"]
+    )
+    monkeypatch.setattr(
+        smoke, "check_api", lambda api, results: results.check("passing gate", True)
+    )
+    monkeypatch.setattr(smoke, "load_golden_fixture", lambda: ({"cases": []}, None))
+    monkeypatch.setattr(smoke, "check_model_surface", lambda api, results, fixture: None)
+    monkeypatch.setattr(smoke, "check_request_id", lambda api, frontend, results: None)
+    monkeypatch.setattr(smoke, "check_cors", lambda api, frontend, results: None)
+    monkeypatch.setattr(smoke, "check_frontend", lambda frontend, results: None)
+    assert smoke.main() == 0
+
+
 def test_disallowed_preflight_requires_exact_rejection_headers(smoke: Any) -> None:
     request_id = str(uuid.uuid4())
     headers = {
