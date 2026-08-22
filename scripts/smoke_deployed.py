@@ -443,96 +443,51 @@ def _parse_react_call(data: str, start: int) -> tuple[tuple[str, str, str], int]
 
 
 def _executable_react_calls(data: str) -> list[tuple[str, str, str]]:
-    """Scan JavaScript code state only; comments and literal bodies are inert."""
+    """Accept only the terminal standalone React stream statements Next emits."""
 
-    regex_prefix_keywords = frozenset(
-        {
-            "await",
-            "case",
-            "delete",
-            "do",
-            "else",
-            "in",
-            "instanceof",
-            "new",
-            "of",
-            "return",
-            "throw",
-            "typeof",
-            "void",
-            "yield",
-        }
-    )
+    def skip_space(position: int) -> int:
+        while position < len(data) and data[position].isspace():
+            position += 1
+        return position
 
-    def regex_can_start(position: int) -> bool:
-        previous = position - 1
-        while previous >= 0 and data[previous].isspace():
-            previous -= 1
-        if previous < 0 or data[previous] in "=(:,![{;?&|+-*%^~<>":
-            return True
-        if data[previous].isalnum() or data[previous] in "_$":
-            end = previous + 1
-            while previous >= 0 and (data[previous].isalnum() or data[previous] in "_$"):
-                previous -= 1
-            return data[previous + 1 : end] in regex_prefix_keywords
-        return False
+    def parse_tail(start: int) -> list[tuple[str, str, str]] | None:
+        position = skip_space(start)
+        first = _parse_react_call(data, position)
+        if first is None:
+            return None
+        first_call, position = first
+        calls = [first_call]
+        position = skip_space(position)
+        if position == len(data):
+            return calls
+        if data[position] != ";":
+            return None
+        position = skip_space(position + 1)
+        if position == len(data):
+            return calls
 
-    calls: list[tuple[str, str, str]] = []
-    index = 0
-    while index < len(data):
-        if data.startswith("//", index) or data.startswith("/*", index):
-            if data.startswith("//", index):
-                end = data.find("\n", index + 2)
-                index = len(data) if end < 0 else end + 1
-            else:
-                end = data.find("*/", index + 2)
-                index = len(data) if end < 0 else end + 2
+        second = _parse_react_call(data, position)
+        if second is None or first_call[0] != "RS" or second[0][0] != "RC":
+            return None
+        second_call, position = second
+        position = skip_space(position)
+        if position < len(data) and data[position] == ";":
+            position = skip_space(position + 1)
+        if position != len(data):
+            return None
+        return [first_call, second_call]
+
+    statement_starts = [0, *(index + 1 for index, char in enumerate(data) if char == ";")]
+    for start in statement_starts:
+        # A semicolon inside a line comment is not a JavaScript statement boundary. Conservatively
+        # reject any candidate whose line prefix already contains the comment marker.
+        line_start = data.rfind("\n", 0, start) + 1
+        if "//" in data[line_start:start]:
             continue
-        if data[index] == "/" and regex_can_start(index):
-            index += 1
-            in_character_class = False
-            while index < len(data):
-                if data[index] == "\\":
-                    index += 2
-                elif data[index] == "[":
-                    in_character_class = True
-                    index += 1
-                elif data[index] == "]" and in_character_class:
-                    in_character_class = False
-                    index += 1
-                elif data[index] == "/" and not in_character_class:
-                    index += 1
-                    while index < len(data) and data[index].isalpha():
-                        index += 1
-                    break
-                else:
-                    index += 1
-            continue
-        char = data[index]
-        if char in {'"', "'", "`"}:
-            quote = char
-            index += 1
-            while index < len(data):
-                if data[index] == "\\":
-                    index += 2
-                elif data[index] == quote:
-                    index += 1
-                    break
-                else:
-                    index += 1
-            continue
-        if data.startswith(("$RC", "$RS"), index) and (
-            index == 0
-            or data[index - 1]
-            not in ".abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$"
-        ):
-            parsed = _parse_react_call(data, index)
-            if parsed is not None:
-                call, index = parsed
-                calls.append(call)
-                continue
-        index += 1
-    return calls
+        calls = parse_tail(start)
+        if calls is not None:
+            return calls
+    return []
 
 
 class _ReactStreamInventoryParser(HTMLParser):

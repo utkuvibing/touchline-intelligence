@@ -906,6 +906,7 @@ def test_react_two_stage_script_payload_anchors_stay_nonvisible(smoke: Any) -> N
     "fake_call",
     [
         '// $RC("B:1","S:1")',
+        '// ignored; $RC("B:1","S:1")',
         '/* $RC("B:1","S:1") */',
         'const x = \'$RC("B:1","S:1")\';',
         "const x = \"$RC('B:1','S:1')\";",
@@ -934,6 +935,7 @@ def test_mixed_fake_and_real_rc_calls_promote_only_via_executable_call(smoke: An
     "fake_rs",
     [
         '// $RS("S:1","P:1")',
+        '// ignored; $RS("S:1","P:1")',
         '/* $RS("S:1","P:1") */',
         'const x = \'$RS("S:1","P:1")\';',
         'const x = `$RS("S:1","P:1")`;',
@@ -1016,12 +1018,51 @@ def test_javascript_keyword_prefixed_regex_rs_text_does_not_insert_hidden_segmen
     assert "VISIBLE" in text
 
 
-def test_division_does_not_hide_a_following_executable_react_call(smoke: Any) -> None:
+@pytest.mark.parametrize(
+    "script",
+    [
+        'if (true) /$RC("B:1","S:1")/.test("")',
+        'export default /$RS("S:1","P:1")/',
+        'const rc = /$RC("B:1","S:1")/;',
+        'const rs = /$RS("S:1","P:1")/;',
+        'const value = $RC("B:1","S:1");',
+        'consume($RS("S:1","P:1"));',
+        '$RC("B:1","S:1") && publish();',
+    ],
+)
+def test_react_calls_embedded_in_javascript_are_not_stream_instructions(
+    smoke: Any, script: str
+) -> None:
+    assert smoke._executable_react_calls(script) == []
+
+
+@pytest.mark.parametrize(
+    ("script", "expected"),
+    [
+        ('  $RC("B:1", "S:1")  ', [("RC", "B:1", "S:1")]),
+        ("$RS('S:1', 'P:1');  ", [("RS", "S:1", "P:1")]),
+        (
+            '$RS("S:1","P:1"); $RC("B:0","S:0");',
+            [("RS", "S:1", "P:1"), ("RC", "B:0", "S:0")],
+        ),
+        (
+            '$RC=function(b,c){return b+c};$RC("B:1","S:1")',
+            [("RC", "B:1", "S:1")],
+        ),
+    ],
+)
+def test_standalone_production_react_stream_statements_remain_supported(
+    smoke: Any, script: str, expected: list[tuple[str, str, str]]
+) -> None:
+    assert smoke._executable_react_calls(script) == expected
+
+
+def test_react_call_used_as_division_operand_is_not_a_stream_instruction(smoke: Any) -> None:
     html = """
-      <template id="B:1"></template><div hidden id="S:1">DIRECT</div>
-      <script>const ratio=10 / $RC("B:1","S:1")</script>
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>const ratio=10 / $RC("B:1","S:1")</script><p>VISIBLE</p>
     """
-    assert smoke._visible_text(html) == "DIRECT"
+    assert smoke._visible_text(html) == "VISIBLE"
 
 
 def test_executable_rc_literal_call_remains_supported(smoke: Any) -> None:

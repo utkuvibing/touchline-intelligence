@@ -3702,35 +3702,38 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
-        contract="WP3.4 React call scanner ignores JavaScript comments",
+        contract="WP3.4 React stream instructions must begin at a statement boundary",
         path=ROOT / "scripts/smoke_deployed.py",
-        anchor='        if data.startswith("//", index) or data.startswith("/*", index):\n',
-        replacement="        if False:  # DELIBERATE BREAK: comments scanned as code\n",
-        command=WP34_SMOKE_TESTS,
-        cwd=ROOT,
-    ),
-    Break(
-        contract="WP3.4 React call scanner ignores string and template literal bodies",
-        path=ROOT / "scripts/smoke_deployed.py",
-        anchor='        if char in {\'"\', "\'", "`"}:\n',
-        replacement="        if False:  # DELIBERATE BREAK: literal bodies scanned as code\n",
-        command=WP34_SMOKE_TESTS,
-        cwd=ROOT,
-    ),
-    Break(
-        contract="WP3.4 React call scanner ignores JavaScript regex literal bodies",
-        path=ROOT / "scripts/smoke_deployed.py",
-        anchor='        if data[index] == "/" and regex_can_start(index):\n',
-        replacement="        if False:  # DELIBERATE BREAK: regex bodies scanned as code\n",
-        command=WP34_SMOKE_TESTS,
-        cwd=ROOT,
-    ),
-    Break(
-        contract="WP3.4 React call scanner recognizes regex after expression-prefix keywords",
-        path=ROOT / "scripts/smoke_deployed.py",
-        anchor="            return data[previous + 1 : end] in regex_prefix_keywords\n",
+        anchor=(
+            "    statement_starts = [0, *(index + 1 for index, char in enumerate(data) "
+            'if char == ";")]\n'
+        ),
         replacement=(
-            "            return False  # DELIBERATE BREAK: keyword-prefixed regex scanned as code\n"
+            "    statement_starts = [index for index in range(len(data)) "
+            'if data.startswith(("$RC", "$RS"), index)] '
+            "# DELIBERATE BREAK: embedded calls considered\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 React stream instruction statements contain no trailing expression",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        if data[position] != ";":\n            return None\n',
+        replacement=(
+            '        if data[position] != ";":\n'
+            "            return calls  # DELIBERATE BREAK: trailing expression accepted\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
+        contract="WP3.4 line-comment semicolons are not React statement boundaries",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor='        if "//" in data[line_start:start]:\n            continue\n',
+        replacement=(
+            "        if False:  # DELIBERATE BREAK: line-comment semicolon treated as boundary\n"
+            "            continue\n"
         ),
         command=WP34_SMOKE_TESTS,
         cwd=ROOT,
