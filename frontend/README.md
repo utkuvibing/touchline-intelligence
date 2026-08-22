@@ -74,6 +74,6 @@ sample sizes and positive counts, and keeps the WC2022 calibration/adoption evid
 page does not call this model StatsBomb xG, does not make a causal recommendation, and does not
 claim tracking or StatsBomb 360 coverage.
 
-WP3.2 local implementation/acceptance, historical publication permission, and production
-deployment/smoke are independent statuses. Production deployment and smoke evidence remain
-WP3.3–WP3.4.
+WP3.2 implementation/acceptance, historical publication permission, and production
+deployment/smoke are independent statuses. WP3.3–WP3.4 completed the production deployment,
+22/22 smoke, isolated rebuild, and recovery evidence; historical publication remains closed.

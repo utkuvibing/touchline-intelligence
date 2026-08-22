@@ -2,7 +2,10 @@
 
 **Canonical M2 model card**  
 **Release status:** `m2_qualified`  
-**Serving status:** `not_served`  
+**M2 qualification-packet serving status:** `not_served`
+
+**Current deployment status:** served through completed M3/WP3.4
+
 **Released model:** development-fitted `full_minus_presence` regularized logistic regression with
 the pre-holdout-adopted WC2022 Platt transform  
 **Release packet:** `exp-20260810-wp2_8-release`
@@ -36,7 +39,7 @@ and an environment-scoped byte-identical release reproduction.
 | What is the base model? | L2-regularized logistic regression, candidate `full_minus_presence`, fitted on WC2018 + Euro2020. |
 | Is it calibrated? | Yes. A Platt transform fitted on WC2022 was adopted under a rule frozen before Euro2024. |
 | What was the final evaluation? | One predeclared evaluation on the Euro2024 tournament holdout. |
-| Is it in the public API or UI? | No. M2 qualified the release; M3 owns serving. |
+| Is it in the public API or UI? | Yes. M3 serves the qualified release through the model API and analyst interface; historical row-level predictions remain publication-gated. |
 | Is it StatsBomb xG? | No. StatsBomb supplies the event data; provider xG is excluded. |
 
 ## Intended use and non-goals
@@ -55,7 +58,7 @@ The evidence does **not** establish the model for:
 - replacing scouting, coaching, or domain judgement;
 - treating an individual probability as certainty or as a prescribed decision threshold;
 - claiming equivalence to StatsBomb's proprietary or any commercial xG model;
-- production inference. The current release is qualified but not served.
+- unmonitored expansion beyond the bounded deployed inference contract and documented production scope.
 
 ## How to read the evidence
 
@@ -82,7 +85,7 @@ not rounded prose in this card, remain the source of truth for exact machine val
 | Calibration fit scope | 1,430 shots in 64 WC2022 matches only |
 | Final holdout | 1,304 shots in 51 Euro2024 matches; 98 goals and 1,206 misses |
 | Final adopted variant | `calibrated`, decided before Euro2024 was opened |
-| Release state | `m2_qualified`; `not_served` |
+| Release state | `m2_qualified`; the immutable M2 packet records `not_served`, and M3 separately evidences the current deployment |
 
 The fitted logistic coefficients describe associations conditional on this feature space. L2
 regularization shrinks them toward zero, and neither their signs nor magnitudes are causal effects.
@@ -424,8 +427,10 @@ was equal, and the feature contract matched. The byte-identical claim does **not
 arbitrary operating systems, architectures, Python environments, or dependency resolutions.
 
 **Release qualification is not deployment.** `release_status = m2_qualified` says the content and
-provenance packet passed the M2 release gate. `serving_status = not_served` says no evidence yet
-shows this model powers the API or UI. Serving and production monitoring belong to M3.
+provenance packet passed the M2 release gate. `serving_status = not_served` remains an immutable
+statement about what the M2 packet had proved at qualification time. M3 separately established and
+evidenced that this exact release now powers the deployed API and UI; production drift/model
+monitoring remains outside the current scope.
 
 ### Version and provenance
 

@@ -3,12 +3,13 @@
 **Read this before touching anything.** It is the state of the project and the reasoning behind its
 scope. Everything below is either current fact or a link to the document that owns the detail.
 
-Last updated: 2026-08-17, M2 is complete through WP2.8. WP2.7 and WP2.8 both closed with
-independent GPT-5.6 Sol review `PASS`; the qualified release remains `not_served`. M3/WP3.1 is
-implemented and manually approved for this iteration. WP3.2 local implementation and acceptance
-are closed with independent GPT-5.6 Sol re-review `PASS`; historical publication remains `NOT
-CLEARED`, and production deployment/smoke remains WP3.3–WP3.4. Update the "Where we are" section
-when a work package closes; do not let it drift.
+Last updated: 2026-08-22. M2 is complete through WP2.8, and M3 is complete through WP3.4. The
+qualified `exp-20260810-wp2_8-release` is served by the production API and analyst interface; its
+M2 release packet correctly remains the historical `not_served` qualification record. WP3.4 closed
+after 22/22 production smoke, an isolated fresh-Neon rebuild, Railway and Vercel recovery
+rehearsals, operator-confirmed rehearsal-resource decommissioning, and independent GPT-5.6 Sol
+review `PASS`. Historical row-level publication remains **NOT CLEARED** and `/model/shots` remains
+gated closed. Update the "Where we are" section when a work package closes; do not let it drift.
 
 ---
 
@@ -33,7 +34,7 @@ most expensive place for it to happen. Do not add capability the author cannot e
 
 - Frontend: https://touchline-intelligence.vercel.app (Vercel, free)
 - API: https://touchline-intelligence-production.up.railway.app (Railway Hobby, EU West)
-- Database: Neon free tier, Frankfurt, holding the pinned WC 2022 snapshot
+- Database: Neon, Frankfurt, holding the pinned four-tournament snapshot; public rows remain WC 2022 only
 
 | WP | State |
 |---|---|
@@ -58,7 +59,9 @@ most expensive place for it to happen. Do not add capability the author cannot e
 | 2.7 calibration, reliability, and one-time holdout | done — frozen development base, WC2022-only Platt calibration and adoption, one supervised Euro2024 tournament-holdout execution, paired bootstrap, slices, audit evidence and model card completed; independent GPT-5.6 Sol review `PASS` recorded in ADR 0013 and the closeout evidence. |
 | 2.8 reproducible calibrated release | done — development-only historical reproduction passed byte-identically in the registered environment; immutable content-hashed release `exp-20260810-wp2_8-release` qualified as `m2_qualified`, `not_served`; independent GPT-5.6 Sol review `PASS` recorded in ADR 0014 and the closeout evidence. |
 | 3.1 API and model serving | done for this iteration — minimal immutable serving bundle, fail-fast singleton runtime, versioned metadata/metrics/prediction endpoints, publication-gated WC2022 historical predictions, independent WP2 golden parity, structured errors, readiness 503 semantics, Linux-image golden/corruption acceptance and 20/20 WP3.1 mutations (284/284 suite-wide) implemented and evidenced. **The project author manually approved the review gate for this iteration; no independent Sol review ran and no independent-review `PASS` is claimed.** |
-| 3.2 analyst interface | done for the accepted local contract — repaired pagination and exact error-envelope validation, exhaustive mutation verification `292/292`, prior affected delta `13/13`, current repair delta `7/7`, and cumulative coverage of the current 301-contract population with no misses or skips; independent GPT-5.6 Sol delta re-review `PASS`. Historical publication remains **NOT CLEARED**, and production deployment/smoke remains **WP3.3–WP3.4**. |
+| 3.2 analyst interface | done — repaired pagination and exact error-envelope validation, exhaustive mutation verification `292/292`, prior affected delta `13/13`, current repair delta `7/7`, and cumulative coverage of the current 301-contract population with no misses or skips; independent GPT-5.6 Sol delta re-review `PASS`. The analyst interface is deployed; historical publication remains **NOT CLEARED**. |
+| 3.3 deployment hardening | done — protected native Git deployments, packaged migrations before admission, full readiness/liveness separation, structured request logs and IDs, exact CORS contracts, pooled runtime/direct migration separation, secret-safe configuration, Railway and Vercel production activation. |
+| 3.4 deployed smoke and recovery | done — 22/22 final production smoke, isolated fresh-Neon rebuild with pinned counts and packaged-runtime checks, Railway rollback/roll-forward, Vercel Instant Rollback/Promote, rehearsal-resource decommissioning, and independent GPT-5.6 Sol closeout review `PASS`; evidence in `reports/wp3.4-deployed-smoke-and-recovery-evidence.md`. |
 
 M1 is complete: WP1.1 through WP1.6 passed their acceptance and review gates. The fixed
 four-tournament cohort, idempotent conflict policy
@@ -72,9 +75,15 @@ identical no-op rerun. Completing M1 does not clear WP1.1's two documented publi
 M2 is complete through WP2.8. The qualified release is the development-fitted
 `full_minus_presence` logistic artifact with the pre-holdout-adopted WC2022 Platt transform, released
 as `exp-20260810-wp2_8-release` with `release_status = m2_qualified` and
-`serving_status = not_served`. Euro2024 was opened once as the tournament holdout; WP2.8's historical
-reproduction was development-only and did not reopen WC2022 or Euro2024. The public API remains
-restricted to WC 2022, and M3 owns serving.
+`serving_status = not_served` in the immutable M2 qualification packet. Euro2024 was opened once as
+the tournament holdout; WP2.8's historical reproduction was development-only and did not reopen
+WC2022 or Euro2024. M3 now serves that same immutable release while preserving the qualification
+packet's historical status. The public API remains restricted to WC 2022.
+
+M3 is complete through WP3.4. The qualified model API and analyst interface are live, the deployed
+contract passes 22/22 smoke checks, and the isolated rebuild plus Railway/Vercel recovery paths were
+performed and evidenced. The rehearsal Neon resource was decommissioned by the operator. This does
+not clear the separate historical row-level publication question; `/model/shots` remains closed.
 
 WP2.2 is **partially complete**. Slice A ships the two continuous geometry features — distance to
 the goal centre and the visible goal angle in a numerically stable two-post form — over exactly
