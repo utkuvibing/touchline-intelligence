@@ -989,6 +989,33 @@ def test_javascript_regex_literal_rs_text_does_not_insert_hidden_segments(
     assert "VISIBLE" in text
 
 
+@pytest.mark.parametrize("keyword", ["return", "throw", "yield"])
+def test_javascript_keyword_prefixed_regex_rc_text_does_not_promote_hidden_segments(
+    smoke: Any, keyword: str
+) -> None:
+    html = f"""
+      <template id="B:1"></template><div hidden id="S:1">HIDDEN</div>
+      <script>function f(){{{keyword} /$RC("B:1","S:1")/}}</script><p>VISIBLE</p>
+    """
+    assert smoke._visible_text(html) == "VISIBLE"
+
+
+@pytest.mark.parametrize("keyword", ["return", "throw", "yield"])
+def test_javascript_keyword_prefixed_regex_rs_text_does_not_insert_hidden_segments(
+    smoke: Any, keyword: str
+) -> None:
+    html = f"""
+      <template id="B:0"></template>
+      <div hidden id="S:0"><template id="P:1"></template></div>
+      <div hidden id="S:1">HIDDEN INNER</div>
+      <script>function f(){{{keyword} /$RS("S:1","P:1")/}};$RC("B:0","S:0")</script>
+      <p>VISIBLE</p>
+    """
+    text = smoke._visible_text(html)
+    assert "HIDDEN INNER" not in text
+    assert "VISIBLE" in text
+
+
 def test_division_does_not_hide_a_following_executable_react_call(smoke: Any) -> None:
     html = """
       <template id="B:1"></template><div hidden id="S:1">DIRECT</div>

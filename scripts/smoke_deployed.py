@@ -445,11 +445,37 @@ def _parse_react_call(data: str, start: int) -> tuple[tuple[str, str, str], int]
 def _executable_react_calls(data: str) -> list[tuple[str, str, str]]:
     """Scan JavaScript code state only; comments and literal bodies are inert."""
 
+    regex_prefix_keywords = frozenset(
+        {
+            "await",
+            "case",
+            "delete",
+            "do",
+            "else",
+            "in",
+            "instanceof",
+            "new",
+            "of",
+            "return",
+            "throw",
+            "typeof",
+            "void",
+            "yield",
+        }
+    )
+
     def regex_can_start(position: int) -> bool:
         previous = position - 1
         while previous >= 0 and data[previous].isspace():
             previous -= 1
-        return previous < 0 or data[previous] in "=(:,![{;?&|+-*%^~<>"
+        if previous < 0 or data[previous] in "=(:,![{;?&|+-*%^~<>":
+            return True
+        if data[previous].isalnum() or data[previous] in "_$":
+            end = previous + 1
+            while previous >= 0 and (data[previous].isalnum() or data[previous] in "_$"):
+                previous -= 1
+            return data[previous + 1 : end] in regex_prefix_keywords
+        return False
 
     calls: list[tuple[str, str, str]] = []
     index = 0

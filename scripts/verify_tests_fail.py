@@ -3726,6 +3726,16 @@ BREAKS: list[Break] = [
         cwd=ROOT,
     ),
     Break(
+        contract="WP3.4 React call scanner recognizes regex after expression-prefix keywords",
+        path=ROOT / "scripts/smoke_deployed.py",
+        anchor="            return data[previous + 1 : end] in regex_prefix_keywords\n",
+        replacement=(
+            "            return False  # DELIBERATE BREAK: keyword-prefixed regex scanned as code\n"
+        ),
+        command=WP34_SMOKE_TESTS,
+        cwd=ROOT,
+    ),
+    Break(
         contract="WP3.4 inserted React segment must be reachable from a promoted owner",
         path=ROOT / "scripts/smoke_deployed.py",
         anchor="                    and owner in promoted\n",
