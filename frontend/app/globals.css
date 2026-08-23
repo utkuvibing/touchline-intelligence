@@ -223,7 +223,6 @@ p {
 }
 
 /* Open editorial sections: page-level rhythm, hairline rules, no boxes. */
-.delivery-status,
 .model-identity,
 .evaluation-section {
   margin-top: 0;
@@ -254,52 +253,8 @@ p {
   box-shadow: var(--shadow);
 }
 
-.delivery-status {
-  display: grid;
-  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
-  gap: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--line);
-}
-
-.delivery-status dl {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.delivery-status dl > div {
-  padding-left: 1rem;
-  border-left: 1px solid var(--line);
-}
-
-.delivery-status dt,
-.delivery-status dd {
-  line-height: 1.35;
-}
-
-.delivery-status dt {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.delivery-status dd {
-  margin-top: 0.5rem;
-  font-size: 0.86rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-}
-
-.status-value-progress {
-  color: var(--teal);
-}
-
 .status-value-blocked {
   color: var(--warning);
-}
-
-.status-value-neutral {
-  color: var(--muted);
 }
 
 .status-chip {
@@ -922,23 +877,16 @@ a:focus-visible {
     max-width: none;
   }
 
-  .delivery-status,
   .site-footer {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
 
-  .delivery-status dl,
   .identity-lede,
   .scope-grid,
   .metric-grid,
   .limitation-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .delivery-status dl > div {
-    padding-left: 0;
-    border-left: 0;
   }
 
   .filter-grid {
@@ -960,7 +908,6 @@ a:focus-visible {
 }
 
 @media (max-width: 30rem) {
-  .delivery-status dl,
   .identity-lede,
   .scope-grid,
   .metric-grid,

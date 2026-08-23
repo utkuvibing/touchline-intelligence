@@ -62,33 +62,6 @@ function HeroFacts({ metadata }: { metadata: ModelMetadata }) {
   );
 }
 
-function DeliveryStatus() {
-  return (
-    <section className="delivery-status" aria-labelledby="delivery-status-heading">
-      <div>
-        <p className="eyebrow">BOUNDARIES</p>
-        <h2 id="delivery-status-heading">Three statuses, kept separate</h2>
-      </div>
-      <dl>
-        <div>
-          <dt>WP3.2 local implementation / acceptance</dt>
-          <dd className="status-value status-value-progress">
-            Local acceptance PASS; independent Sol re-review PASS
-          </dd>
-        </div>
-        <div>
-          <dt>Historical publication permission</dt>
-          <dd className="status-value status-value-blocked">NOT CLEARED</dd>
-        </div>
-        <div>
-          <dt>Production deployment / smoke</dt>
-          <dd className="status-value status-value-neutral">WP3.3–WP3.4</dd>
-        </div>
-      </dl>
-    </section>
-  );
-}
-
 function ModelIdentity({ metadata }: { metadata: ModelMetadata }) {
   return (
     <section className="model-identity" aria-labelledby="model-identity-heading">
@@ -115,8 +88,8 @@ function ModelIdentity({ metadata }: { metadata: ModelMetadata }) {
       </div>
       <p className="section-lede">
         {metadata.estimator} with {metadata.calibration}. This is an independent Touchline estimate,
-        not StatsBomb&apos;s proprietary xG model. The serving runtime reports the immutable M2 release
-        as qualified while the production deployment work remains separate.
+        not StatsBomb&apos;s proprietary xG model. Model identity and evaluation scope come directly
+        from the validated serving artifact.
       </p>
       <div className="scope-grid">
         <div>
@@ -227,22 +200,19 @@ function HistoricalState({ state }: { state: ResourceState<HistoricalShotCollect
       <section className="historical-section" aria-labelledby="historical-heading">
         <div className="section-heading-row">
           <div>
-            <p className="eyebrow">PUBLICATION-GATED WORKSPACE</p>
-            <h2 id="historical-heading">Historical shot map is not publicly enabled</h2>
+            <p className="eyebrow">DATA-USE BOUNDARY</p>
+            <h2 id="historical-heading">Historical shot-level predictions are unavailable</h2>
           </div>
-          <span className="status-chip status-chip-blocked">NOT CLEARED</span>
+          <span className="status-chip status-chip-blocked">PUBLICATION PAUSED</span>
         </div>
         <p className="gate-message">
-          The WP3.1 historical row-level probability endpoint returned
-          {" "}
-          <strong>publication_gate_closed</strong>. The source review still needs current written
-          StatsBomb/Hudl direction before these historical probabilities can be published. No raw
-          rows are substituted, and the interface does not reconstruct them through hypothetical
-          prediction calls.
+          Current provider terms do not clearly resolve whether publishing row-level historical
+          probabilities is permitted. The public API therefore keeps this dataset closed while
+          written clarification is pending. No source rows are substituted or reconstructed.
         </p>
         <p className="muted">
-          Controlled local acceptance may enable the endpoint explicitly. This public state is
-          expected while the external permission gate remains open.
+          Model identity, evaluation results and limitations remain available above without
+          redistributing the underlying event data.
         </p>
       </section>
     );
@@ -270,7 +240,7 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
     <main className="analyst-page">
       <header className="hero-header">
         <div>
-          <p className="eyebrow">TOUCHLINE INTELLIGENCE · M3 / DEPLOYED VALIDATION</p>
+          <p className="eyebrow">TOUCHLINE INTELLIGENCE · MODEL EVIDENCE</p>
           <h1>Shot quality, made inspectable.</h1>
           <p className="hero-lede">
             Explore how a calibrated goal-conversion model behaves on a pinned football event-data
@@ -285,8 +255,6 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
           {metadata.status === "ready" && <HeroFacts metadata={metadata.data} />}
         </div>
       </header>
-
-      <DeliveryStatus />
 
       {provenanceError && (
         <ErrorNotice

@@ -4,10 +4,10 @@
 
 **A production-deployed football analytics and applied-ML portfolio.**
 
-Pinned StatsBomb event data → validated PostgreSQL → reproducible shot-quality model → analyst interface.
+Pinned StatsBomb event data → validated PostgreSQL → reproducible shot-quality model → model-evidence interface.
 
 [![CI](https://github.com/utkuvibing/touchline-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/utkuvibing/touchline-intelligence/actions/workflows/ci.yml)
-![M3](https://img.shields.io/badge/M3-complete-087f8c)
+![Deployment](https://img.shields.io/badge/deployment-live-087f8c)
 ![Production smoke](https://img.shields.io/badge/production_smoke-22%2F22_pass-2e7d32)
 ![Historical publication](https://img.shields.io/badge/historical_publication-gate_closed-b26a00)
 
@@ -27,17 +27,19 @@ Pinned StatsBomb event data → validated PostgreSQL → reproducible shot-quali
 
 ## At a glance
 
-| Product | Model | Production proof | Public boundary |
+| Live product | Selected model | Evaluation | Public boundary |
 |---|---|---|---|
-| **M3 / WP3.4 complete**<br>Vercel frontend + Railway API | **`exp-20260810-wp2_8-release`**<br>calibrated logistic regression | **22/22 smoke passed**<br>fresh-Neon rebuild + Railway/Vercel recovery rehearsed | **Historical rows closed**<br>`/model/shots` → `publication_gate_closed` |
+| **Vercel interface + Railway API**<br>deployed; 22/22 production smoke checks passed | **L2-regularized logistic regression**<br>geometry + recorded shot context | **Euro 2024 tournament holdout**<br>raw and calibrated variants reported | **Historical rows unavailable**<br>pending data-use clarification |
 
 Touchline Intelligence turns a pinned open-data snapshot into a defensible end-to-end system. The
 project emphasizes the parts that are easiest to hand-wave and hardest to defend in an interview:
 data lineage, leakage control, evaluation permissions, calibrated probabilities, reproducible
 artifacts, deployment contracts, and recovery evidence.
 
-The immutable M2 qualification packet correctly retains its historical `serving_status =
-not_served`; M3 is the later, separately evidenced deployment of that qualified release.
+On the locked development folds, the selected logistic model reduced mean log loss from `0.302`
+for the training-fold constant reference to `0.263`. More complex boosting and neural challengers
+did not earn replacement. The final Euro 2024 result—including the calibrated variant's worse
+proper scores—is reported below rather than hidden.
 
 ## What it demonstrates
 
@@ -45,7 +47,7 @@ not_served`; M3 is the later, separately evidenced deployment of that qualified 
 |---|---|
 | **Data engineering** | 465 pinned and hashed source files, normalized PostgreSQL, ordered migrations, idempotent ingestion, reconciliation, and clean rebuilds |
 | **Applied ML** | Fixed cohort, deterministic tournament splits, engineered geometry, controlled model comparison, calibration, and one-time holdout evaluation |
-| **Release engineering** | Content-hashed serving bundle, provenance checks, golden parity, strict API contracts, and mutation verification |
+| **Release engineering** | Content-hashed serving bundle, provenance checks, golden parity, strict API contracts, and tests that deliberately exercise critical failure guards |
 | **Product delivery** | Model-aware Next.js analyst interface, FastAPI serving layer, readiness, CORS, request IDs, and attribution |
 | **Operations** | Production smoke, isolated-database rebuild, Railway rollback/roll-forward, and Vercel rollback/promote rehearsals |
 | **Responsible boundaries** | No provider xG ingestion, no tracking-data claims, explicit uncertainty, and a closed historical publication gate |
@@ -133,7 +135,7 @@ are treated as event snapshots, not continuous tracking data.
 - **Recovery:** isolated fresh-Neon rebuild and Railway/Vercel recovery rehearsals passed
 - **Historical publication:** not cleared; `/model/shots` remains closed
 
-The exact deployment identities, rebuild counts, recovery sequence, and independent closeout review
+The exact deployment identities, rebuild counts, recovery sequence, and closeout evidence
 are recorded in the [WP3.4 evidence report](reports/wp3.4-deployed-smoke-and-recovery-evidence.md).
 
 ## Roadmap
@@ -148,30 +150,40 @@ M4 Communication      ← NEXT
 
 **Current milestone: M4 — Release and Communication.** It packages the completed technical work
 into a write-up, stakeholder summary, demo video, screenshots, attribution audit, and application
-materials. The detailed work-package history lives in [docs/PLAN.md](docs/PLAN.md).
+materials.
 
 ## Run locally
 
-You need [uv](https://docs.astral.sh/uv/), Node.js 24, and Docker Desktop.
+For a first look, use the [live analyst app](https://touchline-intelligence.vercel.app) and
+[model API](https://touchline-intelligence-production.up.railway.app/model). A local run rebuilds
+the PostgreSQL schema and downloads the pinned 465-file StatsBomb snapshot, so it is the
+reproducibility path rather than the fastest product tour.
+
+You need [uv](https://docs.astral.sh/uv/), Node.js 24, and Docker Desktop. On Windows PowerShell,
+use `Copy-Item .env.example .env` in place of `cp .env.example .env`.
 
 ```bash
 git clone https://github.com/utkuvibing/touchline-intelligence.git
 cd touchline-intelligence
 cp .env.example .env
 
-uv sync
+uv sync --no-default-groups --group dev
 npm --prefix frontend ci
 docker compose -f infra/docker-compose.yml up -d
 
-uv run poe migrate
-uv run poe ingest
-uv run poe api
+uv run --no-sync poe migrate
+uv run --no-sync poe ingest
+uv run --no-sync poe api
 ```
 
 The API runs at `http://localhost:8000` and `npm --prefix frontend run dev` starts the interface at
-`http://localhost:3000`. Run the same Python validation used by CI with:
+`http://localhost:3000`.
+
+The lean install above excludes the optional PyTorch modeling environment. To reproduce model
+experiments or run the complete Python validation used by CI, install the locked default groups:
 
 ```bash
+uv sync
 uv run poe check
 ```
 
@@ -193,6 +205,14 @@ scripts/                 Developer, smoke, and mutation-verification entry point
 
 </details>
 
+Useful code entry points:
+
+- [`backend/src/touchline/main.py`](backend/src/touchline/main.py) — API and operational endpoints;
+- [`backend/src/touchline/modeling/train.py`](backend/src/touchline/modeling/train.py) — locked
+  logistic experiment pipeline; and
+- [`frontend/components/AnalystView.tsx`](frontend/components/AnalystView.tsx) — deployed model
+  evidence interface.
+
 ## Evidence map
 
 | Question | Canonical record |
@@ -201,7 +221,6 @@ scripts/                 Developer, smoke, and mutation-verification entry point
 | Which data is used and what may be published? | [DATA_SOURCE.md](DATA_SOURCE.md) |
 | How was the reproducible release qualified? | [WP2.8 closeout](reports/wp2.8-reproducible-release-closeout.md) |
 | What passed in production and recovery? | [WP3.4 closeout](reports/wp3.4-deployed-smoke-and-recovery-evidence.md) |
-| What is the complete milestone plan? | [docs/PLAN.md](docs/PLAN.md) |
 
 ## Credits and licence
 

@@ -4,10 +4,15 @@
 # Local knowledge-graph output from the graphify tool. Regenerated on demand, never authoritative.
 graphify-out/
 
-# Internal working material. Kept locally, never published: agent instructions, the execution plan,
-# the job search behind the project, and the CV's personal contact details describe how the work is
-# organised rather than what was built. The public repository carries the product and its evidence.
-AGENTS.md
+# Local review and browser-automation scratch. Never part of the public project.
+/.playwright-cli/
+/IDEA.md
+/nul
+
+# Internal working material. Kept locally, never published: detailed orchestration, the execution
+# plan, the job search behind the project, and the CV's personal contact details describe how the
+# work is organised rather than what was built. Public-safe contributor guidance remains tracked in
+# AGENTS.md.
 CLAUDE.md
 CONTEXT.md
 docs/

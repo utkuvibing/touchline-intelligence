@@ -182,14 +182,14 @@ describe("WP3.2 analyst view", () => {
     expect(
       screen.getByRole("heading", { name: /one-time tournament holdout/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/publication_gate_closed/i)).toBeInTheDocument();
+    expect(screen.getByText(/provider terms do not clearly resolve/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/data provided by statsbomb/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/NOT CLEARED/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/local acceptance PASS; independent Sol re-review PASS/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /historical shot map is not publicly enabled/i }),
+      screen.getByRole("heading", { name: /historical shot-level predictions are unavailable/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/production deployment \/ smoke/i)).toBeInTheDocument();
+    expect(screen.getByText(/publication paused/i)).toBeInTheDocument();
+    expect(screen.queryByText(/independent Sol/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/WP3\./i)).not.toBeInTheDocument();
   });
 
   it("renders every holdout reliability sample size and the raw comparator direction", () => {
