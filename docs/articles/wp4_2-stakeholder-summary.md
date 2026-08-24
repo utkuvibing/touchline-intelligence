@@ -14,27 +14,27 @@ how much of the goal the shooter could actually see, whether it was hit with foo
 kind of situation it came from (open play, counter-attack, free kick).
 
 It does not know who the shooter was, who the opponents were, what the score was, or which minute it
-was. That is deliberate: the number describes the *opportunity*, not the person taking it. Finishing
-skill above or below that baseline is exactly what it leaves for you to judge.
+was. That is deliberate: the number describes the *opportunity*, not the person taking it; finishing
+skill above or below that baseline is left to your judgement.
 
 Two things it is not. It is **not StatsBomb's expected-goals model**: this project builds its own
-number from open event data, and the provider's commercial xG values are removed before storage — a
-database constraint makes it impossible for them to reach the model. And it is **not a prediction
+number from open event data, the provider's commercial xG values are removed before storage, and a
+database constraint keeps them away from the model. And it is **not a prediction
 about a named player or team**.
 
 ## How it was built, without formulas
 
 The model learned in three stages, each on matches the later stages never saw:
 
-1. **Learn the game.** It studied **2,872 shots from 115 matches** — the World Cup 2018 and Euro
-   2020 squads of games. Here it picked up the football: chances close to goal and straight in front
+1. **Learn the game.** It studied **2,872 shots from 115 matches** — every match of World Cup 2018
+   and Euro 2020. Here it picked up the football: chances close to goal and straight in front
    convert far more often than efforts from distance or tight angles; counters create better looks
    than corners; headers score less than feet from the same spot.
 2. **Adjust the quotes.** On World Cup 2022 (64 more matches), a small correction was fitted so that
    the quoted chances line up with what actually converted — if the model calls a group of chances
    "30%", about three in ten of them should go in.
-3. **One exam, taken once.** Finally it faced Euro 2024 — 51 matches it had never influenced in any
-   way. No feature, no tuning, no calibration decision came from that tournament. It was scored a
+3. **One exam, taken once.** Finally it faced Euro 2024 — 51 matches it had never influenced. No
+   feature, no tuning, no calibration decision came from that tournament. It was scored a
    single time, after everything else was frozen.
 
 One honesty note about that exam. Euro 2024 was locked but never fully blind: earlier descriptive
@@ -51,23 +51,24 @@ else was decided.
   scoring odds; a clearer view of the goal helps by a similar amount; a header converts at roughly
   half the odds of an otherwise identical right-foot finish. Chances from counters outperform open
   play; chances from corners underperform it.
-- **On average, the quotes mean what they say.** Across many shots, groups the model rates at a
-  given chance level convert close to that rate — most reliably in the development and World Cup
-  2022 data it was fitted on.
+- **Calibration holds broadly, not finely.** On the data it was fitted and adjusted on, groups of
+  chances rated at a similar level converted close to that level on average. The evidence is thin —
+  few well-populated chance bands support it — so read the number as an average over many shots,
+  not a per-band guarantee.
 
 ## Where it should not be trusted
 
 - **The final correction backfired slightly on the exam.** On Euro 2024, the adjusted version scored
   a little worse than the unadjusted one on a measure that punishes confident mistakes (0.2431
   against 0.2393 — lower is better). Both results are published side by side. The adjusted version
-  ships anyway because the choice was frozen before the exam was taken; changing it after seeing the
-  result would turn a one-time test into a second round of tuning, which is precisely what the
-  process exists to prevent.
-- **Fine distinctions are shaky.** Nearly all chances land below 20%. Separating an "8% chance"
-  from a "10% chance" is beyond what the evidence supports; separating a tap-in from a long-range
-  effort is not.
+  ships anyway because the choice was frozen before the exam; changing it after seeing the result
+  would turn a one-time test into a second round of tuning, precisely what this process exists to
+  prevent.
+- **Fine distinctions are shaky.** Nearly all chances land below 20%, and small percentage-point
+  differences should not be overinterpreted; separating a tap-in from a long-range effort is not
+  the same problem.
 - **Its world is four tournaments.** Men's World Cups 2018 and 2022, Euros 2020 and 2024 — nothing
-  else. League seasons, women's internationals, club football and other providers are simply outside
+  else. League seasons, women's internationals, club football and other providers are outside
   what these numbers describe.
 
 ## What not to do with it
@@ -78,9 +79,9 @@ else was decided.
   chances, not decisions about people or games.
 - **Do not expect row-level predictions in public.** While source data terms remain unclear, the
   deployed interface shows recorded World Cup 2022 outcomes only; historical model rows stay closed.
-- **Do not blur the products.** This is event-data modelling. The players' positions around a shot
-  come from embedded event snapshots, not from tracking technology, and the number is not anyone's
-  proprietary xG.
+- **Do not blur the products.** The model is built on event data — what happened, where, and with
+  which body part — not on continuous tracking. It models no off-ball movement, and its number is
+  not anyone's proprietary xG.
 
 ## Where every number comes from
 
