@@ -42,7 +42,7 @@ Every location below was verified on 2026-08-25. Form is text unless noted.
 | Repository `README.md` | Logo + text | Inspected tracked file: official wordmark (`assets/statsbomb-logo.svg`) linked to the Open Data repository; pinned-commit statement; "does not reproduce StatsBomb's proprietary xG model" notice | Present |
 | `DATA_SOURCE.md` | Text | Inspected tracked file: source/rights section, pinned revision, terms-review dates (2026-08-01; logo-provenance update 2026-08-24) | Present |
 | `MODEL_CARD.md` | Text | Inspected tracked file: source section names StatsBomb Open Data at the pinned commit and states the model is not StatsBomb's proprietary xG | Present |
-| Deployed frontend ([live page](https://touchline-intelligence.vercel.app)) | Logo + text | Text credit verified by live fetch 2026-08-25 ("SOURCE AND TERMS — Data provided by StatsBomb through the StatsBomb Open Data repository"), plus "Not StatsBomb xG" limitations card and closed-publication-gate notice. The unmodified logo (`frontend/public/statsbomb-logo.svg`, byte-identical to `assets/statsbomb-logo.svg`) is rendered above that credit on this branch; **live logo confirmation is pending post-merge deployment** | Text present (live); logo pending deploy |
+| Deployed frontend ([live page](https://touchline-intelligence.vercel.app)) | Logo + text | Verified live 2026-08-25 against the production deployment of merged main commit `d2dbdd5` (Vercel deployment state `success`): the SOURCE AND TERMS footer renders the unmodified wordmark (`/statsbomb-logo.svg`, HTTP 200 `image/svg+xml`) with alt text "Hudl StatsBomb logo" above the text credit "Data provided by StatsBomb through the StatsBomb Open Data repository"; "Not StatsBomb xG" limitations card and closed-publication-gate notice also present | Present |
 | API HTTP surface | Text | Inspected code: OpenAPI summary names StatsBomb Open Data (`main.py`), coordinate fields labelled "StatsBomb pitch coordinate"; responses label the coordinate system `"StatsBomb"` | Present |
 | Quality report (CLI artifact) | Text | Inspected code: `attribution = "Data provided by StatsBomb."` (`backend/src/touchline/quality.py`), rendered by `poe quality`; this is an offline report, not an HTTP response | Present |
 | Source-ingestion module | Text | Inspected code: `backend/src/touchline/ingest/source.py` docstring carries the provider credit and repository URL | Present |
@@ -57,10 +57,10 @@ The tracked asset [`assets/statsbomb-logo.svg`](../assets/statsbomb-logo.svg) is
 per the [DATA_SOURCE.md](../DATA_SOURCE.md) update of 2026-08-24 — the official Hudl StatsBomb
 wordmark SVG retrieved through a dated web.archive.org capture after the Media Pack page was
 retired. No logo was invented or altered. The agreement's accreditation requirement (§1.4 per the
-2026-08-01 review) is met in the repository by logo + text together. On this branch the same
-unmodified asset is served from `frontend/public/statsbomb-logo.svg` and rendered beside the text
-credit in the deployed interface's source-and-terms footer; live confirmation of that addition is
-pending post-merge deployment, so the surface is recorded as partially verified above.
+2026-08-01 review) is met in the repository by logo + text together. The same unmodified asset is
+served from `frontend/public/statsbomb-logo.svg` and rendered beside the text credit in the
+deployed interface's source-and-terms footer; live verification on 2026-08-25 against production
+`d2dbdd5` confirmed both, so the deployed surface is fully verified in the matrix above.
 
 ## Unresolved gates restated
 
@@ -112,3 +112,11 @@ Applied against review findings on `codex/wp4.4-closeout`, keeping WP4.4 scope u
 
 WP4.4 completion remains **not** claimed; independent review and the remaining milestone gates are
 still open.
+
+## Revision 3 — post-merge closeout (2026-08-25)
+
+The Vercel production deployment of merged main commit `d2dbdd5` (PR #26, deployment state
+`success`) was verified live: the unmodified StatsBomb wordmark and the text credit are both
+present in the SOURCE AND TERMS footer, and `/statsbomb-logo.svg` serves HTTP 200
+(`image/svg+xml`, byte-length identical to the tracked asset). The deployed-interface matrix row is
+upgraded from pending/partially verified to **Present**. No other content changed.
