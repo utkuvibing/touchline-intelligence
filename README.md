@@ -145,12 +145,13 @@ M0 Walking skeleton   ✅
 M1 Data foundation    ✅
 M2 Model lifecycle    ✅
 M3 Serving + product  ✅
-M4 Communication      ← NEXT
+M4 Communication      ← ACTIVE
 ```
 
-**Current milestone: M4 — Release and Communication.** It packages the completed technical work
-into a write-up, stakeholder summary, demo video, screenshots, attribution audit, and application
-materials.
+**Current milestone: M4 — Release and Communication**, tracked item by item: technical write-up ✅,
+coach-facing stakeholder summary ✅ (both linked below), repo tidy and attribution audit in progress,
+demo video **postponed**. The milestone packages the completed technical work into a write-up,
+stakeholder summary, demo video, screenshots, attribution audit, and application materials.
 
 ## Run locally
 
@@ -212,6 +213,11 @@ Useful code entry points:
   logistic experiment pipeline; and
 - [`frontend/components/AnalystView.tsx`](frontend/components/AnalystView.tsx) — deployed model
   evidence interface.
+
+## Read the analysis
+
+- **Technical write-up:** [A calibrated shot-quality model from open event data — and what its one holdout actually said](docs/articles/wp4_1-shot-quality-write-up.md)
+- **For non-technical readers:** [The shot-quality number, explained for a coach](docs/articles/wp4_2-stakeholder-summary.md)
 
 ## Evidence map
 

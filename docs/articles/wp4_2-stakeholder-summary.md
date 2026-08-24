@@ -1,7 +1,8 @@
 # The shot-quality number, explained for a coach — and where to stop trusting it
 
-> **Status: draft, not published.** Written 2026-08-24 as the non-technical companion to the
-> [technical write-up](wp4_1-shot-quality-write-up.md). Review before publishing anywhere.
+> **Status: published in the repository.** Written 2026-08-24 as the non-technical companion to
+> the [technical write-up](wp4_1-shot-quality-write-up.md); reviewed and linked from the README
+> on 2026-08-25 as part of WP4.4.
 
 **Live app:** https://touchline-intelligence.vercel.app
 **Repository:** https://github.com/utkuvibing/touchline-intelligence
@@ -85,7 +86,7 @@ else was decided.
 
 ## Where every number comes from
 
-Every figure above traces to committed evidence: the [Model Card](../../../MODEL_CARD.md), the
+Every figure above traces to committed evidence: the [Model Card](../../MODEL_CARD.md), the
 [technical write-up](wp4_1-shot-quality-write-up.md), and the per-work-package reports in the
 repository's [`reports/`](../../reports) directory.
 

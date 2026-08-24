@@ -1,7 +1,7 @@
 # A calibrated shot-quality model from open event data — and what its one holdout actually said
 
-> **Status: draft, not published.** Written 2026-08-23, after the model (M2) and serving (M3)
-> milestones closed. Review before publishing anywhere.
+> **Status: published in the repository.** Written 2026-08-23, after the model (M2) and serving
+> (M3) milestones closed; reviewed and linked from the README on 2026-08-25 as part of WP4.4.
 
 **Live:** https://touchline-intelligence.vercel.app
 **Repository:** https://github.com/utkuvibing/touchline-intelligence
