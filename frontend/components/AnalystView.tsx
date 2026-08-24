@@ -309,6 +309,15 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
       <footer className="site-footer">
         <div>
           <p className="eyebrow">SOURCE AND TERMS</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- SVG asset served unmodified from /public */}
+          <img
+            src="/statsbomb-logo.svg"
+            alt="Hudl StatsBomb logo"
+            width={140}
+            height={19}
+            loading="lazy"
+            decoding="async"
+          />
           <p aria-label="Data provided by StatsBomb">
             Data provided by <strong>StatsBomb</strong> through the{" "}
             <a href="https://github.com/statsbomb/open-data" target="_blank" rel="noreferrer">

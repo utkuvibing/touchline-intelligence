@@ -1,7 +1,7 @@
 # A calibrated shot-quality model from open event data — and what its one holdout actually said
 
-> **Status: draft, not published.** Written 2026-08-23, after the model (M2) and serving (M3)
-> milestones closed. Review before publishing anywhere.
+> **Status: published in the repository.** Written 2026-08-23, after the model (M2) and serving
+> (M3) milestones closed; reviewed and linked from the README on 2026-08-25 as part of WP4.4.
 
 **Live:** https://touchline-intelligence.vercel.app
 **Repository:** https://github.com/utkuvibing/touchline-intelligence
@@ -333,8 +333,10 @@ Read together with the results, not after them.
    the history is disclosed in the split contract rather than claimed away.
 8. **This is not StatsBomb's xG.** Different data scope, different features, different method, and
    no claim of equivalence is made or implied.
-9. **Row-level publication remains gated.** Public row-level shot browsing stays closed pending
-   clarity on the source terms; the deployed interface respects that gate today.
+9. **Historical row-level model predictions remain gated.** The public descriptive shot map of
+   recorded World Cup 2022 outcomes is unchanged and stays available; what remains closed pending
+   clarity on the source terms is publishing historical row-level *model predictions* (`/model/shots`).
+   The deployed interface respects that gate today.
 10. **Aggregate evidence supports no row-level or causal claims.** Nothing here says why a specific
     shot missed, whether a player should have scored, or what a team should do differently.
 

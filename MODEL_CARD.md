@@ -1,6 +1,6 @@
 # Touchline Intelligence Shot Quality Model Card
 
-**Canonical M2 model card**  
+**Canonical model card — current qualified public release**  
 **Release status:** `m2_qualified`  
 **M2 qualification-packet serving status:** `not_served`
 
@@ -10,10 +10,12 @@
 the pre-holdout-adopted WC2022 Platt transform  
 **Release packet:** `exp-20260810-wp2_8-release`
 
-This is the current model card for the completed M2 shot-quality lifecycle. The shorter
-[WP2.7 model card](reports/wp2.7-model-card.md) and
+This is the current model card for the qualified public release of the shot-quality lifecycle. The
+shorter [WP2.7 model card](reports/wp2.7-model-card.md) and
 [WP2.7 closeout card](reports/wp2.7-model-card-closeout.md) remain unchanged as historical records
-of the calibration and one-time-holdout stage.
+of the calibration and one-time-holdout stage. The release is analyzed in the
+[technical write-up](docs/articles/wp4_1-shot-quality-write-up.md) and summarized for
+non-technical stakeholders in the [coach-facing summary](docs/articles/wp4_2-stakeholder-summary.md).
 
 ## What is this model?
 

@@ -4,7 +4,7 @@
 Vercel (Next.js)  ──HTTPS──►  Railway (FastAPI, Docker)  ──►  Neon (PostgreSQL)
 ```
 
-Chosen for the reason in [ADR 0006](adr/0006-deployment-approach.md): the point is to have a real
+Chosen for the reason recorded in ADR 0006 (deployment approach): the point is to have a real
 containerised service with a real CI-built image and a real managed database, not to learn one
 vendor's console. Nothing here is AWS-specific, and the concepts transfer.
 
