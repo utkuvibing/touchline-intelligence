@@ -29,6 +29,12 @@ agreement did not clearly resolve whether a public row-level API is permitted an
 redistribution. Do not invent a logo, publish database dumps, or expand public row-level coverage
 until StatsBomb/Hudl clarifies those points. This is a source-text review, not legal advice.
 
+Update 2026-08-24: after the Media Pack page was retired from statsbomb.com, the official
+Hudl StatsBomb wordmark SVG served by statsbomb.com itself was retrieved through a dated
+web.archive.org capture of that domain and stored unmodified as
+[`assets/statsbomb-logo.svg`](assets/statsbomb-logo.svg) for README attribution; no logo was
+invented or altered, and the row-level publication gate is unchanged.
+
 The committed fixture files are synthetic, fictional test data. They are not copied match data.
 
 ## Measured source inventory

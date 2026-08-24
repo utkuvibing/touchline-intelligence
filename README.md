@@ -226,6 +226,8 @@ Useful code entry points:
 
 ### Data provided by StatsBomb
 
+<a href="https://github.com/statsbomb/open-data"><img src="assets/statsbomb-logo.svg" alt="Hudl StatsBomb logo" width="160"></a>
+
 [StatsBomb Open Data](https://github.com/statsbomb/open-data) supplies the event data. The snapshot
 is pinned to `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`; terms and coverage were reviewed on 2026-08-01.
 StatsBomb is now part of [Hudl](https://www.hudl.com/).
