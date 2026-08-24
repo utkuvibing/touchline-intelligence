@@ -333,8 +333,10 @@ Read together with the results, not after them.
    the history is disclosed in the split contract rather than claimed away.
 8. **This is not StatsBomb's xG.** Different data scope, different features, different method, and
    no claim of equivalence is made or implied.
-9. **Row-level publication remains gated.** Public row-level shot browsing stays closed pending
-   clarity on the source terms; the deployed interface respects that gate today.
+9. **Historical row-level model predictions remain gated.** The public descriptive shot map of
+   recorded World Cup 2022 outcomes is unchanged and stays available; what remains closed pending
+   clarity on the source terms is publishing historical row-level *model predictions* (`/model/shots`).
+   The deployed interface respects that gate today.
 10. **Aggregate evidence supports no row-level or causal claims.** Nothing here says why a specific
     shot missed, whether a player should have scored, or what a team should do differently.
 

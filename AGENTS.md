@@ -63,6 +63,9 @@ uv run --no-sync poe api
 uv sync
 uv run poe check
 
+# Documentation links (run before merging documentation changes)
+uv run python scripts/check_docs_links.py
+
 # Frontend
 npm --prefix frontend ci
 npm --prefix frontend run lint
