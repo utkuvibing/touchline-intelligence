@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "attribution": "Data provided by StatsBomb.",
+  "purpose": "M5 WP5.1 evaluation registry: the v2 development pool, the sealed external qualification sets, and the reserved future evaluation set.",
+  "generated_utc": "2026-08-25T11:45:08Z",
+  "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "development_pool": [
+    {
+      "name": "WC2018",
+      "competition_id": 43,
+      "season_id": 3,
+      "note": "v1 development; v2 development under the corrected nested protocol"
+    },
+    {
+      "name": "Euro2020",
+      "competition_id": 55,
+      "season_id": 43,
+      "note": "v1 development; v2 development under the corrected nested protocol"
+    },
+    {
+      "name": "WC2022",
+      "competition_id": 43,
+      "season_id": 106,
+      "note": "v1 calibration tournament; v2 development under the corrected nested protocol"
+    },
+    {
+      "name": "Euro2024",
+      "competition_id": 55,
+      "season_id": 282,
+      "note": "historical v1 one-time holdout (ADR 0013); remains untouched for v1 claims but is NOT claimed as untouched for v2"
+    }
+  ],
+  "sealed_sets": [
+    {
+      "name": "AFCON 2023",
+      "competition_id": 1267,
+      "season_id": 107,
+      "status": "sealed",
+      "permitted_access": "target_free_structural_only",
+      "opened_by": null
+    },
+    {
+      "name": "Copa America 2024",
+      "competition_id": 223,
+      "season_id": 282,
+      "status": "sealed",
+      "permitted_access": "target_free_structural_only",
+      "opened_by": null
+    }
+  ],
+  "future_reservation": {
+    "decision": "no_complete_mens_tournament_available",
+    "recorded_utc": "2026-08-25T11:45:08Z",
+    "detail": "A label-free survey of competitions.json at pinned revision b0bc9f22 (2026-05-26) found no complete men's tournament after Euro 2024. Per PLAN.md M5 item 5, further model-selection claims therefore freeze after M7 unless a future pinned source revision adds a genuinely untouched complete tournament. Recycling AFCON 2023 or Copa America 2024 after qualification is prohibited.",
+    "survey_evidence": "reports/wp5.1-sealed-structural-validation.md"
+  },
+  "rules": [
+    "No development or tuning loader may read a sealed set's rows or labels before M7 opens its one-time qualification run.",
+    "Only target-free structural validation is permitted before opening: file existence, schema compatibility, match identifiers, coordinate bounds and parser success.",
+    "Outcome-bearing facts (shot outcomes, goal counts, conversion rates, model scores, row-level previews) must never appear in any sealed-set report or log.",
+    "A sealed set opened for M7 qualification may never be reused for further selection; recycling after a failed gate is prohibited."
+  ]
+}

@@ -36,6 +36,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
+from touchline.sealed_scope import SEALED_SCOPES, SEALED_SET_NAMES, SealedScopeError
+
 SplitName = Literal["development", "calibration", "holdout"]
 
 #: Locked scope pairs, from ADR 0004 and the WP2.1 cohort contract.
@@ -142,6 +144,12 @@ def assign_tournament_split(matches: Iterable[MatchRecord]) -> SplitPlan:
             raise SplitAssignmentError(f"duplicate match_id {record.match_id}")
         seen.add(record.match_id)
         scope = (record.competition_id, record.season_id)
+        if scope in SEALED_SCOPES:
+            raise SealedScopeError(
+                f"match {record.match_id} has scope {scope} "
+                f"({SEALED_SET_NAMES[scope]}), a sealed external evaluation set; the split "
+                "contract must never assign it"
+            )
         if scope not in ALL_SCOPES:
             raise SplitAssignmentError(
                 f"match {record.match_id} has scope {scope}, outside the locked "

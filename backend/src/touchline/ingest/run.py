@@ -25,6 +25,7 @@ from psycopg.types.json import Jsonb
 
 from touchline.ingest.cli import CollectedScope, SourceCounts, collect
 from touchline.ingest.source import SOURCE_COMMIT, StatsBombSource
+from touchline.sealed_scope import require_unsealed_scopes
 
 # Ordered deliberately: provenance and reconciliation reports should not depend on an incidental
 # directory traversal order.  These are tournament competition-seasons, never league seasons.
@@ -103,7 +104,7 @@ def collect_cohort(
         raise SourceValueError("an ingestion cohort must contain at least one competition-season")
     if len(set(scopes)) != len(scopes):
         raise SourceValueError("an ingestion cohort must not repeat a competition-season")
-
+    require_unsealed_scopes(scopes)
     collected = [collect(source, competition_id, season_id) for competition_id, season_id in scopes]
     competitions = _unique(
         (row for scope in collected for row in scope.competitions),
@@ -1021,6 +1022,7 @@ def run_ingestion(
         raise SourceValueError("an ingestion cohort must contain at least one competition-season")
     if len(set(normalized_scopes)) != len(normalized_scopes):
         raise SourceValueError("an ingestion cohort must not repeat a competition-season")
+    require_unsealed_scopes(normalized_scopes)
 
     run_id = uuid.uuid4()
     owner_token = uuid.uuid4()
