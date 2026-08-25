@@ -259,6 +259,22 @@ def _fmt(value: float | None) -> str:
     return "-" if value is None else f"{value:.2f}"
 
 
+def overall_verdict(results: Iterable[ScopeResult]) -> bool:
+    """The single PASS/FAIL rule for the structural validation.
+
+    Any of the following fails a tournament and with it the overall verdict: a match-file parse
+    failure, any event/lineup schema failure, or **any coordinate-bound violation**. Both the
+    rendered report's overall line and the CLI exit status are derived from this one function,
+    so they can never disagree.
+    """
+    return all(
+        result.match_file.parse_success
+        and result.events.schema_failures == 0
+        and result.events.coordinate_violations == 0
+        for result in results
+    )
+
+
 def render_report(results: Iterable[ScopeResult], generated_utc: str) -> str:
     """Render the committed report. Outcome-bearing facts are structurally absent."""
     lines = [
@@ -277,11 +293,9 @@ def render_report(results: Iterable[ScopeResult], generated_utc: str) -> str:
         "Scope mismatches | Missing keys | Parse |",
         "|---|---|---|---|---:|---:|---:|---:|---|",
     ]
-    overall_parse = True
     for result in results:
         mf = result.match_file
         parse_ok = mf.parse_success and result.events.schema_failures == 0
-        overall_parse &= parse_ok
         verdict = "pass" if parse_ok else "FAIL"
         lines.append(
             f"| {result.name} | {result.scope[0]}/{result.scope[1]} | `{mf.relative_path}` | "
@@ -313,7 +327,7 @@ def render_report(results: Iterable[ScopeResult], generated_utc: str) -> str:
             "source exception `location_x = 120.1` documented in `DATA_SOURCE.md`. A non-zero "
             "violation or schema-failure count fails this report.",
             "",
-            f"**Overall: {'PASS' if overall_parse else 'FAIL'}**",
+            f"**Overall: {'PASS' if overall_verdict(results) else 'FAIL'}**",
             "",
         ]
     )
@@ -374,11 +388,7 @@ def main(argv: list[str] | None = None) -> int:
     args.report.write_text(report, encoding="utf-8", newline="\n")
     print(f"report written to {args.report}")
     print(f"provenance written to {provenance_path}")
-    failed = any(
-        not result.match_file.parse_success or result.events.schema_failures > 0
-        for result in results
-    )
-    if failed:
+    if not overall_verdict(results):
         print("structural validation FAILED", file=sys.stderr)
         return 1
     print("structural validation PASS")

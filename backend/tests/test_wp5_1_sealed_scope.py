@@ -239,7 +239,7 @@ def test_match_payload_validation_checks_identity_not_content() -> None:
     assert not mismatched.parse_success
 
 
-def test_render_report_contains_no_outcome_bearing_section() -> None:
+def _scope_result(*, coordinate_violations: int = 0) -> ScopeResult:
     match_file = MatchFileCheck(
         relative_path="matches/1267/107.json",
         sha256="ab" * 32,
@@ -250,7 +250,7 @@ def test_render_report_contains_no_outcome_bearing_section() -> None:
         scope_mismatches=0,
         parse_success=True,
     )
-    result = ScopeResult(
+    return ScopeResult(
         name="AFCON 2023",
         scope=AFCON,
         match_file=match_file,
@@ -260,16 +260,46 @@ def test_render_report_contains_no_outcome_bearing_section() -> None:
             lineup_files_parsed=52,
             schema_failures=0,
             locations_scanned=40000,
-            coordinate_violations=0,
+            coordinate_violations=coordinate_violations,
             min_x=0.0,
             max_x=120.1,
             min_y=0.0,
             max_y=80.0,
         ),
     )
-    report = render_report([result], "2026-08-25T00:00:00Z")
+
+
+def test_render_report_contains_no_outcome_bearing_section() -> None:
+    report = render_report([_scope_result()], "2026-08-25T00:00:00Z")
     assert "**Overall: PASS**" in report
     assert "no shot outcomes, goal counts, conversion rates" in report
     # The report states the prohibition; it must never carry an actual aggregate of outcomes.
     assert "conversion_rate" not in report
     assert "is_goal" not in report
+
+
+def test_coordinate_violation_fails_the_rendered_overall_verdict() -> None:
+    """Regression: a non-zero violation count must flip the overall line to FAIL."""
+    report = render_report(
+        [_scope_result(coordinate_violations=1)], "2026-08-25T00:00:00Z"
+    )
+    assert "**Overall: FAIL**" in report
+    assert "**Overall: PASS**" not in report
+
+
+def test_cli_exit_status_fails_on_coordinate_violation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The CLI and the rendered verdict share one rule, so both fail on any violation."""
+    import touchline.sealed_structural_check as check_module
+
+    monkeypatch.setattr(
+        check_module,
+        "run_check",
+        lambda cache_dir: ([_scope_result(coordinate_violations=3)], tmp_path / "prov.json"),
+    )
+    report_path = tmp_path / "report.md"
+    exit_status = check_module.main(["check", "--report", str(report_path)])
+    assert exit_status == 1
+    report_text = report_path.read_text(encoding="utf-8")
+    assert "**Overall: FAIL**" in report_text
