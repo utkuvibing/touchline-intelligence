@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import datetime as dt
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ from touchline.modeling.v2_folds import (
     assign_inner_folds,
     development_pool_scopes,
     inner_partition,
+    inner_split_count,
     outer_fold_specs,
     outer_partition,
 )
@@ -431,16 +433,18 @@ def test_inner_rule_groups_by_match_id_with_five_deterministic_splits() -> None:
 
 def test_inner_assignment_is_canonical_under_input_reordering() -> None:
     matches = [_match(match_id=index + 1, day=((index * 7) % 30) + 1) for index in range(10)]
-    assert dict(assign_inner_folds(matches[::-1])) == dict(assign_inner_folds(matches))
+    assert dict(assign_inner_folds(matches[::-1], PAYLOAD)) == dict(
+        assign_inner_folds(matches, PAYLOAD)
+    )
 
 
 def test_inner_folds_partition_matches_without_splitting_a_match() -> None:
     matches = [_match(match_id=index + 1, day=index + 1) for index in range(35)]
-    assignment = assign_inner_folds(matches)
+    assignment = assign_inner_folds(matches, PAYLOAD)
     assert len(assignment) == 35
     seen_ids: set[int] = set()
     for validation_fold in range(INNER_SPLIT_COUNT):
-        training, validation = inner_partition(assignment, validation_fold)
+        training, validation = inner_partition(assignment, validation_fold, PAYLOAD)
         assert len(validation) == 7
         assert len(training) == 28
         assert not set(training) & set(validation)
@@ -450,7 +454,7 @@ def test_inner_folds_partition_matches_without_splitting_a_match() -> None:
 
 def test_inner_folds_stay_balanced_for_uneven_partitions() -> None:
     matches = [_match(match_id=index + 1, day=(index % 28) + 1) for index in range(37)]
-    assignment = assign_inner_folds(matches)
+    assignment = assign_inner_folds(matches, PAYLOAD)
     counts = sorted(
         sum(1 for fold in assignment.values() if fold == validation_fold)
         for validation_fold in range(INNER_SPLIT_COUNT)
@@ -461,29 +465,79 @@ def test_inner_folds_stay_balanced_for_uneven_partitions() -> None:
 def test_fold_construction_fails_loudly_on_bad_inputs() -> None:
     sealed = _match(match_id=900, day=1, scope=(1267, 107))
     with pytest.raises(SealedScopeError, match="sealed external evaluation set"):
-        assign_inner_folds([sealed])
+        assign_inner_folds([sealed], PAYLOAD)
     with pytest.raises(FoldConstructionError, match="no matches provided"):
-        assign_inner_folds([])
+        assign_inner_folds([], PAYLOAD)
     duplicated = _synthetic_pool()
     duplicated.append(_match(match_id=duplicated[0].match_id, day=2))
     with pytest.raises(FoldConstructionError, match="duplicate match_id"):
-        assign_inner_folds(duplicated)
+        assign_inner_folds(duplicated, PAYLOAD)
     with pytest.raises(FoldConstructionError, match="no match_date"):
         assign_inner_folds(
-            [MatchRecord(1, 43, 3, dt.date(2018, 6, 1)), MatchRecord(2, 55, 43, None)]
+            [MatchRecord(1, 43, 3, dt.date(2018, 6, 1)), MatchRecord(2, 55, 43, None)], PAYLOAD
         )
-    with pytest.raises(FoldConstructionError, match="below 2"):
-        assign_inner_folds(_synthetic_pool(), split_count=1)
+
+
+def test_the_inner_split_count_has_no_caller_override() -> None:
+    parameters = inspect.signature(assign_inner_folds).parameters
+    assert "split_count" not in parameters
+    assert "split_count" not in inspect.signature(inner_partition).parameters
+    overrides: dict[str, Any] = {"split_count": 3}
+    with pytest.raises(TypeError):
+        assign_inner_folds(_synthetic_pool(), PAYLOAD, **overrides)
+    with pytest.raises(TypeError):
+        inner_partition({1: 0}, 0, PAYLOAD, **overrides)
+
+
+def test_k_is_read_from_the_config_and_cannot_silently_differ() -> None:
+    assert inner_split_count(PAYLOAD) == INNER_SPLIT_COUNT == 5
+    config = copy.deepcopy(PAYLOAD)
+    config["fold_rules"]["inner"]["split_count"] = 4
+    with pytest.raises(FoldConstructionError, match="requires a new ADR"):
+        inner_split_count(config)
+    with pytest.raises(FoldConstructionError, match="requires a new ADR"):
+        assign_inner_folds(_synthetic_pool(), config)
+    for bad_value in ("5", True, None, 2.0):
+        mutated = copy.deepcopy(PAYLOAD)
+        mutated["fold_rules"]["inner"]["split_count"] = bad_value
+        with pytest.raises(FoldConstructionError, match="must be an integer"):
+            inner_split_count(mutated)
+
+
+def test_inner_path_rejects_a_foreign_unsealed_scope() -> None:
+    foreign = [*_synthetic_pool()[:31], _match(match_id=500, day=15, scope=(99, 9))]
+    with pytest.raises(FoldConstructionError, match=r"\(99, 9\)"):
+        assign_inner_folds(foreign, PAYLOAD)
+
+
+def test_inner_path_rejects_another_outer_folds_held_out_scope() -> None:
+    training_scopes = [(43, 3), (55, 43), (43, 106)]
+    leaked = [
+        _match(match_id=index + 1, day=index + 1, scope=scope)
+        for index, scope in enumerate(training_scopes)
+    ]
+    leaked.append(_match(match_id=77, day=20, scope=(55, 282)))
+    with pytest.raises(FoldConstructionError, match="declared outer-training partition"):
+        assign_inner_folds(leaked, PAYLOAD, training_scopes=training_scopes)
+    legitimate = leaked[:-1]
+    assert len(dict(assign_inner_folds(legitimate, PAYLOAD, training_scopes=training_scopes))) == 3
+
+
+def test_training_scopes_cannot_widen_beyond_the_development_pool() -> None:
+    with pytest.raises(FoldConstructionError, match="outside the v2 development pool"):
+        assign_inner_folds(_synthetic_pool(), PAYLOAD, training_scopes=[(43, 3), (99, 9)])
+    with pytest.raises(FoldConstructionError, match="empty"):
+        assign_inner_folds(_synthetic_pool(), PAYLOAD, training_scopes=[])
 
 
 def test_inner_partition_rejects_degenerate_or_invalid_requests() -> None:
-    assignment = assign_inner_folds([_match(match_id=1, day=1)])
+    assignment = assign_inner_folds([_match(match_id=1, day=1)], PAYLOAD)
     with pytest.raises(FoldConstructionError, match=r"outside 0\.\.4"):
-        inner_partition(assign_inner_folds(_synthetic_pool()), -1)
+        inner_partition(assign_inner_folds(_synthetic_pool(), PAYLOAD), -1, PAYLOAD)
     with pytest.raises(FoldConstructionError, match=r"outside 0\.\.4"):
-        inner_partition(assign_inner_folds(_synthetic_pool()), 5)
+        inner_partition(assign_inner_folds(_synthetic_pool(), PAYLOAD), 5, PAYLOAD)
     with pytest.raises(FoldConstructionError, match="degenerate"):
-        inner_partition(assignment, 1)
+        inner_partition(assignment, 1, PAYLOAD)
 
 
 def test_outer_partition_is_deterministic_and_loud_about_foreign_scopes() -> None:
@@ -497,7 +551,7 @@ def test_outer_partition_is_deterministic_and_loud_about_foreign_scopes() -> Non
     assert list(outer_partition(pool[::-1], specs, spec)[0]) == list(training)
 
     foreign = [*_synthetic_pool(), _match(match_id=500, day=15, scope=(99, 9))]
-    with pytest.raises(FoldConstructionError, match="outside every supplied"):
+    with pytest.raises(FoldConstructionError, match="outside the supplied outer fold"):
         outer_partition(foreign, specs, spec)
     with pytest.raises(FoldConstructionError, match="not among the supplied"):
         outer_partition(pool, specs[:-1], spec)
@@ -739,6 +793,10 @@ def test_contract_names_the_single_production_primitive() -> None:
         "`backend/src/touchline/modeling/v2_folds.py`",
         "reimplementing fold logic elsewhere is prohibited",
         "remains deferred to M7's evaluation harness",
+        "takes no split-count argument",
+        "`k` is read from the frozen config and must equal the preregistered five",
+        "outside the declared outer-training partition when one is supplied",
+        "another outer fold's held-out tournament can enter inner CV",
     )
 
 

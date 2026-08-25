@@ -11,12 +11,15 @@ Semantics frozen here:
   fixed order they are listed; each development tournament is the untouched outer holdout exactly
   once.
 - **Inner** — match-grouped CV inside each outer training partition: matches sorted by
-  ``(match_date, match_id)``, assigned ``inner_fold = index % k`` with ``k = 5``; no shuffling and
-  no seed, because assignment is fully deterministic (the only preregistered random seed in v2 is
-  the bootstrap seed).
-- **Target-free by construction** — inputs carry match identity, scope and date only. A NULL date,
-  a duplicate match id, an out-of-cohort scope or a sealed external set fails loudly before any
-  partition exists.
+  ``(match_date, match_id)``, assigned ``inner_fold = index % k`` with ``k`` read from the frozen
+  config; no shuffling and no seed, because assignment is fully deterministic (the only
+  preregistered random seed in v2 is the bootstrap seed). The primitive exposes no split-count
+  override: caller code cannot make ``k`` silently differ from the preregistered value.
+- **Scope-closed construction** — inputs carry match identity, scope and date only, and every
+  match scope must lie inside the v2 development pool — or inside the declared outer-training
+  partition when one is supplied — so a NULL date, duplicate id, foreign competition, sealed
+  external set or another outer fold's held-out tournament fails loudly before any partition
+  exists.
 
 Like ``splits.py``, the fold objects are deterministic match-grouped partitions: not temporal,
 not forward-chaining; no chronological claim is made within development.
@@ -26,7 +29,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -38,7 +41,8 @@ from touchline.sealed_scope import SEALED_SCOPES, SEALED_SET_NAMES, SealedScopeE
 #: Default location of the machine-readable protocol config, relative to the repository root.
 PROTOCOL_CONFIG_PATH = Path("data/model/v2_protocol.json")
 
-#: The frozen inner split count. Locked by WP5.2; changing it is a protocol change, not a tune.
+#: The preregistered inner split count. Not a default and not an override: it is the tamper
+#: anchor that the config's ``split_count`` must equal, so the two cannot silently diverge.
 INNER_SPLIT_COUNT = 5
 
 
@@ -172,7 +176,47 @@ def outer_fold_specs(config: Mapping[str, Any]) -> tuple[OuterFoldSpec, ...]:
     return tuple(specs)
 
 
-def _sorted_validated(matches: Iterable[MatchRecord]) -> list[MatchRecord]:
+def inner_split_count(config: Mapping[str, Any]) -> int:
+    """The preregistered inner split count, read from the frozen protocol config.
+
+    There is deliberately no caller override anywhere in the primitive: ``k`` lives in
+    ``data/model/v2_protocol.json``, and this validator makes silent divergence impossible by
+    requiring the configured value to equal :data:`INNER_SPLIT_COUNT`.
+
+    Raises:
+        FoldConstructionError: if the value is missing, not an integer, below 2, or different
+            from the preregistered count.
+    """
+    fold_rules = config.get("fold_rules")
+    if not isinstance(fold_rules, dict):
+        raise FoldConstructionError("protocol config: fold_rules must be an object")
+    inner = fold_rules.get("inner")
+    if not isinstance(inner, dict):
+        raise FoldConstructionError("protocol config: fold_rules.inner must be an object")
+    raw = inner.get("split_count")
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise FoldConstructionError(
+            f"protocol config: inner split_count must be an integer, got {raw!r}"
+        )
+    if raw < 2:
+        raise FoldConstructionError(
+            f"protocol config: inner split_count {raw} is below 2; grouped cross-validation "
+            "is undefined"
+        )
+    if raw != INNER_SPLIT_COUNT:
+        raise FoldConstructionError(
+            f"protocol config: inner split_count {raw} differs from the preregistered "
+            f"{INNER_SPLIT_COUNT}; changing it is a protocol change that requires a new ADR"
+        )
+    return raw
+
+
+def _sorted_validated(
+    matches: Iterable[MatchRecord],
+    *,
+    allowed_scopes: frozenset[tuple[int, int]],
+    scope_rule: str,
+) -> list[MatchRecord]:
     """Validate the shared loud guards and return matches sorted by ``(match_date, match_id)``."""
     records = list(matches)
     if not records:
@@ -189,6 +233,10 @@ def _sorted_validated(matches: Iterable[MatchRecord]) -> list[MatchRecord]:
                 f"({SEALED_SET_NAMES[scope_pair]}), a sealed external evaluation set; fold "
                 "construction must never touch it"
             )
+        if scope_pair not in allowed_scopes:
+            raise FoldConstructionError(
+                f"match {record.match_id} has scope {scope_pair}, outside {scope_rule}"
+            )
     validated: list[tuple[dt.date, int, MatchRecord]] = []
     for record in records:
         if record.match_date is None:
@@ -202,24 +250,47 @@ def _sorted_validated(matches: Iterable[MatchRecord]) -> list[MatchRecord]:
 
 
 def assign_inner_folds(
-    matches: Iterable[MatchRecord], *, split_count: int = INNER_SPLIT_COUNT
+    matches: Iterable[MatchRecord],
+    config: Mapping[str, Any],
+    *,
+    training_scopes: Collection[tuple[int, int]] | None = None,
 ) -> Mapping[int, int]:
     """Assign every match to one deterministic match-grouped inner fold.
 
-    Matches are sorted by ``(match_date, match_id)`` and assigned ``inner_fold =
-    index % split_count``, so the result is identical under any input row order. Each match maps
-    to exactly one fold through its identity; a match cannot be split across folds because folds
-    are keyed by ``match_id``.
+    The split count is read from the frozen protocol config; there is no caller override. Matches
+    are sorted by ``(match_date, match_id)`` and assigned ``inner_fold = index % k``, so the
+    result is identical under any input row order. Each match maps to exactly one fold through
+    its identity; a match cannot be split across folds because folds are keyed by ``match_id``.
+
+    Every match scope must lie inside the v2 development pool — and inside the declared
+    outer-training partition when ``training_scopes`` is given — so neither a foreign competition
+    nor another outer fold's held-out tournament can enter inner CV. ``training_scopes`` may only
+    narrow the development pool; a scope outside the pool is itself rejected.
 
     Raises:
         FoldConstructionError: on an empty input, a duplicate match id, a missing match date, a
-            sealed external scope, or a ``split_count`` below 2.
+            scope outside the permitted set, a ``training_scopes`` entry outside the development
+            pool, or a config whose split count differs from the preregistered value.
+        SealedScopeError: on any sealed external evaluation set.
     """
-    if split_count < 2:
-        raise FoldConstructionError(
-            f"split_count {split_count} is below 2; grouped cross-validation is undefined"
-        )
-    ordered = _sorted_validated(matches)
+    pool = development_pool_scopes(config)
+    if training_scopes is None:
+        allowed = pool
+        scope_rule = "the v2 development pool"
+    else:
+        requested = frozenset(training_scopes)
+        if not requested:
+            raise FoldConstructionError("declared outer-training partition is empty")
+        outside = sorted(requested - pool)
+        if outside:
+            raise FoldConstructionError(
+                f"declared outer-training partition contains scope(s) {outside} outside the "
+                "v2 development pool; the primitive cannot widen beyond the frozen pool"
+            )
+        allowed = requested
+        scope_rule = "the declared outer-training partition"
+    ordered = _sorted_validated(matches, allowed_scopes=allowed, scope_rule=scope_rule)
+    split_count = inner_split_count(config)
     assignment: dict[int, int] = {
         record.match_id: index % split_count for index, record in enumerate(ordered)
     }
@@ -227,19 +298,23 @@ def assign_inner_folds(
 
 
 def inner_partition(
-    assignment: Mapping[int, int], validation_fold: int, *, split_count: int = INNER_SPLIT_COUNT
+    assignment: Mapping[int, int],
+    validation_fold: int,
+    config: Mapping[str, Any],
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """Split a completed inner-fold assignment into one disjoint (training, validation) pair.
 
-    Both sides are returned sorted by match id. Together they cover every assigned match exactly
-    once; neither side may be empty, so a degenerate partition fails loudly instead of producing
-    a silent mis-evaluation.
+    The split count is read from the frozen protocol config; there is no caller override. Both
+    sides are returned sorted by match id. Together they cover every assigned match exactly once;
+    neither side may be empty, so a degenerate partition fails loudly instead of producing a
+    silent mis-evaluation.
 
     Raises:
-        FoldConstructionError: if ``validation_fold`` is outside ``0..split_count-1``, any
-            assignment value lies outside the same range, or either side of the partition is
-            empty.
+        FoldConstructionError: if ``validation_fold`` is outside the configured range, any
+            assignment value lies outside the same range, either side of the partition is empty,
+            or the config's split count differs from the preregistered value.
     """
+    split_count = inner_split_count(config)
     if not 0 <= validation_fold < split_count:
         raise FoldConstructionError(
             f"validation_fold {validation_fold} is outside 0..{split_count - 1}"
@@ -273,24 +348,24 @@ def outer_partition(
 
     Raises:
         FoldConstructionError: on an empty input, a duplicate match id, a missing match date, a
-            scope outside the given specs, a spec not among ``specs``, or an empty side.
+            scope outside the supplied specs, a spec not among ``specs``, or an empty side.
     """
     known = {other.scope.pair for other in specs}
     if spec.scope.pair not in known:
         raise FoldConstructionError(
             f"spec {spec.outer_fold!r} is not among the supplied outer fold specifications"
         )
-    ordered = _sorted_validated(matches)
-    held_out: list[MatchRecord] = []
-    training: list[MatchRecord] = []
-    for record in ordered:
-        scope_pair = (record.competition_id, record.season_id)
-        if scope_pair not in known:
-            raise FoldConstructionError(
-                f"match {record.match_id} has scope {scope_pair}, outside every supplied outer "
-                "fold specification"
-            )
-        (held_out if scope_pair == spec.scope.pair else training).append(record)
+    ordered = _sorted_validated(
+        matches,
+        allowed_scopes=frozenset(known),
+        scope_rule="the supplied outer fold specifications",
+    )
+    held_out = [
+        record for record in ordered if (record.competition_id, record.season_id) == spec.scope.pair
+    ]
+    training = [
+        record for record in ordered if (record.competition_id, record.season_id) != spec.scope.pair
+    ]
     if not held_out:
         raise FoldConstructionError(
             f"outer fold {spec.outer_fold!r} holds out no matches for scope {spec.scope.pair}"

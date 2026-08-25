@@ -43,8 +43,10 @@ with generalization evidence (the sealed sets).
    `shuffle=false`, no seed; loud failure on duplicate ids, missing dates, foreign or sealed
    scopes, and degenerate partitions; unresolved ties resolve mechanically to the simpler
    candidate (lower bundle level, then logistic over boosting), never to measured performance.
-   M6 and M7 must import this exact module — only materialized fold-manifest generation is
-   deferred to M7's harness.
+   M6 and M7 must import this exact module — the inner split count is read from the frozen
+   config with no caller override, and inner-fold construction rejects any scope outside the
+   development pool or the declared outer-training partition — only materialized fold-manifest
+   generation is deferred to M7's harness.
 3. Fix uncertainty mechanics at WP2.7's proven values — paired differences, match-clustered
    bootstrap, 2,000 replicates, seed 0, 95% percentile intervals — extended with one preregistered
    rule: pooled multi-tournament comparisons resample tournament-stratified within each replicate,

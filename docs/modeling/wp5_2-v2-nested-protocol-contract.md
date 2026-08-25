@@ -64,6 +64,12 @@ prohibited. The unit contract imports and exercises the primitive directly — t
 reference implementation. Only *materialized* fold-manifest generation (the committed per-fold
 assignment artifact) remains deferred to M7's evaluation harness.
 
+The primitive takes no split-count argument: `k` is read from the frozen config and must equal
+the preregistered five, so caller code cannot make it silently differ. Inner construction
+additionally rejects any match whose competition-season scope lies outside the v2 development
+pool — or outside the declared outer-training partition when one is supplied — so neither a
+foreign competition nor another outer fold's held-out tournament can enter inner CV.
+
 **Outer — exactly four leave-one-tournament-out scopes, in this fixed iteration order:**
 
 | Outer fold | Held out | Scope |
