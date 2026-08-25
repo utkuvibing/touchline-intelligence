@@ -27,6 +27,7 @@ import psycopg
 
 from touchline.features.geometry import distance_to_goal, visible_goal_angle
 from touchline.modeling.preprocessing import ShotRow
+from touchline.sealed_scope import SEALED_SCOPES, SEALED_SET_NAMES, SealedScopeError
 
 CSV_HEADER = "match_id,competition_id,season_id,match_date,split,fold"
 SPLIT_NAMES = ("development", "calibration", "holdout")
@@ -147,7 +148,9 @@ def parse_match_assignments(csv_text: str) -> MatchAssignments:
 
     Rows of calibration and holdout matches are read (the file is the full 230-match lock) but
     never admitted to the development set; a row with an unknown split or a malformed field
-    raises so a corrupted lock cannot be silently tolerated.
+    raises so a corrupted lock cannot be silently tolerated. A row carrying a sealed
+    competition-season pair raises regardless of its split column: no development command may
+    read a sealed set, so even a regenerated assignment file cannot smuggle one in.
     """
     lines = [line for line in csv_text.splitlines() if line.strip()]
     if not lines or lines[0] != CSV_HEADER:
@@ -161,7 +164,20 @@ def parse_match_assignments(csv_text: str) -> MatchAssignments:
             raise AssignmentDataError(
                 f"assignment CSV line {lineno} has {len(parts)} fields, expected 6"
             )
-        match_id, _comp, _season, _date, split, fold_raw = parts
+        match_id, comp, season, _date, split, fold_raw = parts
+        try:
+            scope = (int(comp), int(season))
+        except ValueError:
+            raise AssignmentDataError(
+                f"assignment CSV line {lineno} has non-integer competition/season "
+                f"{comp!r}/{season!r}"
+            ) from None
+        if scope in SEALED_SCOPES:
+            raise SealedScopeError(
+                f"assignment CSV line {lineno} has scope {scope} "
+                f"({SEALED_SET_NAMES[scope]}), a sealed external evaluation set; development "
+                "loaders must never read it"
+            )
         if split not in SPLIT_NAMES:
             raise AssignmentDataError(f"assignment CSV line {lineno} has unknown split {split!r}")
         try:

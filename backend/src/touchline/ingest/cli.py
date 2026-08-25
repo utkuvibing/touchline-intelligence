@@ -45,6 +45,7 @@ from touchline.ingest.records import (
     Team,
 )
 from touchline.ingest.source import StatsBombSource
+from touchline.sealed_scope import require_unsealed_scope
 
 
 class ReconciliationError(RuntimeError):
@@ -104,6 +105,7 @@ def collect(source: StatsBombSource, competition_id: int, season_id: int) -> Col
     A World Cup is small enough that streaming would add complexity for no benefit; if that stops
     being true the reconciliation report is what will say so.
     """
+    require_unsealed_scope((competition_id, season_id))
     all_competitions = parse_competitions(source.competitions())
     competitions = [
         c
