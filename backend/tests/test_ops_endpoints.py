@@ -7,11 +7,12 @@ traffic to instances that cannot answer a query.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterator
+from typing import cast
 
 import psycopg
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from touchline.main import app
@@ -70,23 +71,10 @@ def test_health_opens_no_database_connection(
     assert calls == []
 
 
-def test_ready_does_open_a_database_connection(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The mirror of the test above: /ready is worthless if it never queries."""
-    calls: list[str] = []
-
-    original_connect = psycopg.connect
-
-    def _recording_connect(*args: object, **kwargs: object) -> object:
-        calls.append("connect")
-        return original_connect(*args, **kwargs)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(psycopg, "connect", _recording_connect)
-
-    client.get("/ready")
-
-    assert calls == ["connect"]
+def test_ready_uses_the_application_lifetime_pool(client: TestClient) -> None:
+    """Readiness must share the bounded runtime pool, rather than opening a direct connection."""
+    assert cast(FastAPI, client.app).state.db_pool.max_size == 4
+    assert client.get("/ready").status_code == 503
 
 
 def test_ready_reports_degraded_when_the_database_is_unreachable(client: TestClient) -> None:
@@ -115,20 +103,8 @@ def test_ready_does_not_claim_to_know_the_schema_of_a_database_it_cannot_reach(
     assert client.get("/ready").json()["database_schema"] == "unknown"
 
 
-def test_ready_reports_only_an_exception_class_name(client: TestClient) -> None:
-    """Driver errors can echo host, port, user and database name, and /ready is unauthenticated.
-
-    This asserts a positive shape rather than a blocklist of forbidden substrings. A blocklist
-    passes for the wrong reason whenever the particular error happens not to contain the words
-    being searched for - which is exactly what happened when this check was written the other way
-    round: swapping `type(exc).__name__` for `str(exc)` did not fail it.
-
-    An exception class name is a bare Python identifier. Any message, DSN fragment or host will
-    contain spaces, punctuation or digits-at-the-start and fail this.
-    """
+def test_ready_uses_a_fixed_public_database_failure_code(client: TestClient) -> None:
+    """Driver errors can echo host, port, user and database name, so readiness stays opaque."""
     detail = client.get("/ready").json()["detail"]
 
-    assert detail is not None, "an unreachable database must report some detail"
-    assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", detail), (
-        f"detail must be an exception class name only, got: {detail!r}"
-    )
+    assert detail == "database_unavailable"

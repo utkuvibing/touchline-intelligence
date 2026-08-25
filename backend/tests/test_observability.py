@@ -51,6 +51,14 @@ def _completion_records(output: str) -> list[dict[str, object]]:
     return records
 
 
+def _event_records(output: str, event: str) -> list[dict[str, object]]:
+    return [
+        json.loads(line)
+        for line in output.splitlines()
+        if line.startswith("{") and f'"event":"{event}"' in line
+    ]
+
+
 def test_valid_request_id_is_returned_and_logged(
     client: TestClient, log_output: io.StringIO
 ) -> None:
@@ -193,6 +201,14 @@ def test_unhandled_error_is_generic_but_correlated_and_redacted(
     assert record["status"] == 500
     assert record["exception_type"] == "RuntimeError"
     assert "test-only failure" not in log_output.getvalue()
+    unhandled = _event_records(log_output.getvalue(), "unhandled_exception")[-1]
+    assert unhandled["request_id"] == response.headers[REQUEST_ID_HEADER]
+    assert unhandled["exception_type"] == "RuntimeError"
+    frames = unhandled["stack_frames"]
+    assert isinstance(frames, list) and 1 <= len(frames) <= 8
+    assert all(
+        set(frame) == {"file", "line", "function"} for frame in frames if isinstance(frame, dict)
+    )
 
 
 def test_allowed_origin_unhandled_error_retains_cors_and_request_id(client: TestClient) -> None:

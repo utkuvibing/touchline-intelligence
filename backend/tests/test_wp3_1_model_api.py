@@ -45,6 +45,8 @@ def test_model_metadata_exposes_release_and_serving_bundle_provenance(
     assert body["release_status"] == "m2_qualified"
     assert body["qualification_serving_status"] == "not_served"
     assert body["runtime_status"] == "ready"
+    assert body["serving_state"] == "serving"
+    assert body["historical_publication_state"] == "closed"
     assert body["scopes"]["calibration"]["competition"] == "FIFA World Cup 2022"
     assert body["scopes"]["tournament_holdout"]["competition"] == "UEFA Euro 2024"
 

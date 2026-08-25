@@ -22,6 +22,8 @@ const provenance: ProvenanceIdentity = {
 
 const metadata: ModelMetadata = {
   ...provenance,
+  serving_state: "serving",
+  historical_publication_state: "closed",
   release_status: "m2_qualified",
   qualification_serving_status: "not_served",
   runtime_status: "ready",
@@ -187,7 +189,7 @@ describe("WP3.2 analyst view", () => {
     expect(
       screen.getByRole("heading", { name: /historical shot-level predictions are unavailable/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/publication paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/publication closed/i)).toBeInTheDocument();
     expect(screen.queryByText(/independent Sol/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/WP3\./i)).not.toBeInTheDocument();
   });
@@ -256,9 +258,13 @@ describe("WP3.2 analyst view", () => {
         page_count: 1,
       },
     };
+    const publishedMetadata: ModelMetadata = {
+      ...metadata,
+      historical_publication_state: "published",
+    };
 
     const { container } = render(
-      <AnalystView {...baseProps()} historical={historical} />,
+      <AnalystView {...baseProps()} metadata={ready(publishedMetadata)} historical={historical} />,
     );
 
     expect(screen.getByText(/showing 2 of 2 eligible non-penalty shots/)).toBeInTheDocument();
@@ -274,6 +280,30 @@ describe("WP3.2 analyst view", () => {
     const detail = screen.getByRole("complementary");
     expect(within(detail).getByText("Other Player")).toBeInTheDocument();
     expect(within(detail).getByText("5.0%")).toBeInTheDocument();
+  });
+
+  it("withholds returned historical rows when typed publication state is closed", () => {
+    const props = baseProps();
+    const historical = {
+      status: "ready" as const,
+      data: {
+        ...provenance,
+        cohort: "FIFA World Cup 2022 eligible non-penalty shots" as const,
+        split_role: "calibration_data_historical_predictions" as const,
+        historical_prediction_caveat: "This row must stay withheld.",
+        shots: [shot({ shot_id: "withheld" })],
+        total: 1,
+        limit: 1000,
+        offset: 0,
+        page_count: 1,
+      },
+    };
+
+    render(<AnalystView {...props} historical={historical} />);
+
+    expect(screen.getByText(/publication closed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/showing 1 of 1/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/this row must stay withheld/i)).not.toBeInTheDocument();
   });
 
   it("withholds a mixed view when provenance identities disagree", () => {

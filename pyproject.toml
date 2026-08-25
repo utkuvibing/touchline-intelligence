@@ -10,6 +10,7 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic-settings",
     "psycopg[binary]",
+    "psycopg-pool",
     "numpy>=2.5.1",
     "scikit-learn>=1.9.0",
 ]

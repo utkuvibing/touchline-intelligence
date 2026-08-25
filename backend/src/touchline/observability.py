@@ -12,6 +12,7 @@ import logging
 import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from os.path import basename
 from time import perf_counter
 from typing import Any
 from uuid import UUID, uuid4
@@ -47,6 +48,7 @@ class JsonFormatter(logging.Formatter):
             "app_version",
             "model_version",
             "exception_type",
+            "stack_frames",
         ):
             value = getattr(record, field, None)
             if value is not None:
@@ -103,6 +105,23 @@ def _model_version(request: Request) -> str | None:
         return None
 
 
+def _sanitized_stack_frames(exc: BaseException) -> list[dict[str, int | str]]:
+    """Return a bounded trace identity without source text, locals, or exception messages."""
+    frames: list[dict[str, int | str]] = []
+    trace = exc.__traceback__
+    while trace is not None:
+        frame = trace.tb_frame
+        frames.append(
+            {
+                "file": basename(frame.f_code.co_filename),
+                "line": trace.tb_lineno,
+                "function": frame.f_code.co_name,
+            }
+        )
+        trace = trace.tb_next
+    return frames[-8:]
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Attach a safe request ID and emit one structured completion record per request."""
 
@@ -133,6 +152,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as exc:
             exception_type = type(exc).__name__
+            self.logger.error(
+                "unhandled_exception",
+                extra={
+                    "event": "unhandled_exception",
+                    "request_id": request_id,
+                    "exception_type": exception_type,
+                    "stack_frames": _sanitized_stack_frames(exc),
+                },
+            )
             response = JSONResponse(
                 status_code=500,
                 content={"detail": "Internal server error."},
