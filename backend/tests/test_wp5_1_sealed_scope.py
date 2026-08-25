@@ -280,9 +280,7 @@ def test_render_report_contains_no_outcome_bearing_section() -> None:
 
 def test_coordinate_violation_fails_the_rendered_overall_verdict() -> None:
     """Regression: a non-zero violation count must flip the overall line to FAIL."""
-    report = render_report(
-        [_scope_result(coordinate_violations=1)], "2026-08-25T00:00:00Z"
-    )
+    report = render_report([_scope_result(coordinate_violations=1)], "2026-08-25T00:00:00Z")
     assert "**Overall: FAIL**" in report
     assert "**Overall: PASS**" not in report
 
