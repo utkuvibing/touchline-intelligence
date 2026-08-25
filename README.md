@@ -145,13 +145,14 @@ M0 Walking skeleton   ✅
 M1 Data foundation    ✅
 M2 Model lifecycle    ✅
 M3 Serving + product  ✅
-M4 Communication      ← ACTIVE
+M4 Communication      ✅ (demo video postponed)
 ```
 
-**Current milestone: M4 — Release and Communication**, tracked item by item: technical write-up ✅,
-coach-facing stakeholder summary ✅ (both linked below), repo tidy and attribution audit in progress,
-demo video **postponed**. The milestone packages the completed technical work into a write-up,
-stakeholder summary, demo video, screenshots, attribution audit, and application materials.
+**M4 — Release and Communication** is complete apart from the deliberately postponed demo video:
+technical write-up ✅, coach-facing stakeholder summary ✅ (both linked below), repo tidy and
+attribution audit ✅, portfolio closeout ✅. The milestone packages the completed technical work
+into a write-up, stakeholder summary, screenshots, attribution audit, and a finalized public
+surface.
 
 ## Run locally
 
