@@ -1,0 +1,314 @@
+{
+  "schema_version": "1.0",
+  "attribution": "Data provided by StatsBomb.",
+  "purpose": "M5 WP5.2 preregistered v2 protocol: the complete nested evaluation protocol, candidate list, calibration policy and numerical gates committed before any v2 experiment runs. The M7 release decision is a mechanical application of these gates, not reviewer judgment.",
+  "generated_utc": "2026-08-25T12:32:30Z",
+  "source_commit": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "development_pool": [
+    {
+      "name": "WC2018",
+      "competition_id": 43,
+      "season_id": 3
+    },
+    {
+      "name": "Euro2020",
+      "competition_id": 55,
+      "season_id": 43
+    },
+    {
+      "name": "WC2022",
+      "competition_id": 43,
+      "season_id": 106
+    },
+    {
+      "name": "Euro2024",
+      "competition_id": 55,
+      "season_id": 282
+    }
+  ],
+  "sealed_sets": [
+    {
+      "name": "AFCON 2023",
+      "competition_id": 1267,
+      "season_id": 107,
+      "status": "sealed",
+      "permitted_access": "target_free_structural_only"
+    },
+    {
+      "name": "Copa America 2024",
+      "competition_id": 223,
+      "season_id": 282,
+      "status": "sealed",
+      "permitted_access": "target_free_structural_only"
+    }
+  ],
+  "fold_rules": {
+    "target_free_by_construction": true,
+    "single_primitive_rule": "M6 and M7 must consume one shared target-free fold primitive driven only by this config; reimplementing fold logic outside it is prohibited.",
+    "outer": {
+      "scheme": "leave_one_tournament_out",
+      "iteration_order_fixed": true,
+      "scopes": [
+        {
+          "outer_fold": "loto_wc2018",
+          "holdout_tournament": "WC2018",
+          "competition_id": 43,
+          "season_id": 3
+        },
+        {
+          "outer_fold": "loto_euro2020",
+          "holdout_tournament": "Euro2020",
+          "competition_id": 55,
+          "season_id": 43
+        },
+        {
+          "outer_fold": "loto_wc2022",
+          "holdout_tournament": "WC2022",
+          "competition_id": 43,
+          "season_id": 106
+        },
+        {
+          "outer_fold": "loto_euro2024",
+          "holdout_tournament": "Euro2024",
+          "competition_id": 55,
+          "season_id": 282
+        }
+      ]
+    },
+    "inner": {
+      "grouping_key": "match_id",
+      "split_count": 5,
+      "sort_keys": [
+        "match_date",
+        "match_id"
+      ],
+      "assignment_rule": "sorted matches assigned inner_fold = index % 5",
+      "shuffle": false,
+      "seed": null,
+      "semantics": "deterministic match-grouped folds; not temporal; not forward-chaining; chronology is claimed only between outer LOTO scopes through tournament identity, never within development"
+    },
+    "tie_behavior": {
+      "rule": "unresolved selection ties resolve mechanically to the simpler candidate, mirroring the post-M4 roadmap's final-refit tie rule",
+      "order": [
+        "lower_feature_bundle_level",
+        "logistic_over_boosting"
+      ],
+      "performance_based_tiebreaks_permitted": false
+    }
+  },
+  "metrics": {
+    "primary": [
+      "log_loss",
+      "brier_score"
+    ],
+    "reporting_granularity": [
+      "pooled",
+      "per_tournament"
+    ],
+    "calibration_intercept_slope": {
+      "method": "logistic regression of the observed outcome on the logit of the predicted probability, intercept and slope fitted jointly by maximum likelihood",
+      "ideal_intercept": 0.0,
+      "ideal_slope": 1.0
+    },
+    "reliability_bins": {
+      "count": 5,
+      "edges": [
+        0.0,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "fixed_a_priori": true
+    },
+    "secondary": [
+      "roc_auc",
+      "pr_auc"
+    ],
+    "prespecified_slice_families": [
+      "body_part_name",
+      "technique_name",
+      "play_pattern_name",
+      "shot_type_name",
+      "distance_statsbomb_coordinate_units",
+      "visible_goal_angle_radians"
+    ],
+    "reliability_diagrams": "descriptive evidence only, never an optimization target"
+  },
+  "bootstrap": {
+    "replicates": 2000,
+    "seed": 0,
+    "interval": "percentile_95",
+    "resampling_unit": "match_cluster",
+    "differences": "paired",
+    "stratification": {
+      "pooled_multi_tournament_comparisons": "tournament_stratified_within_replicate_preserving_per_stratum_match_counts",
+      "per_tournament_comparisons": "single_stratum"
+    }
+  },
+  "candidate_families": {
+    "additional_families_prohibited": true,
+    "search_space_widening_after_first_v2_run_prohibited": true,
+    "allowed": [
+      {
+        "name": "constant_prevalence",
+        "definition": "training-fold non-penalty goal prevalence; no features, no fitting beyond the fold base rate",
+        "search_space": {}
+      },
+      {
+        "name": "v1_form_l2_logistic",
+        "definition": "the v1 geometry and categorical representation rebuilt under the corrected fold-local pipeline, with L2-penalized logistic regression (sklearn LogisticRegression, penalty l2)",
+        "search_space": {
+          "C": [
+            0.01,
+            0.03,
+            0.1,
+            0.3,
+            1.0,
+            3.0,
+            10.0
+          ]
+        }
+      },
+      {
+        "name": "context_rich_spline_logistic",
+        "definition": "the M6 feature bundle selected inside each outer training partition by the frozen M6 bundle evaluator, with fold-fitted spline bases and L2-penalized logistic regression (sklearn LogisticRegression, penalty l2)",
+        "search_space": {
+          "C": [
+            0.01,
+            0.03,
+            0.1,
+            0.3,
+            1.0,
+            3.0,
+            10.0
+          ]
+        }
+      },
+      {
+        "name": "hist_gradient_boosting_challenger",
+        "definition": "exactly one sklearn HistGradientBoostingClassifier challenger consuming the same inner-selected raw information as the context-rich spline logistic",
+        "search_space": {
+          "learning_rate": [
+            0.03,
+            0.1
+          ],
+          "max_leaf_nodes": [
+            8,
+            31
+          ],
+          "min_samples_leaf": [
+            20,
+            50
+          ],
+          "l2_regularization": [
+            0.0,
+            1.0
+          ],
+          "max_iter": [
+            300
+          ]
+        }
+      }
+    ]
+  },
+  "bundle_evaluator": {
+    "scope": "frozen in M6; applied inside each outer training partition using only that partition's match-grouped inner validation predictions; never applied globally against held-out tournament outcomes",
+    "admission": {
+      "log_loss_requirement": "mean log-loss improvement whose 95% match-bootstrap confidence interval lies wholly below zero",
+      "max_pooled_brier_degradation": 0.0005,
+      "max_tournaments_allowed_to_worsen": 1,
+      "max_single_tournament_log_loss_worsening": 0.005,
+      "offline_serving_parity_required": true,
+      "declared_feature_coverage_required": true
+    }
+  },
+  "internal_replacement": {
+    "comparator": "corrected v1-form L2 logistic candidate",
+    "scope": "pooled outer leave-one-tournament-out predictions, decided before any sealed set is opened",
+    "min_pooled_outer_log_loss_improvement": 0.003,
+    "ci_requirement": "95% paired match-bootstrap confidence interval for the log-loss difference wholly below zero",
+    "max_pooled_brier_degradation": 0.0005,
+    "min_tournaments_non_worse_of_four": 3,
+    "max_single_tournament_log_loss_worsening": 0.005,
+    "feature_coverage_and_offline_serving_parity_required": true,
+    "near_miss_is_failure": true
+  },
+  "calibration_policy": {
+    "methods_allowed": [
+      "raw",
+      "intercept_only",
+      "platt"
+    ],
+    "isotonic_excluded": true,
+    "evaluation_basis": "cross-fitted outer predictions",
+    "fitting_procedure": {
+      "leakage_rule": "no calibrator is ever fitted on predictions of rows whose underlying model saw those rows in training",
+      "per_outer_fold": {
+        "calibrator_input": "out-of-fold raw predictions generated inside the outer training partition by the frozen inner CV",
+        "fitted_methods": [
+          "intercept_only",
+          "platt"
+        ],
+        "application_target": "that outer fold's untouched outer-holdout raw predictions only"
+      },
+      "final_refit_sequence": [
+        "generate development OOF raw predictions by running the frozen inner procedure once on all four development tournaments",
+        "fit the selected calibrator on those development OOF raw predictions",
+        "refit the base model on all development rows",
+        "freeze the model-calibrator pair before opening either sealed set"
+      ]
+    },
+    "adoption": {
+      "min_pooled_log_loss_improvement": 0.001,
+      "ci_requirement": "95% paired match-bootstrap confidence interval for the log-loss difference wholly below zero",
+      "max_pooled_brier_degradation": 0.0,
+      "min_tournaments_with_intercept_and_slope_closer_to_ideal_of_four": 3,
+      "max_single_tournament_log_loss_worsening": 0.002
+    },
+    "otherwise_ship": "raw probabilities"
+  },
+  "external_qualification": {
+    "sets": [
+      "AFCON 2023",
+      "Copa America 2024"
+    ],
+    "opened_once_per_set": true,
+    "reporting": "each tournament separately and together",
+    "references_scored": [
+      "constant_prevalence",
+      "v1_raw",
+      "v1_calibrated",
+      "frozen_v2"
+    ],
+    "comparator": "stronger of v1 raw and v1 calibrated on the combined external set",
+    "constant_prevalence_reference": "the full-development non-penalty goal prevalence over the four development-pool tournaments, frozen before any sealed set is opened",
+    "promotion_gate": {
+      "min_combined_log_loss_improvement": 0.003,
+      "ci_requirement": "95% paired match-bootstrap confidence interval for the log-loss difference wholly below zero",
+      "max_upper_bound_of_paired_brier_difference": 0.0005,
+      "max_single_external_tournament_log_loss_worsening": 0.005,
+      "coverage_artifact_integrity_offline_serving_parity_required": true
+    },
+    "recycling_prohibited_after_opening": true,
+    "on_failure": "retain v1 in production and publish v2 as a negative result"
+  },
+  "stop_conditions": {
+    "on_external_gate_failure": "retain v1, publish v2 as a negative result, stop model selection until a newly pinned, genuinely untouched complete tournament exists",
+    "new_untouched_tournament_required_to_resume_selection": true,
+    "future_reservation_recorded_in": "data/model/v2_evaluation_registry.json future_reservation"
+  },
+  "evidence_hierarchy": {
+    "outer_loto_results": "internal development/selection evidence; produced by the procedure that selected bundles, hyperparameters and the final refit; optimistically biased; never presented as the unbiased post-selection estimate of v2 quality",
+    "sealed_external_qualification": "the external generalization evidence; the only basis for the v1-versus-v2 replacement decision"
+  },
+  "rules": [
+    "No model may consume a sealed set's rows or labels before the frozen M7 candidate exists; opening a set happens exactly once for its qualification run.",
+    "Every learned preprocessing step (vocabulary construction, rare-level merging, missingness policy, scaling, spline knots, encodings) is fitted inside the relevant training partition only.",
+    "One versioned transformer powers training, batch prediction and API prediction; duplicated feature logic is prohibited.",
+    "Provider xG, shot outcome, post-shot and identity features (player, team, competition, coach) are excluded from the feature set.",
+    "The holdout principle carries over: selection never uses rows whose only permitted use is reporting.",
+    "Adding candidate families or widening search spaces after any v2 run has executed requires a new ADR and invalidates preregistration claims."
+  ]
+}
