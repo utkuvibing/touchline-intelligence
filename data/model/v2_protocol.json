@@ -243,6 +243,23 @@
     ],
     "isotonic_excluded": true,
     "evaluation_basis": "cross-fitted outer predictions",
+    "fitting_procedure": {
+      "leakage_rule": "no calibrator is ever fitted on predictions of rows whose underlying model saw those rows in training",
+      "per_outer_fold": {
+        "calibrator_input": "out-of-fold raw predictions generated inside the outer training partition by the frozen inner CV",
+        "fitted_methods": [
+          "intercept_only",
+          "platt"
+        ],
+        "application_target": "that outer fold's untouched outer-holdout raw predictions only"
+      },
+      "final_refit_sequence": [
+        "generate development OOF raw predictions by running the frozen inner procedure once on all four development tournaments",
+        "fit the selected calibrator on those development OOF raw predictions",
+        "refit the base model on all development rows",
+        "freeze the model-calibrator pair before opening either sealed set"
+      ]
+    },
     "adoption": {
       "min_pooled_log_loss_improvement": 0.001,
       "ci_requirement": "95% paired match-bootstrap confidence interval for the log-loss difference wholly below zero",
@@ -266,6 +283,7 @@
       "frozen_v2"
     ],
     "comparator": "stronger of v1 raw and v1 calibrated on the combined external set",
+    "constant_prevalence_reference": "the full-development non-penalty goal prevalence over the four development-pool tournaments, frozen before any sealed set is opened",
     "promotion_gate": {
       "min_combined_log_loss_improvement": 0.003,
       "ci_requirement": "95% paired match-bootstrap confidence interval for the log-loss difference wholly below zero",

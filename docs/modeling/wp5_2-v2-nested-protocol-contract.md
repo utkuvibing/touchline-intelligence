@@ -2,11 +2,12 @@
 
 ## Status
 
-Preregistered. This document, `data/model/v2_protocol.json`, and
+Preregistered. This document, `data/model/v2_protocol.json`, the fold-semantics module
+`backend/src/touchline/modeling/v2_folds.py`, and
 [ADR 0016](../adr/0016-wp5-2-v2-nested-evaluation-protocol.md) were committed **before any v2
 experiment ran**. No probability, metric, conversion count or row-level preview exists anywhere in
-their provenance. Every number below is copied verbatim into the machine-readable config; a unit
-test pins config, prose and literals together so silent divergence fails CI.
+their provenance. Every number below is copied verbatim into the machine-readable config; unit
+tests pin config, prose and literals together so silent divergence fails CI.
 
 ## Research question
 
@@ -54,12 +55,14 @@ results accordingly:
   generalization evidence**, and the only basis for the v1-versus-v2 replacement decision.
 - Conflating the two layers is a protocol violation, not a wording preference.
 
-## Frozen fold semantics — one primitive
+## Frozen fold semantics — one production primitive
 
-Fold construction is defined here, not executed. The executable fold-manifest generator belongs
-to M7's evaluation harness, but the semantics are frozen now and M6/M7 must consume one shared
-target-free primitive driven only by `data/model/v2_protocol.json`; reimplementing fold logic
-outside it is prohibited.
+The frozen fold semantics live in one production module,
+`backend/src/touchline/modeling/v2_folds.py`, driven only by `data/model/v2_protocol.json`. M6 and
+M7 must consume exactly that module's functions; reimplementing fold logic elsewhere is
+prohibited. The unit contract imports and exercises the primitive directly — there is no second
+reference implementation. Only *materialized* fold-manifest generation (the committed per-fold
+assignment artifact) remains deferred to M7's evaluation harness.
 
 **Outer — exactly four leave-one-tournament-out scopes, in this fixed iteration order:**
 
@@ -117,6 +120,16 @@ Adding families or widening search spaces after any v2 run has executed requires
 invalidates preregistration claims. All non-searched hyperparameters are fixed before the first
 run and recorded in the M7 experiment record.
 
+## Frozen M6 bundle evaluator
+
+M6 freezes this evaluator and never applies it against held-out tournament outcomes; in M7 it
+runs inside each outer training partition, on that partition's match-grouped inner validation
+predictions only. A feature bundle is preferred over its predecessor only when all of the
+following hold: mean log-loss improvement whose 95% match-bootstrap confidence interval lies
+wholly below zero; Brier degradation at most `0.0005`; log loss non-worse in all but at most one
+tournament represented in the outer training partition; no represented tournament worse by more
+than `0.005` log loss; and complete offline/serving parity with declared feature coverage.
+
 ## Fixed metrics and uncertainty mechanics
 
 - Primary: log loss and Brier score, pooled and per tournament.
@@ -137,7 +150,21 @@ run and recorded in the M7 experiment record.
 ## Calibration policy
 
 Compare only raw probabilities, intercept-only recalibration and Platt scaling. Isotonic
-regression is excluded on this corpus. Adopt a calibrator over raw only if cross-fitted outer
+regression is excluded on this corpus. The fitting procedure is preregistered and leakage-free by
+construction:
+
+- **Per outer fold:** the calibrator candidates (`intercept_only`, `platt`) are fitted **only**
+  from out-of-fold raw predictions generated inside the outer training partition by the frozen
+  inner CV — never from predictions of rows those inner models saw in training. A fitted
+  calibrator is then applied to that outer fold's **untouched outer-holdout** raw predictions
+  only. The adoption gates below evaluate these per-fold calibrated predictions; this is what
+  "cross-fitted outer predictions" means.
+- **Final refit, in this exact order:** (1) generate development OOF raw predictions by running
+  the frozen inner procedure once on all four development tournaments; (2) fit the selected
+  calibrator on those development OOF raw predictions; (3) refit the base model on all development
+  rows; (4) freeze the model-calibrator pair before opening either sealed set.
+
+Adopt a calibrator over raw only if cross-fitted outer
 predictions show pooled log-loss improvement of at least `0.001` with the 95% paired interval
 wholly below zero; no pooled Brier degradation (`≤ 0.000`); calibration intercept and slope
 closer to their ideals in at least three of four tournaments; and no tournament worse by more
@@ -164,7 +191,11 @@ internal performance report and are not recomputed after this refit.
 
 Run the frozen candidate once on AFCON 2023 (`1267, 107`) and Copa América 2024 (`223, 282`),
 each opened exactly once, reported separately and combined. Score four references: constant
-prevalence, v1 raw, v1 calibrated, frozen v2. Promote v2 only against the stronger of v1 raw /
+prevalence, v1 raw, v1 calibrated, frozen v2. The external `constant_prevalence` reference is the
+**full-development non-penalty goal prevalence over the four development-pool tournaments,
+frozen before any sealed set is opened** — it is a training-pool statistic, not an external-set
+statistic, so scoring it on the sealed sets leaks nothing. Promote v2 only against the stronger
+of v1 raw /
 v1 calibrated on the combined set when: combined log loss improves by at least `0.003`; the 95%
 paired match-bootstrap interval is wholly below zero; the upper bound of the paired Brier
 difference is at most `+0.0005`; neither external tournament worsens by more than `0.005` log
@@ -190,9 +221,9 @@ These are properties of the artifacts, not claims that no historical query ever 
   field; extra keys reject).
 - Registry consistency: development pool and sealed sets mirror `data/model/v2_evaluation_registry.json`
   exactly; the two files must change together.
-- Fold semantics are executable specification only (reference implementations live in
-  `backend/tests/test_wp5_2_protocol.py`); production fold code lands with M7's harness and must
-  reproduce these behaviors.
+- Fold semantics are the production module `backend/src/touchline/modeling/v2_folds.py`; the unit
+  contract imports it and pins its behavior on synthetic fixtures. M6/M7 import the same module;
+  only materialized fold-manifest generation lands with M7's harness.
 - This contract changes no schema, migration, dependency, public endpoint, deployed release, or
   v1 artifact. Zero experiments have executed under it.
 

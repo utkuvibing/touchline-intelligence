@@ -1,8 +1,9 @@
 # ADR 0016: WP5.2 v2 nested evaluation protocol and mechanical gates
 
-**Status:** accepted for WP5.2 upon merge of the contract, config and tests. Documentation,
-configuration and test artifacts only; no experiment has executed under this protocol, so no
-result claim is attached to it.
+**Status:** accepted for WP5.2 upon merge of the contract, config, fold-semantics module and
+tests. The module is production code but is imported by no serving or training path yet — nothing
+consumes it until M6/M7 — and no experiment has executed under this protocol, so no result claim
+is attached to it.
 
 **Date:** 2026-08-25
 
@@ -35,12 +36,15 @@ with generalization evidence (the sealed sets).
    artifacts: the prose contract, a machine-readable gate config (`data/model/v2_protocol.json`),
    and this ADR. Unit tests enforce an exact allowed-key schema on the config and pin every
    numerical gate to literals, so changing prose, config or tests without the others fails CI.
-2. Freeze target-free fold semantics now, while deferring the executable fold-manifest generator
-   to M7's harness: four LOTO scopes `(43,3)`, `(55,43)`, `(43,106)`, `(55,282)` in fixed order;
-   inner CV grouped strictly by `match_id`, `k=5`, matches sorted by `(match_date, match_id)`,
-   `index % 5`, `shuffle=false`, no seed; unresolved ties resolve mechanically to the simpler
+2. Ship the target-free fold semantics as **one production module**,
+   `backend/src/touchline/modeling/v2_folds.py`, driven only by the machine-readable config: four
+   LOTO scopes `(43,3)`, `(55,43)`, `(43,106)`, `(55,282)` in fixed order; inner CV grouped
+   strictly by `match_id`, `k=5`, matches sorted by `(match_date, match_id)`, `index % 5`,
+   `shuffle=false`, no seed; loud failure on duplicate ids, missing dates, foreign or sealed
+   scopes, and degenerate partitions; unresolved ties resolve mechanically to the simpler
    candidate (lower bundle level, then logistic over boosting), never to measured performance.
-   M6 and M7 must consume one shared primitive driven only by the config.
+   M6 and M7 must import this exact module — only materialized fold-manifest generation is
+   deferred to M7's harness.
 3. Fix uncertainty mechanics at WP2.7's proven values — paired differences, match-clustered
    bootstrap, 2,000 replicates, seed 0, 95% percentile intervals — extended with one preregistered
    rule: pooled multi-tournament comparisons resample tournament-stratified within each replicate,
@@ -54,14 +58,24 @@ with generalization evidence (the sealed sets).
    context-rich spline logistic with inner-selected M6 bundle, one `HistGradientBoostingClassifier`
    challenger) including their hyperparameter search spaces, before any outcome-bearing run.
    Adding families or widening grids afterwards requires a new ADR.
-6. Restate calibration policy (raw / intercept-only / Platt only; isotonic excluded) and all gate
-   numbers verbatim from the post-M4 roadmap: bundle admission (CI wholly below zero; Brier
-   degradation ≤ 0.0005; at most one represented tournament worse; no tournament worse than
+6. Restate calibration policy (raw / intercept-only / Platt only; isotonic excluded) together
+   with its **exact leakage-free fitting procedure**, preregistered now: per outer fold,
+   intercept-only/Platt candidates are fitted only from out-of-fold raw predictions generated
+   inside the outer training partition by the frozen inner CV, then applied to that fold's
+   untouched outer-holdout raw predictions; the adoption gates evaluate these per-fold calibrated
+   predictions. For the final refit, in order: generate development OOF raw predictions with the
+   frozen inner procedure, fit the selected calibrator on them, refit the base model on all
+   development rows, and freeze the model–calibrator pair before opening either sealed set. All
+   gate numbers are verbatim from the post-M4 roadmap: bundle admission (CI wholly below zero;
+   Brier degradation ≤ 0.0005; at most one represented tournament worse; no tournament worse than
    0.005 log loss); internal replacement (≥ 0.003 pooled log-loss improvement; ≥ 3 of 4
    tournaments non-worse); calibration adoption (≥ 0.001 improvement; no pooled Brier degradation;
    intercept/slope closer to ideal in ≥ 3 of 4; no tournament worse than 0.002); external
    promotion (≥ 0.003 combined improvement vs the stronger v1 variant; paired Brier upper bound ≤
-   +0.0005; neither external tournament worse than 0.005).
+   +0.0005; neither external tournament worse than 0.005). The external `constant_prevalence`
+   reference is defined as the full-development prevalence over all four development-pool
+   tournaments, frozen before sealed-set opening — a training-pool statistic, never an
+   external-set statistic.
 7. Carry the stop conditions into the protocol text: if the external gate fails, retain v1,
    publish v2 as a negative result, and freeze further model selection until a genuinely untouched
    complete tournament exists at a future pinned revision (per the WP5.1 future reservation, none
@@ -90,10 +104,14 @@ enforced by review of the diff and by the absence of any execution record.
   v2 selection would invalidate every future claim.
 - Generate fold manifests now alongside the contract: rejected — the manifest is trivially
   derivable from tournament membership, and committing generated artifacts before the harness
-  design settles invites drift; the semantics are frozen instead.
+  design settles invites drift; the semantics are frozen in a production module instead.
 - Let each phase (M6/M7) implement its own fold logic against shared prose: rejected — divergent
-  reimplementations are how nested protocols quietly break; one config-driven primitive is
-  required.
+  reimplementations are how nested protocols quietly break; the config-driven module shipped here
+  is the only permitted primitive.
+- Fit calibrators on the outer holdout or on in-sample predictions: rejected — either fits the
+  calibrator to rows whose outcomes influenced the underlying model, which is precisely the
+  leakage the corrected protocol exists to remove; only inner-CV OOF raw predictions may fit a
+  calibrator.
 - Defer search-space freezing to M7: rejected — declaring grids after seeing any run output is
   post-hoc search under another name (the ADR 0011 precedent applied to v2).
 - Adopt isotonic regression or additional calibrators: rejected on corpus size (~5,600 shots);

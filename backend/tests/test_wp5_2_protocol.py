@@ -2,25 +2,38 @@
 
 These tests pin the preregistration: the machine-readable gate config at
 ``data/model/v2_protocol.json`` parses under an exact allowed-key schema, every numerical gate
-equals its literal here so prose/config/test drift fails CI, the development pool and sealed sets
-mirror the WP5.1 evaluation registry exactly, and the frozen target-free fold semantics are valid
-as pure functions on synthetic fixtures.
-
-The fold functions below are the *executable specification* referenced by the WP5.2 contract.
-M7's production fold primitive must reproduce these behaviors; it does not import them.
+equals its literal here so prose/config/test drift fails CI, the normative statements of the
+prose contract appear in ``docs/modeling/wp5_2-v2-nested-protocol-contract.md``, the development
+pool and sealed sets mirror the WP5.1 evaluation registry exactly, and the frozen target-free
+fold semantics hold in the single production primitive all of M6/M7 must reuse:
+``touchline.modeling.v2_folds``.
 """
 
 from __future__ import annotations
 
+import copy
+import datetime as dt
 import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from touchline.modeling.splits import MatchRecord
+from touchline.modeling.v2_folds import (
+    FoldConstructionError,
+    assign_inner_folds,
+    development_pool_scopes,
+    inner_partition,
+    outer_fold_specs,
+    outer_partition,
+)
+from touchline.sealed_scope import SealedScopeError
+
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL_PATH = ROOT / "data" / "model" / "v2_protocol.json"
 REGISTRY_PATH = ROOT / "data" / "model" / "v2_evaluation_registry.json"
+CONTRACT_PATH = ROOT / "docs" / "modeling" / "wp5_2-v2-nested-protocol-contract.md"
 
 SOURCE_COMMIT = "b0bc9f22dd77c206ddedc1d742893b3bbe64baec"
 DEVELOPMENT_POOL = [
@@ -223,6 +236,15 @@ PROTOCOL_SCHEMA: dict[str, Any] = {
         "methods_allowed": [],
         "isotonic_excluded": None,
         "evaluation_basis": None,
+        "fitting_procedure": {
+            "leakage_rule": None,
+            "per_outer_fold": {
+                "calibrator_input": None,
+                "fitted_methods": [],
+                "application_target": None,
+            },
+            "final_refit_sequence": [],
+        },
         "adoption": {
             "min_pooled_log_loss_improvement": None,
             "ci_requirement": None,
@@ -238,6 +260,7 @@ PROTOCOL_SCHEMA: dict[str, Any] = {
         "reporting": None,
         "references_scored": [],
         "comparator": None,
+        "constant_prevalence_reference": None,
         "promotion_gate": {
             "min_combined_log_loss_improvement": None,
             "ci_requirement": None,
@@ -332,36 +355,67 @@ def test_sealed_sets_match_the_wp5_1_registry_exactly() -> None:
     ]
 
 
-# --- Frozen fold semantics --------------------------------------------------
+# --- Frozen fold semantics (production primitive: touchline.modeling.v2_folds) ---
 
 
-def _reference_inner_folds(matches: list[tuple[str, int]]) -> dict[int, int]:
-    """Executable specification of the frozen inner rule.
+def _match(match_id: int, day: int, scope: tuple[int, int] = (43, 3)) -> MatchRecord:
+    return MatchRecord(
+        match_id=match_id,
+        competition_id=scope[0],
+        season_id=scope[1],
+        match_date=dt.date(2018, 6, 1) + dt.timedelta(days=day - 1),
+    )
 
-    Matches sorted by ``(match_date, match_id)``; grouped strictly by ``match_id``; assigned
-    ``inner_fold = index % 5``; no shuffling, no seed.
-    """
-    ordered = sorted(matches)
-    return {match_id: index % INNER_SPLIT_COUNT for index, (_, match_id) in enumerate(ordered)}
+
+def _synthetic_pool() -> list[MatchRecord]:
+    """One match per development-pool tournament plus WC2018 filler for inner-fold balance."""
+    scopes = [(43, 3), (55, 43), (43, 106), (55, 282)]
+    records = [_match(index + 1, index + 1, scope) for index, scope in enumerate(scopes)]
+    records.extend(_match(100 + day, day) for day in range(1, 32))
+    return records
 
 
-def test_outer_scopes_are_exactly_four_loto_scopes_in_fixed_order() -> None:
-    scopes = [
-        (
-            scope["outer_fold"],
-            scope["holdout_tournament"],
-            scope["competition_id"],
-            scope["season_id"],
-        )
-        for scope in PAYLOAD["fold_rules"]["outer"]["scopes"]
-    ]
-    assert scopes == OUTER_SCOPES
-    assert PAYLOAD["fold_rules"]["outer"]["scheme"] == "leave_one_tournament_out"
-    assert PAYLOAD["fold_rules"]["outer"]["iteration_order_fixed"] is True
-    held_out = {(scope[2], scope[3]) for scope in scopes}
-    pool = {(comp, season) for _, comp, season in DEVELOPMENT_POOL}
-    assert held_out == pool
-    assert len(held_out) == len(scopes)
+def test_outer_specs_come_from_the_config_in_fixed_order() -> None:
+    specs = outer_fold_specs(PAYLOAD)
+    observed = [(spec.outer_fold, spec.holdout_tournament, spec.scope.pair) for spec in specs]
+    expected = [(name, tournament, (cid, sid)) for name, tournament, cid, sid in OUTER_SCOPES]
+    assert observed == expected
+    assert development_pool_scopes(PAYLOAD) == {(cid, sid) for _, cid, sid in DEVELOPMENT_POOL}
+
+
+def _mutated_outer_scope(index: int, **fields: object) -> dict[str, Any]:
+    config = copy.deepcopy(PAYLOAD)
+    config["fold_rules"]["outer"]["scopes"][index].update(fields)
+    return config
+
+
+def test_outer_specs_reject_a_changed_scheme() -> None:
+    config = copy.deepcopy(PAYLOAD)
+    config["fold_rules"]["outer"]["scheme"] = "random_k_fold"
+    with pytest.raises(FoldConstructionError, match="leave_one_tournament_out"):
+        outer_fold_specs(config)
+
+
+def test_outer_specs_reject_an_unfixed_iteration_order() -> None:
+    config = copy.deepcopy(PAYLOAD)
+    config["fold_rules"]["outer"]["iteration_order_fixed"] = False
+    with pytest.raises(FoldConstructionError, match="iteration_order_fixed"):
+        outer_fold_specs(config)
+
+
+def test_outer_specs_reject_a_duplicate_held_out_scope() -> None:
+    with pytest.raises(FoldConstructionError, match="more than one outer fold"):
+        outer_fold_specs(_mutated_outer_scope(1, competition_id=43, season_id=3))
+
+
+def test_outer_specs_reject_a_scope_outside_the_development_pool() -> None:
+    with pytest.raises(FoldConstructionError, match="outside the development pool"):
+        outer_fold_specs(_mutated_outer_scope(0, competition_id=999))
+
+
+def test_outer_specs_reject_a_sealed_scope() -> None:
+    with pytest.raises(SealedScopeError, match="AFCON 2023"):
+        outer_fold_specs(_mutated_outer_scope(0, competition_id=1267, season_id=107))
 
 
 def test_inner_rule_groups_by_match_id_with_five_deterministic_splits() -> None:
@@ -376,41 +430,80 @@ def test_inner_rule_groups_by_match_id_with_five_deterministic_splits() -> None:
 
 
 def test_inner_assignment_is_canonical_under_input_reordering() -> None:
-    matches = [
-        ("2018-06-17", 3),
-        ("2018-06-15", 1),
-        ("2020-07-01", 9),
-        ("2018-06-15", 2),
-        ("2022-11-22", 5),
-        ("2024-06-15", 4),
-        ("2020-06-28", 8),
-        ("2022-12-01", 6),
-        ("2024-07-05", 10),
-        ("2020-06-21", 7),
-    ]
-    reordered = matches[::-1]
-    assert _reference_inner_folds(reordered) == _reference_inner_folds(matches)
+    matches = [_match(match_id=index + 1, day=((index * 7) % 30) + 1) for index in range(10)]
+    assert dict(assign_inner_folds(matches[::-1])) == dict(assign_inner_folds(matches))
 
 
 def test_inner_folds_partition_matches_without_splitting_a_match() -> None:
-    matches = [(f"2018-06-{day:02d}", match_id) for day, match_id in enumerate(range(35), start=1)]
-    assignment = _reference_inner_folds(matches)
+    matches = [_match(match_id=index + 1, day=index + 1) for index in range(35)]
+    assignment = assign_inner_folds(matches)
     assert len(assignment) == 35
-    by_fold: dict[int, set[int]] = {}
-    for match_id, fold in assignment.items():
-        by_fold.setdefault(fold, set()).add(match_id)
-    assert set(by_fold) == {0, 1, 2, 3, 4}
-    all_ids = [match_id for fold_ids in by_fold.values() for match_id in fold_ids]
-    assert len(all_ids) == len(set(all_ids)) == 35
-    assert all(len(members) == 7 for members in by_fold.values())
+    seen_ids: set[int] = set()
+    for validation_fold in range(INNER_SPLIT_COUNT):
+        training, validation = inner_partition(assignment, validation_fold)
+        assert len(validation) == 7
+        assert len(training) == 28
+        assert not set(training) & set(validation)
+        seen_ids |= set(training) | set(validation)
+    assert seen_ids == {record.match_id for record in matches}
 
 
 def test_inner_folds_stay_balanced_for_uneven_partitions() -> None:
-    matches = [(f"date-{index:03d}", index) for index in range(37)]
-    by_fold: dict[int, int] = {}
-    for _, fold in _reference_inner_folds(matches).items():
-        by_fold[fold] = by_fold.get(fold, 0) + 1
-    assert sorted(by_fold.values()) == [7, 7, 7, 8, 8]
+    matches = [_match(match_id=index + 1, day=(index % 28) + 1) for index in range(37)]
+    assignment = assign_inner_folds(matches)
+    counts = sorted(
+        sum(1 for fold in assignment.values() if fold == validation_fold)
+        for validation_fold in range(INNER_SPLIT_COUNT)
+    )
+    assert counts == [7, 7, 7, 8, 8]
+
+
+def test_fold_construction_fails_loudly_on_bad_inputs() -> None:
+    sealed = _match(match_id=900, day=1, scope=(1267, 107))
+    with pytest.raises(SealedScopeError, match="sealed external evaluation set"):
+        assign_inner_folds([sealed])
+    with pytest.raises(FoldConstructionError, match="no matches provided"):
+        assign_inner_folds([])
+    duplicated = _synthetic_pool()
+    duplicated.append(_match(match_id=duplicated[0].match_id, day=2))
+    with pytest.raises(FoldConstructionError, match="duplicate match_id"):
+        assign_inner_folds(duplicated)
+    with pytest.raises(FoldConstructionError, match="no match_date"):
+        assign_inner_folds(
+            [MatchRecord(1, 43, 3, dt.date(2018, 6, 1)), MatchRecord(2, 55, 43, None)]
+        )
+    with pytest.raises(FoldConstructionError, match="below 2"):
+        assign_inner_folds(_synthetic_pool(), split_count=1)
+
+
+def test_inner_partition_rejects_degenerate_or_invalid_requests() -> None:
+    assignment = assign_inner_folds([_match(match_id=1, day=1)])
+    with pytest.raises(FoldConstructionError, match=r"outside 0\.\.4"):
+        inner_partition(assign_inner_folds(_synthetic_pool()), -1)
+    with pytest.raises(FoldConstructionError, match=r"outside 0\.\.4"):
+        inner_partition(assign_inner_folds(_synthetic_pool()), 5)
+    with pytest.raises(FoldConstructionError, match="degenerate"):
+        inner_partition(assignment, 1)
+
+
+def test_outer_partition_is_deterministic_and_loud_about_foreign_scopes() -> None:
+    specs = outer_fold_specs(PAYLOAD)
+    pool = _synthetic_pool()
+    spec = specs[3]
+    training, held_out = outer_partition(pool, specs, spec)
+    assert all((r.competition_id, r.season_id) == (55, 282) for r in held_out)
+    assert len(held_out) == 1
+    assert len(training) == len(pool) - 1
+    assert list(outer_partition(pool[::-1], specs, spec)[0]) == list(training)
+
+    foreign = [*_synthetic_pool(), _match(match_id=500, day=15, scope=(99, 9))]
+    with pytest.raises(FoldConstructionError, match="outside every supplied"):
+        outer_partition(foreign, specs, spec)
+    with pytest.raises(FoldConstructionError, match="not among the supplied"):
+        outer_partition(pool, specs[:-1], spec)
+    without_euro2024 = [r for r in pool if (r.competition_id, r.season_id) != (55, 282)]
+    with pytest.raises(FoldConstructionError, match="holds out no matches"):
+        outer_partition(without_euro2024, specs, specs[3])
 
 
 def test_fold_rules_carry_no_outcome_bearing_field_names() -> None:
@@ -565,4 +658,167 @@ def test_stop_conditions_freeze_selection_after_a_failed_external_gate() -> None
     assert stops["new_untouched_tournament_required_to_resume_selection"] is True
     assert stops["future_reservation_recorded_in"] == (
         "data/model/v2_evaluation_registry.json future_reservation"
+    )
+
+
+# --- Calibration fitting semantics ------------------------------------------
+
+
+def test_calibration_fitting_procedure_is_preregistered_and_leakage_free() -> None:
+    fitting = PAYLOAD["calibration_policy"]["fitting_procedure"]
+    assert fitting["leakage_rule"] == (
+        "no calibrator is ever fitted on predictions of rows whose underlying model saw those "
+        "rows in training"
+    )
+    per_fold = fitting["per_outer_fold"]
+    assert per_fold["calibrator_input"] == (
+        "out-of-fold raw predictions generated inside the outer training partition by the "
+        "frozen inner CV"
+    )
+    assert per_fold["fitted_methods"] == ["intercept_only", "platt"]
+    assert per_fold["application_target"] == (
+        "that outer fold's untouched outer-holdout raw predictions only"
+    )
+
+
+def test_final_refit_sequence_is_frozen_step_by_step() -> None:
+    sequence = PAYLOAD["calibration_policy"]["fitting_procedure"]["final_refit_sequence"]
+    assert sequence == [
+        (
+            "generate development OOF raw predictions by running the frozen inner procedure "
+            "once on all four development tournaments"
+        ),
+        "fit the selected calibrator on those development OOF raw predictions",
+        "refit the base model on all development rows",
+        "freeze the model-calibrator pair before opening either sealed set",
+    ]
+
+
+def test_external_constant_prevalence_is_frozen_full_development_prevalence() -> None:
+    reference = PAYLOAD["external_qualification"]["constant_prevalence_reference"]
+    assert reference.startswith(
+        "the full-development non-penalty goal prevalence over the four development-pool "
+        "tournaments"
+    )
+    assert reference.endswith("frozen before any sealed set is opened")
+
+
+# --- Contract prose consistency ---------------------------------------------
+
+#: The contract prose with all whitespace collapsed, so normative fragments match regardless of
+#: Markdown line wrapping.
+CONTRACT_TEXT = " ".join(CONTRACT_PATH.read_text(encoding="utf-8").split())
+
+
+def _contract_contains(*fragments: str) -> None:
+    missing = [fragment for fragment in fragments if fragment not in CONTRACT_TEXT]
+    assert not missing, f"contract prose is missing normative fragments: {missing}"
+
+
+def test_contract_states_the_outer_scopes_in_fixed_order() -> None:
+    _contract_contains(
+        "| `loto_wc2018` | WC2018 | `(43, 3)` |",
+        "| `loto_euro2020` | Euro2020 | `(55, 43)` |",
+        "| `loto_wc2022` | WC2022 | `(43, 106)` |",
+        "| `loto_euro2024` | Euro2024 | `(55, 282)` |",
+    )
+
+
+def test_contract_states_the_inner_rule_and_tie_behavior() -> None:
+    _contract_contains(
+        "assigned `inner_fold = index % 5`",
+        "`shuffle = false`",
+        "there is **no seed**",
+        "lower feature bundle level first, then logistic over boosting",
+        "Ties are never broken by measured performance.",
+    )
+
+
+def test_contract_names_the_single_production_primitive() -> None:
+    _contract_contains(
+        "`backend/src/touchline/modeling/v2_folds.py`",
+        "reimplementing fold logic elsewhere is prohibited",
+        "remains deferred to M7's evaluation harness",
+    )
+
+
+def test_contract_states_the_m6_bundle_evaluator_gate() -> None:
+    _contract_contains(
+        "confidence interval lies wholly below zero; Brier degradation at most `0.0005`;",
+        "non-worse in all but at most one tournament represented in the outer training partition;",
+    )
+    _contract_contains("worse by more than `0.005` log loss")
+    _contract_contains("complete offline/serving parity with declared feature coverage")
+
+
+def test_contract_states_the_internal_replacement_gate() -> None:
+    _contract_contains(
+        "improves by at least `0.003`",
+        "Brier degradation is at most `0.0005`",
+        "non-worse in at least three of four tournaments",
+        "worse by more than `0.005` log loss",
+        "A near miss is a failed gate, not permission for another search round.",
+    )
+
+
+def test_contract_states_the_calibration_policy_and_fitting_procedure() -> None:
+    _contract_contains(
+        "only raw probabilities, intercept-only recalibration and Platt scaling",
+        "Isotonic regression is excluded on this corpus.",
+        "at least `0.001`",
+        "(`≤ 0.000`)",
+        "closer to their ideals in at least three of four tournaments",
+        "worse by more than `0.002` log loss",
+        "Otherwise ship raw probabilities.",
+    )
+    _contract_contains(
+        "out-of-fold raw predictions generated inside the outer training partition by the frozen "
+        "inner CV",
+        "that outer fold's **untouched outer-holdout** raw predictions only",
+        "(1) generate development OOF raw predictions by running the frozen inner procedure once "
+        "on all four development tournaments",
+        "(2) fit the selected calibrator on those development OOF raw predictions",
+        "(3) refit the base model on all development rows",
+        "(4) freeze the model-calibrator pair before opening either sealed set",
+    )
+
+
+def test_contract_states_the_external_gate_and_constant_prevalence_definition() -> None:
+    _contract_contains(
+        "AFCON 2023 (`1267, 107`)",
+        "Copa América 2024 (`223, 282`)",
+        "combined log loss improves by at least `0.003`",
+        "upper bound of the paired Brier difference is at most `+0.0005`",
+        "neither external tournament worsens by more than `0.005` log loss",
+        "**full-development non-penalty goal prevalence over the four development-pool "
+        "tournaments, frozen before any sealed set is opened**",
+        "Recycling AFCON 2023 or Copa América 2024 after opening is prohibited.",
+    )
+
+
+def test_contract_states_bootstrap_bins_slices_and_candidates() -> None:
+    _contract_contains(
+        "paired differences, match-clustered bootstrap, 2,000 replicates, seed 0,",
+        "tournament-stratified",
+        "edges `0, 0.2, 0.4, 0.6, 0.8, 1.0`",
+        "{0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0}",
+        "`learning_rate ∈ {0.03, 0.1}`",
+        "`max_leaf_nodes ∈ {8, 31}`",
+        "`min_samples_leaf ∈ {20, 50}`",
+        "`l2_regularization ∈ {0.0, 1.0}`",
+        "`max_iter = 300`",
+        "`HistGradientBoostingClassifier`",
+    )
+    for family in SLICE_FAMILIES:
+        assert family in CONTRACT_TEXT
+
+
+def test_contract_states_the_evidence_hierarchy_and_stop_condition() -> None:
+    _contract_contains(
+        "**Outer LOTO predictions and metrics are internal development/selection evidence.**",
+        "never presented as the unbiased post-selection estimate of v2 quality",
+        "**The one-time sealed AFCON 2023 + Copa América 2024 qualification is the external "
+        "generalization evidence**",
+        "retain v1, publish v2 as a negative result, stop model selection until a newly pinned "
+        "genuinely untouched complete tournament exists",
     )
