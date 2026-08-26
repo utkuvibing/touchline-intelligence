@@ -32,9 +32,10 @@ mutation controls are implemented; a dry run is available for inspection.
 
 PostgreSQL URI query parameters that can reroute libpq (`host`, `hostaddr`, `port`, or `service`)
 and multi-host authorities are rejected even when their first host names loopback. Child commands
-do not inherit ambient libpq routing variables such as `PGHOSTADDR` or `PGSERVICE`. PR child
-commands additionally receive neither `TOUCHLINE_FULL_COHORT_DB_URL` nor `TOUCHLINE_FULL_SOURCE`,
-including when either variable exists in the caller's environment.
+do not inherit ambient libpq routing variables such as `PGHOSTADDR` or `PGSERVICE`. Scoping is
+command-aware: every PR/code-health command receives neither `TOUCHLINE_FULL_COHORT_DB_URL` nor
+`TOUCHLINE_FULL_SOURCE`, even inside milestone or release plans. Only the explicit full-cohort
+command receives `TOUCHLINE_FULL_COHORT_DB_URL`; no command receives `TOUCHLINE_FULL_SOURCE`.
 
 The matrix does not authorize model training, ingestion, sealed-outcome access, or deployment
 changes. Existing database commands retain their own safety controls; this runner only invokes

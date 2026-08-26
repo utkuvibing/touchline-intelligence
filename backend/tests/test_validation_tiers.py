@@ -115,8 +115,7 @@ def test_pr_dispatches_in_order_and_stops_on_first_failure(tmp_path: Path) -> No
     ]
 
 
-def test_pr_children_cannot_inherit_full_cohort_or_full_source_opt_ins(tmp_path: Path) -> None:
-    child_environments: list[dict[str, str]] = []
+def test_pr_children_cannot_inherit_full_cohort_or_full_source_opt_ins() -> None:
     parent_environment = {
         "TOUCHLINE_DB_URL": LOCAL_DB,
         "TOUCHLINE_FULL_COHORT_DB_URL": "postgresql://u:p@sealed.example/db",
@@ -129,29 +128,39 @@ def test_pr_children_cannot_inherit_full_cohort_or_full_source_opt_ins(tmp_path:
         "PATH": "test-path",
     }
 
-    def dispatch(_: Sequence[str], __: Path, environment: Mapping[str, str]) -> int:
-        child_environments.append(dict(environment))
-        return 0
-
-    assert (
-        validation_tiers.run_tier(
-            validation_tiers.Tier.PR,
-            parent_environment,
-            repo_root=tmp_path,
-            run_command=dispatch,
-        )
-        == 0
+    child_environment = validation_tiers.child_environment_for(
+        validation_tiers.PR_COMMANDS[0], parent_environment
     )
 
-    assert child_environments
-    assert all(
-        not (
-            validation_tiers.PR_DATA_SCOPE_ENVIRONMENT | validation_tiers.LIBPQ_ROUTING_ENVIRONMENT
-        ).intersection(variable.upper() for variable in environment)
-        for environment in child_environments
-    )
-    assert all(environment["TOUCHLINE_DB_URL"] == LOCAL_DB for environment in child_environments)
+    assert not (
+        validation_tiers.PR_DATA_SCOPE_ENVIRONMENT | validation_tiers.LIBPQ_ROUTING_ENVIRONMENT
+    ).intersection(variable.upper() for variable in child_environment)
+    assert child_environment["TOUCHLINE_DB_URL"] == LOCAL_DB
     assert parent_environment["TOUCHLINE_FULL_SOURCE"] == "1"
+
+
+def test_milestone_embedded_pr_commands_are_fixture_only_and_full_cohort_is_explicit() -> None:
+    parent_environment = {
+        "TOUCHLINE_DB_URL": LOCAL_DB,
+        "TOUCHLINE_FULL_COHORT_DB_URL": LOCAL_COHORT_DB,
+        "TOUCHLINE_FULL_SOURCE": "1",
+        "PGHOSTADDR": "203.0.113.10",
+    }
+
+    for command in validation_tiers.MILESTONE_COMMANDS:
+        child_environment = validation_tiers.child_environment_for(command, parent_environment)
+        assert not (
+            validation_tiers.LIBPQ_ROUTING_ENVIRONMENT | {validation_tiers.FULL_SOURCE_ENVIRONMENT}
+        ).intersection(variable.upper() for variable in child_environment)
+        if command in validation_tiers.PR_COMMANDS:
+            assert validation_tiers.FULL_COHORT_DATABASE_ENVIRONMENT not in child_environment
+        elif command == validation_tiers.FULL_COHORT_COMMAND:
+            assert (
+                child_environment[validation_tiers.FULL_COHORT_DATABASE_ENVIRONMENT]
+                == LOCAL_COHORT_DB
+            )
+        else:
+            assert validation_tiers.FULL_COHORT_DATABASE_ENVIRONMENT not in child_environment
 
 
 def test_subprocess_receives_only_the_explicit_child_environment(

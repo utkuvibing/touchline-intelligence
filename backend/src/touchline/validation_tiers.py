@@ -112,6 +112,12 @@ LIBPQ_ROUTING_ENVIRONMENT = frozenset(
 # Pull-request validation is fixture-only.  These opt-ins expand pytest collection to data-backed
 # acceptance tests and must never leak from a developer's shell into PR child commands.
 PR_DATA_SCOPE_ENVIRONMENT = frozenset({"TOUCHLINE_FULL_COHORT_DB_URL", "TOUCHLINE_FULL_SOURCE"})
+FULL_COHORT_DATABASE_ENVIRONMENT = "TOUCHLINE_FULL_COHORT_DB_URL"
+FULL_SOURCE_ENVIRONMENT = "TOUCHLINE_FULL_SOURCE"
+
+# Keep this as a named command so its database scope is granted by command intent, not by the
+# enclosing tier.  Milestone and release plans both contain PR commands before this one.
+FULL_COHORT_COMMAND = MILESTONE_COMMANDS[len(PR_COMMANDS)]
 
 
 def is_local_postgres_url(value: str) -> bool:
@@ -183,6 +189,23 @@ def git_tree_is_clean(repo_root: Path) -> bool:
     return result.returncode == 0 and not result.stdout.strip()
 
 
+def child_environment_for(command: Command, environment: Mapping[str, str]) -> dict[str, str]:
+    """Scope child variables to the command that is allowed to consume them.
+
+    PR/code-health commands can appear inside a broader tier, so their data-scope exclusions are
+    command-based rather than tier-based.  Only the explicit full-cohort command receives its
+    populated-cohort database URL.  Full-source opt-in remains outside every tier here.
+    """
+    removed_environment = LIBPQ_ROUTING_ENVIRONMENT | {FULL_SOURCE_ENVIRONMENT}
+    if command != FULL_COHORT_COMMAND:
+        removed_environment = removed_environment | {FULL_COHORT_DATABASE_ENVIRONMENT}
+    return {
+        variable: value
+        for variable, value in environment.items()
+        if variable.upper() not in removed_environment
+    }
+
+
 def run_tier(
     tier: Tier,
     environment: Mapping[str, str],
@@ -199,17 +222,9 @@ def run_tier(
         is_clean_tree=is_clean_tree or (lambda: git_tree_is_clean(repo_root)),
     )
     dispatch = run_command or _run_command
-    removed_environment = LIBPQ_ROUTING_ENVIRONMENT
-    if tier is Tier.PR:
-        removed_environment = removed_environment | PR_DATA_SCOPE_ENVIRONMENT
-    child_environment = {
-        variable: value
-        for variable, value in environment.items()
-        if variable.upper() not in removed_environment
-    }
     for command in plan.commands:
         print(f"==> {command.label}: {' '.join(command.argv)}")
-        result = dispatch(command.argv, repo_root, child_environment)
+        result = dispatch(command.argv, repo_root, child_environment_for(command, environment))
         if result != 0:
             return result
     return 0
