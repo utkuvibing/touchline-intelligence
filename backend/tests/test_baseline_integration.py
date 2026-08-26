@@ -264,4 +264,4 @@ def test_endpoint_reports_503_when_nothing_is_loaded(
         response = client.get("/baseline")
 
     assert response.status_code == 503
-    assert "ingest" in response.json()["detail"]
+    assert response.json()["detail"] == "required data is unavailable"
