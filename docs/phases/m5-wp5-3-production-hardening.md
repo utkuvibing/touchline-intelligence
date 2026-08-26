@@ -1,6 +1,6 @@
 # M5 WP5.3 — Production hardening
 
-**Status:** in progress. **Source of truth:** `docs/PLAN.md` M5 work items 7–8. Historical v1
+**Status:** complete. **Source of truth:** `docs/PLAN.md` M5 work items 7–8. Historical v1
 evidence and packets remain immutable.
 
 ## Work packages and acceptance criteria
