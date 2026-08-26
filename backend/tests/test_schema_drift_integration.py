@@ -9,8 +9,9 @@ no tables whatsoever.
 Two contracts are protected here, and both failed in production:
 
 1. **Readiness must notice.** An instance whose every data endpoint raises must not report ready.
-2. **The 503 must say what is wrong.** `UndefinedTable` is the driver's symbol, not an
-   explanation: it does not say which table, why it is absent, or what to do about it.
+2. **Public data errors must stay opaque.** `/ready` identifies schema drift through its finite
+   operational state, while data-endpoint 503 bodies expose no schema, driver, or remediation
+   detail.
 
 The "behind" schema is built by applying migration 0001 alone, which is exactly the unversioned M0
 shape the live database was actually in — verified against it before this test was written, column
@@ -137,35 +138,27 @@ def test_ready_reports_ready_against_a_current_schema(
 
 
 @pytest.mark.parametrize("path", ["/baseline", "/shots"])
-def test_data_endpoints_explain_drift_instead_of_naming_the_driver_symbol(
+def test_data_endpoints_hide_schema_drift_and_driver_details(
     behind_conn: psycopg.Connection, client: TestClient, path: str
 ) -> None:
-    """503 is right; `UndefinedTable` as the whole explanation is not.
-
-    The status is unchanged deliberately — this instance really cannot serve the request. What
-    changes is that the body now names the cause and the operator action.
-    """
+    """Public 503s stay actionable by status without exposing schema or driver details."""
     response = client.get(path)
 
     assert response.status_code == 503
     detail = response.json()["detail"]
-    assert detail == schema_state.SCHEMA_NOT_MIGRATED_DETAIL
-    assert detail != "UndefinedTable"
-    assert "migrations" in detail
+    assert detail == "required data is unavailable"
+    assert detail != schema_state.SCHEMA_NOT_MIGRATED_DETAIL
+    assert "UndefinedTable" not in detail
 
 
-def test_the_drift_detail_carries_no_connection_fragments(
+def test_the_drift_detail_carries_no_schema_or_connection_fragments(
     behind_conn: psycopg.Connection, client: TestClient
 ) -> None:
-    """The endpoint is unauthenticated, so its error body must not echo the DSN.
-
-    Asserted as a positive property — the detail is a fixed module constant, so it cannot contain
-    anything derived from the connection — plus a direct check against the live DSN's own parts,
-    which is what a driver message would have leaked.
-    """
+    """The unauthenticated error body must not echo schema remediation or the DSN."""
     assert DB_URL is not None
     detail = client.get("/baseline").json()["detail"]
 
-    assert detail == schema_state.SCHEMA_NOT_MIGRATED_DETAIL
+    assert detail == "required data is unavailable"
+    assert "migrations" not in detail
     for fragment in ("://", "@", TEST_SCHEMA):
         assert fragment not in detail

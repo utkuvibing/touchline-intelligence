@@ -52,7 +52,7 @@ function HeroFacts({ metadata }: { metadata: ModelMetadata }) {
       </div>
       <div>
         <dt>Runtime state</dt>
-        <dd>{metadata.runtime_status === "ready" ? "Ready" : metadata.runtime_status}</dd>
+        <dd>{metadata.serving_state === "serving" ? "Serving" : metadata.serving_state}</dd>
       </div>
       <div>
         <dt>Tournament holdout</dt>
@@ -70,7 +70,9 @@ function ModelIdentity({ metadata }: { metadata: ModelMetadata }) {
           <p className="eyebrow">QUALIFIED RELEASE</p>
           <h2 id="model-identity-heading">What is being served</h2>
         </div>
-        <span className="status-chip status-chip-runtime">Runtime ready</span>
+        <span className="status-chip status-chip-runtime">
+          {metadata.serving_state === "serving" ? "Serving" : metadata.serving_state}
+        </span>
       </div>
       <div className="identity-lede">
         <div>
@@ -192,10 +194,14 @@ function HistoricalWorkspace({ collection }: { collection: HistoricalShotCollect
   );
 }
 
-function HistoricalState({ state }: { state: ResourceState<HistoricalShotCollection> }) {
-  if (state.status === "ready") return <HistoricalWorkspace collection={state.data} />;
-
-  if (isPublicationGateClosed(state.error)) {
+function HistoricalState({
+  state,
+  publicationState,
+}: {
+  state: ResourceState<HistoricalShotCollection>;
+  publicationState: ModelMetadata["historical_publication_state"];
+}) {
+  if (publicationState === "closed") {
     return (
       <section className="historical-section" aria-labelledby="historical-heading">
         <div className="section-heading-row">
@@ -203,17 +209,36 @@ function HistoricalState({ state }: { state: ResourceState<HistoricalShotCollect
             <p className="eyebrow">DATA-USE BOUNDARY</p>
             <h2 id="historical-heading">Historical shot-level predictions are unavailable</h2>
           </div>
-          <span className="status-chip status-chip-blocked">PUBLICATION PAUSED</span>
+          <span className="status-chip status-chip-blocked">
+            {publicationState === "closed" ? "PUBLICATION CLOSED" : "PUBLICATION UNAVAILABLE"}
+          </span>
         </div>
         <p className="gate-message">
-          Current provider terms do not clearly resolve whether publishing row-level historical
-          probabilities is permitted. The public API therefore keeps this dataset closed while
-          written clarification is pending. No source rows are substituted or reconstructed.
+          The model API reports historical row-level publication as closed. Current provider terms
+          do not clearly resolve whether publishing these probabilities is permitted, so the public
+          API keeps this dataset closed. No source rows are substituted or reconstructed.
         </p>
         <p className="muted">
           Model identity, evaluation results and limitations remain available above without
           redistributing the underlying event data.
         </p>
+      </section>
+    );
+  }
+
+  if (state.status === "ready") return <HistoricalWorkspace collection={state.data} />;
+
+  if (isPublicationGateClosed(state.error)) {
+    return (
+      <section className="historical-section" aria-labelledby="historical-heading">
+        <div className="section-heading-row">
+          <div>
+            <p className="eyebrow">PUBLICATION CONTRACT MISMATCH</p>
+            <h2 id="historical-heading">Historical workspace withheld</h2>
+          </div>
+          <span className="status-chip status-chip-blocked">PUBLICATION UNAVAILABLE</span>
+        </div>
+        <ErrorNotice title="Historical publication state disagrees with the API" error={state.error} />
       </section>
     );
   }
@@ -301,7 +326,10 @@ export function AnalystView({ metadata, metrics, historical, provenanceError }: 
           />
         </section>
       ) : (
-        <HistoricalState state={historical} />
+        <HistoricalState
+          state={historical}
+          publicationState={metadata.data.historical_publication_state}
+        />
       )}
 
       <Limitations />

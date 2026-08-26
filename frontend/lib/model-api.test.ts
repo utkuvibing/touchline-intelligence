@@ -27,6 +27,8 @@ const provenance: ProvenanceIdentity = {
 function metadataPayload() {
   return {
     ...provenance,
+    serving_state: "serving",
+    historical_publication_state: "closed",
     release_status: "m2_qualified",
     qualification_serving_status: "not_served",
     runtime_status: "ready",
@@ -201,6 +203,12 @@ describe("WP3.1 model API adapter", () => {
   it("parses valid metadata and metrics at the response seam", () => {
     expect(parseModelMetadata(metadataPayload()).candidate).toBe("full_minus_presence");
     expect(parseModelMetrics(metricsPayload()).tournament_holdout.reliability).toHaveLength(1);
+  });
+
+  it("rejects an unregistered operational publication state", () => {
+    const malformed = structuredClone(metadataPayload()) as Record<string, unknown>;
+    malformed.historical_publication_state = "paused";
+    expect(() => parseModelMetadata(malformed)).toThrow(/historical_publication_state/);
   });
 
   it.each(["location_x", "location_y"] as const)(

@@ -106,6 +106,10 @@ class InputContract(BaseModel):
 
 
 class ModelMetadataResponse(ProvenanceResponse):
+    # Operational state is distinct from the immutable M2 qualification fields below.  It tells
+    # clients what this running service does today without rewriting historical release evidence.
+    serving_state: Literal["serving"]
+    historical_publication_state: Literal["closed", "published"]
     release_status: Literal["m2_qualified"]
     qualification_serving_status: Literal["not_served"]
     runtime_status: Literal["ready"]
@@ -303,7 +307,16 @@ def _validate_query_parameters(request: Request) -> None:
 
 @router.get("", response_model=ModelMetadataResponse)
 def model_metadata(request: Request) -> ModelMetadataResponse:
-    return ModelMetadataResponse.model_validate(get_runtime(request).metadata())
+    settings = get_settings()
+    return ModelMetadataResponse.model_validate(
+        {
+            **get_runtime(request).metadata(),
+            "serving_state": "serving",
+            "historical_publication_state": (
+                "published" if settings.historical_model_shots_enabled else "closed"
+            ),
+        }
+    )
 
 
 @router.get("/metrics", response_model=ModelMetricsResponse)
@@ -359,7 +372,7 @@ def historical_model_shots(
     )
     runtime = get_runtime(request)
     try:
-        with psycopg.connect(settings.db_url_str, connect_timeout=5) as connection:
+        with request.app.state.db_pool.connection() as connection:
             page = model_shots.fetch_historical_shots(connection, filters)
     except psycopg.errors.UndefinedTable as exc:
         raise ModelDataUnavailableError(schema_state.SCHEMA_NOT_MIGRATED_DETAIL) from exc

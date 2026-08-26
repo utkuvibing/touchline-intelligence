@@ -83,3 +83,45 @@ def test_multiple_origins_are_parsed_and_trimmed(monkeypatch: pytest.MonkeyPatch
     )
 
     assert settings.allowed_origins == [ALLOWED, preview]
+
+
+def test_cors_preflight_accepts_only_the_browser_headers_the_api_uses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _client_with_origins(ALLOWED, monkeypatch)
+
+    response = client.options(
+        "/model/predict",
+        headers={
+            "Origin": ALLOWED,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,x-request-id",
+        },
+    )
+
+    assert response.status_code == 200
+    allowed_headers = response.headers["access-control-allow-headers"].lower()
+    assert "content-type" in allowed_headers
+    assert "x-request-id" in allowed_headers
+
+    rejected = client.options(
+        "/model/predict",
+        headers={
+            "Origin": ALLOWED,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert rejected.status_code == 400
+
+
+def test_docs_and_openapi_are_disabled_outside_local_or_test(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TOUCHLINE_CORS_ORIGINS", ALLOWED)
+    monkeypatch.setenv("TOUCHLINE_ENVIRONMENT", "production")
+    importlib.reload(touchline.main)
+
+    with TestClient(touchline.main.app) as client:
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            assert client.get(path).status_code == 404

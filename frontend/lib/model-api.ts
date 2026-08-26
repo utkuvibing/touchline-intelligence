@@ -17,6 +17,8 @@ export type ProvenanceField = (typeof PROVENANCE_FIELDS)[number];
 export type ProvenanceIdentity = Record<ProvenanceField, string>;
 
 export interface ModelMetadata extends ProvenanceIdentity {
+  serving_state: "serving";
+  historical_publication_state: "closed" | "published";
   release_status: "m2_qualified";
   qualification_serving_status: "not_served";
   runtime_status: "ready";
@@ -379,6 +381,14 @@ export function parseModelMetadata(value: unknown): ModelMetadata {
 
   return {
     ...parseProvenance(source, "model metadata"),
+    serving_state: literal(source.serving_state, "serving", "serving_state"),
+    historical_publication_state: (() => {
+      const value = string(source.historical_publication_state, "historical_publication_state");
+      if (value !== "closed" && value !== "published") {
+        throw new ModelContractError("historical_publication_state must be closed or published");
+      }
+      return value;
+    })(),
     release_status: literal(source.release_status, "m2_qualified", "release_status"),
     qualification_serving_status: literal(
       source.qualification_serving_status,

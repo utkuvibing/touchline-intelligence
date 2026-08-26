@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, Literal
 
@@ -23,8 +22,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from touchline import baseline, model_shots, schema_state, shots
-from touchline.config import Settings, get_settings
+from touchline import baseline, model_shots, shots
+from touchline.config import get_settings
 from touchline.model_api import (
     ModelDataUnavailableError,
     PublicationGateClosedError,
@@ -34,40 +33,59 @@ from touchline.model_api import (
     router as model_router,
 )
 from touchline.observability import RequestLoggingMiddleware
+from touchline.runtime_db import DatabaseDetail, ReadinessProbe, check_database, create_pool
 from touchline.serving import ModelRuntime, ServingInputError
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Load and verify the one qualified release before this worker accepts traffic."""
-    application.state.model_runtime = ModelRuntime.load()
-    yield
-    del application.state.model_runtime
+    settings = get_settings()
+    application.state.db_pool = create_pool(settings)
+    application.state.readiness_probe = ReadinessProbe(settings.readiness_ttl_seconds)
+    try:
+        application.state.model_runtime = ModelRuntime.load()
+    except Exception:
+        application.state.db_pool.close()
+        del application.state.readiness_probe
+        del application.state.db_pool
+        raise
+    try:
+        yield
+    finally:
+        application.state.db_pool.close()
+        del application.state.readiness_probe
+        del application.state.db_pool
+        del application.state.model_runtime
 
 
+_settings = get_settings()
 app = FastAPI(
     title="Touchline Intelligence Platform",
     version="0.1.0",
     summary="Football research and decision-support on StatsBomb Open Data.",
     lifespan=lifespan,
+    docs_url="/docs" if _settings.environment in {"local", "test"} else None,
+    redoc_url="/redoc" if _settings.environment in {"local", "test"} else None,
+    openapi_url="/openapi.json" if _settings.environment in {"local", "test"} else None,
 )
-app.state.environment = get_settings().environment
+app.state.environment = _settings.environment
 
 # Restricted to named origins, never `*`. The deployed frontend is one known origin, so allowing
 # any page on the internet to read this API from a visitor's browser would buy nothing.
 # Read-only API, so no credentials and only the verbs actually used.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().allowed_origins,
+    allow_origins=_settings.allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-Request-ID"],
     expose_headers=["X-Request-ID"],
 )
 # Middleware is applied in reverse registration order. Logging is outermost so CORS preflight
 # responses receive the same request ID and completion record as every other HTTP response. The
 # logger mirrors the small CORS error-header subset for the generic 500 response it creates.
-app.add_middleware(RequestLoggingMiddleware, allowed_origins=get_settings().allowed_origins)
+app.add_middleware(RequestLoggingMiddleware, allowed_origins=_settings.allowed_origins)
 
 
 class Health(BaseModel):
@@ -149,13 +167,17 @@ def publication_gate_error(request: Request, exc: PublicationGateClosedError) ->
 @app.exception_handler(RuntimeNotReadyError)
 def runtime_not_ready_error(request: Request, exc: RuntimeNotReadyError) -> JSONResponse:
     del request
-    return _error(status_code=503, code="runtime_not_ready", message=str(exc))
+    del exc
+    return _error(
+        status_code=503, code="runtime_not_ready", message="Model runtime is unavailable."
+    )
 
 
 @app.exception_handler(ModelDataUnavailableError)
 def model_data_unavailable_error(request: Request, exc: ModelDataUnavailableError) -> JSONResponse:
     del request
-    return _error(status_code=503, code="data_unavailable", message=str(exc))
+    del exc
+    return _error(status_code=503, code="data_unavailable", message="Required data is unavailable.")
 
 
 app.include_router(model_router)
@@ -179,45 +201,7 @@ class Readiness(BaseModel):
     database_schema: Literal["current", "behind", "unknown"] = "unknown"
     model_runtime: Literal["ready", "not_ready"]
     model_version: str | None
-    detail: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class DatabaseState:
-    """What a readiness probe learned, kept as three separate facts rather than one boolean."""
-
-    reachable: bool
-    schema_current: bool
-    detail: str | None
-
-
-def _check_database(settings: Settings) -> DatabaseState:
-    """Open a connection, prove PostgreSQL answers, then prove it holds the expected relations.
-
-    The connection detail is the exception class name only — connection strings and driver
-    messages can carry host and credential fragments, which must not leak into an unauthenticated
-    endpoint. The schema detail is a fixed constant plus relation names, which carry neither; the
-    schema is defined by the ordered migrations and naming the absent tables is what makes the probe
-    actionable instead of merely red.
-    """
-    try:
-        with psycopg.connect(settings.db_url_str, connect_timeout=3) as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-                cur.fetchone()
-            missing = schema_state.missing_required_tables(conn)
-    except Exception as exc:
-        # Any failure at all means "not reachable" - a readiness probe that only catches
-        # OperationalError would report ready during an auth or DNS failure.
-        return DatabaseState(reachable=False, schema_current=False, detail=type(exc).__name__)
-
-    if missing:
-        return DatabaseState(
-            reachable=True,
-            schema_current=False,
-            detail=f"{schema_state.SCHEMA_NOT_MIGRATED_DETAIL}; absent: {', '.join(missing)}",
-        )
-    return DatabaseState(reachable=True, schema_current=True, detail=None)
+    detail: DatabaseDetail | Literal["model_runtime_not_ready"] | None = None
 
 
 @app.get("/health", response_model=Health, tags=["ops"])
@@ -232,8 +216,8 @@ def health() -> Health:
 def ready(request: Request, response: Response) -> Readiness:
     """Readiness probe. Touches the database, because an instance that cannot query is not
     ready to serve even though it is alive."""
-    settings = get_settings()
-    state = _check_database(settings)
+    probe = request.app.state.readiness_probe
+    state = probe.check(lambda: check_database(request.app.state.db_pool))
     runtime = getattr(request.app.state, "model_runtime", None)
     if isinstance(runtime, ModelRuntime):
         model_ready = True
@@ -289,27 +273,22 @@ BASELINE_CAVEAT = (
 
 
 @app.get("/baseline", response_model=BaselineResponse, tags=["baseline"])
-def shot_conversion_rate() -> BaselineResponse:
+def shot_conversion_rate(request: Request) -> BaselineResponse:
     """Return the cohort conversion rate, computed live from the database.
 
-    A connection is opened per request. That is fine at this scale and deliberately un-pooled;
-    connection management is M3 hardening, and adding it now would be infrastructure without a
-    measured need.
+    The application-lifetime bounded pool supplies the connection.
     """
-    settings = get_settings()
     try:
-        with psycopg.connect(settings.db_url_str, connect_timeout=5) as conn:
+        with request.app.state.db_pool.connection() as conn:
             rate = baseline.compute_base_rate(conn)
     except baseline.NoDataError as exc:
         # 503 rather than 404: the resource is meaningful, this instance just has nothing loaded
         # yet. A 404 would suggest the endpoint does not exist.
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="required data is unavailable") from exc
     except psycopg.errors.UndefinedTable as exc:
-        raise HTTPException(
-            status_code=503, detail=schema_state.SCHEMA_NOT_MIGRATED_DETAIL
-        ) from exc
+        raise HTTPException(status_code=503, detail="required data is unavailable") from exc
     except psycopg.Error as exc:
-        raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
+        raise HTTPException(status_code=503, detail="required data is unavailable") from exc
 
     return BaselineResponse(
         conversion_rate=rate.value,
@@ -358,6 +337,7 @@ class ShotPage(BaseModel):
 
 @app.get("/shots", response_model=ShotPage, tags=["shots"])
 def list_shots(
+    request: Request,
     match_id: Annotated[int | None, Query(description="Restrict to one match.")] = None,
     limit: Annotated[int, Query(ge=1, le=shots.MAX_LIMIT)] = shots.DEFAULT_LIMIT,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -367,16 +347,13 @@ def list_shots(
     Read-only, and enforced as such - the query runs in a READ ONLY transaction rather than merely
     being documented as safe.
     """
-    settings = get_settings()
     try:
-        with psycopg.connect(settings.db_url_str, connect_timeout=5) as conn:
+        with request.app.state.db_pool.connection() as conn:
             page = shots.fetch_shots(conn, match_id=match_id, limit=limit, offset=offset)
     except psycopg.errors.UndefinedTable as exc:
-        raise HTTPException(
-            status_code=503, detail=schema_state.SCHEMA_NOT_MIGRATED_DETAIL
-        ) from exc
+        raise HTTPException(status_code=503, detail="required data is unavailable") from exc
     except psycopg.Error as exc:
-        raise HTTPException(status_code=503, detail=type(exc).__name__) from exc
+        raise HTTPException(status_code=503, detail="required data is unavailable") from exc
 
     return ShotPage(
         # model_validate rather than Shot(**row): the row is an untyped mapping from the driver,

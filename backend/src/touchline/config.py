@@ -51,6 +51,14 @@ class Settings(BaseSettings):
             "not be enabled publicly until the documented StatsBomb/Hudl question is resolved."
         ),
     )
+    db_pool_min_size: int = Field(default=0, ge=0, description="Minimum runtime pool connections.")
+    db_pool_max_size: int = Field(default=4, ge=1, description="Maximum runtime pool connections.")
+    db_pool_timeout_seconds: float = Field(
+        default=5.0, gt=0, description="Maximum seconds to wait for a pooled connection."
+    )
+    readiness_ttl_seconds: float = Field(
+        default=1.0, ge=0, description="Monotonic cache duration for database readiness probes."
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -62,6 +70,12 @@ class Settings(BaseSettings):
         filtered.pop("migration_db_url", None)
         filtered.pop("touchline_migration_db_url", None)
         return filtered
+
+    @model_validator(mode="after")
+    def _validate_pool_bounds(self) -> Settings:
+        if self.db_pool_min_size > self.db_pool_max_size:
+            raise ValueError("db_pool_min_size cannot exceed db_pool_max_size")
+        return self
 
     @property
     def allowed_origins(self) -> list[str]:
