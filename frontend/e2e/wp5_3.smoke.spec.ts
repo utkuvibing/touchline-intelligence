@@ -101,3 +101,63 @@ test("release smoke is bound to final HEAD", async ({ page }, testInfo) => {
   expect(gate.status).toBe(403);
   expect(gate.body.error.code).toBe("publication_gate_closed");
 });
+
+test("playground request body, API probability, and displayed value agree byte-exact", async ({ page }) => {
+  const web = required(webUrl, "TOUCHLINE_SMOKE_WEB_URL");
+  const api = required(apiUrl, "TOUCHLINE_SMOKE_API_URL");
+
+  /**
+   * One unreproduced observation, recorded here on purpose: a single manual run of this
+   * exact flow once displayed 4.5% for the fixed input below. Every traced reproduction
+   * since (five) sent the byte-exact body asserted here and displayed the API's value
+   * (3.3% at the time of writing), and no input on the served probability surface produces
+   * 4.5% (14 combinations probed). Treated as an unreproduced anomaly, not a confirmed
+   * bug; this test is the tripwire if it ever recurs. No workaround was added anywhere.
+   */
+  const input = {
+    location_x: 94.5,
+    location_y: 36,
+    body_part: "Left Foot",
+    technique: "Volley",
+    play_pattern: "Regular Play",
+  };
+
+  // The API's own answer for this exact input, fetched independently of the UI. The
+  // released model is deterministic, so one input always maps to one probability.
+  // Runs after page.goto: an evaluate on about:blank has a null origin, which the API's
+  // CORS allow-list rightly refuses.
+  await page.goto(`${web}/explore`, { waitUntil: "networkidle" });
+  const direct = await page.evaluate(async ({ endpoint, body }) => {
+    const response = await fetch(`${endpoint}/model/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`predict responded ${response.status}`);
+    return (await response.json()) as { calibrated_probability: number };
+  }, { endpoint: api, body: input });
+
+  // What the page actually puts on the wire for the same input.
+  const requestBodies: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/model/predict")) requestBodies.push(request.postData() ?? "");
+  });
+
+  await page.getByLabel("Hypothetical location X (0–120)").fill(String(input.location_x));
+  await page.getByLabel("Hypothetical location Y (0–80)").fill(String(input.location_y));
+  await page.getByLabel("Hypothetical body part").selectOption(input.body_part);
+  await page.getByLabel("Hypothetical technique").selectOption(input.technique);
+  await page.getByRole("button", { name: /calculate probability/i }).click();
+  await page.waitForSelector(".probability-callout", { timeout: 20_000 });
+
+  // Byte-exact request: the constructed input goes on the wire verbatim, exactly once.
+  expect(requestBodies).toHaveLength(1);
+  expect(requestBodies[0]).toBe(JSON.stringify(input));
+
+  // The displayed probability is the API's answer for that exact body, never a UI-side number.
+  const displayed = await page.locator(".playground-callout strong").innerText();
+  expect(displayed).toBe(`${(direct.calibrated_probability * 100).toFixed(1)}%`);
+
+  // The result only renders after the page verified the response's artifact identity.
+  await expect(page.locator(".playground-result .provenance-check")).toBeVisible();
+});
