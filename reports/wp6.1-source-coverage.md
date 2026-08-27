@@ -1,6 +1,6 @@
 # WP6.1 source coverage audit
 
-**Status:** prior measurement retained for comparison; final-HEAD rerun pending.
+**Status:** regenerated and accepted against the pinned local four-tournament cohort after final-HEAD validation.
 
 This is a deterministic, target-free evidence format for WP6.1. It may report only metadata and
 `V2ShotContext` coverage. It must not import or consume training examples, labels, label loaders,
