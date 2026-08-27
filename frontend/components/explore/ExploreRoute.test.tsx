@@ -95,10 +95,12 @@ function recordedShot(overrides: Partial<Shot> = {}): Shot {
 
 const baseline: ConversionRate = {
   method: "descriptive-prevalence",
-  conversion_rate: 0.125,
-  shots: 1494,
-  goals: 186,
-  cohort: "FIFA World Cup 2022 eligible non-penalty shots",
+  conversion_rate: 152 / 1430,
+  shots: 1430,
+  goals: 152,
+  cohort:
+    "Shots in the public FIFA World Cup 2022 (competition 43, season 106) scope with a known " +
+    "shot type, period and outcome, excluding penalties and penalty-shootout kicks.",
   caveat: "The full descriptive caveat text.",
 };
 
@@ -232,14 +234,23 @@ describe("ExploreRoute while publication is closed", () => {
     expect(screen.getByText(/appear only in the list/i)).toBeInTheDocument();
   });
 
-  it("surfaces the descriptive summary with its caveat collapsed, not deleted", () => {
+  it("surfaces the descriptive summary with both denominators reconciled and its caveat collapsed", () => {
     render(<ExploreRoute {...baseProps()} />);
+
+    // The two denominators this page shows must be distinguishable on their face: the map's
+    // all-recorded total (1,494) versus the baseline cohort (1,430 eligible non-penalty).
+    expect(screen.getByText("Shots in cohort")).toBeInTheDocument();
+    expect(screen.getByText("1,430")).toBeInTheDocument();
+    expect(screen.getByText("10.6%")).toBeInTheDocument();
+    expect(screen.getByText("World Cup 2022, eligible non-penalty shots")).toBeInTheDocument();
+    expect(
+      screen.getByText(/every recorded World Cup 2022 shot \(1,494 total, including penalties/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/64 recorded rows sit outside it/i)).toBeInTheDocument();
 
     const caveat = document.querySelector("details.baseline-caveat") as HTMLDetailsElement;
     expect(caveat).not.toBeNull();
     expect(caveat.open).toBe(false);
-    expect(screen.getByText("Conversion rate")).toBeInTheDocument();
-    expect(screen.getByText("12.5%")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/why this is not a model number/i));
     expect(caveat.open).toBe(true);
     expect(within(caveat).getByText(/full descriptive caveat text/i)).toBeInTheDocument();

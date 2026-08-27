@@ -124,6 +124,7 @@ export function ExploreRoute({
         <BaselineStrip
           baseline={baseline.data}
           shownShots={recorded.status === "ready" ? recorded.shots.length : 0}
+          recordedTotal={recorded.status === "ready" ? recorded.total : undefined}
         />
       ) : (
         <ErrorNotice
