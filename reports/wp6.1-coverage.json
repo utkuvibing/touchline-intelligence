@@ -1,0 +1,808 @@
+{
+  "attribution": "Data provided by StatsBomb.",
+  "availability_by_feature_and_tournament": {
+    "angle_spline_basis": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "body_part": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "defenders_inside_visible_goal_cone": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "distance_angle_interaction": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "distance_spline_basis": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "distance_to_goal": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "first_time": {
+      "Euro2020": {
+        "absent": 840,
+        "available": 394,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 924,
+        "available": 380,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 1281,
+        "available": 357,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 962,
+        "available": 468,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "goalkeeper_displacement": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 1,
+        "available": 1637,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "goalkeeper_distance_to_shot_goal_line": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 1,
+        "available": 1637,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "key_pass_attributes": {
+      "Euro2020": {
+        "absent": 308,
+        "available": 926,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 321,
+        "available": 983,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 458,
+        "available": 1180,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 391,
+        "available": 1039,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "local_obstruction_density": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "match_clock": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "nearest_defender_distance": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "opponents_within_fixed_radii": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "pass_carry_dribble_context": {
+      "Euro2020": {
+        "absent": 834,
+        "available": 400,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 907,
+        "available": 397,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 1058,
+        "available": 580,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 916,
+        "available": 514,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "play_pattern": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "possession_action_count": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "possession_duration": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "pre_shot_score_differential": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "preceding_event_displacement": {
+      "Euro2020": {
+        "absent": 41,
+        "available": 1193,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 48,
+        "available": 1256,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 89,
+        "available": 1549,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 48,
+        "available": 1382,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "preceding_event_end_zone": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 0,
+        "invalid": 0,
+        "unsupported": 1234
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 0,
+        "invalid": 0,
+        "unsupported": 1304
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 0,
+        "invalid": 0,
+        "unsupported": 1638
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 0,
+        "invalid": 0,
+        "unsupported": 1430
+      }
+    },
+    "preceding_event_type": {
+      "Euro2020": {
+        "absent": 41,
+        "available": 1193,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 47,
+        "available": 1257,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 82,
+        "available": 1556,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 48,
+        "available": 1382,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "set_piece_context": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "shot_type": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "technique": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "under_pressure": {
+      "Euro2020": {
+        "absent": 929,
+        "available": 305,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 917,
+        "available": 387,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 1309,
+        "available": 329,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 1192,
+        "available": 238,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    },
+    "visible_goal_angle": {
+      "Euro2020": {
+        "absent": 0,
+        "available": 1234,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "Euro2024": {
+        "absent": 0,
+        "available": 1304,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2018": {
+        "absent": 0,
+        "available": 1638,
+        "invalid": 0,
+        "unsupported": 0
+      },
+      "WC2022": {
+        "absent": 0,
+        "available": 1430,
+        "invalid": 0,
+        "unsupported": 0
+      }
+    }
+  },
+  "availability_by_field": {
+    "freeze_frame": {
+      "available": 5606
+    },
+    "key_pass": {
+      "available": 4128,
+      "missing": 1478
+    },
+    "location": {
+      "available": 5606
+    },
+    "match_clock": {
+      "available": 5606
+    },
+    "possession": {
+      "available": 5606
+    },
+    "possession_duration": {
+      "available": 5606
+    },
+    "preceding_action": {
+      "available": 5388,
+      "missing": 218
+    }
+  },
+  "context_schema_version": "1.0",
+  "contexts_by_tournament": {
+    "Euro2020": 1234,
+    "Euro2024": 1304,
+    "WC2018": 1638,
+    "WC2022": 1430
+  },
+  "freeze_frame": {
+    "freeze_frame_actors": 78844,
+    "shots_with_freeze_frame": 5606,
+    "shots_with_identified_goalkeeper": 5605,
+    "shots_without_identified_goalkeeper": 1,
+    "usable_freeze_frames": 5606
+  },
+  "freeze_frame_by_tournament": {
+    "Euro2020": {
+      "freeze_frame_actors": 17146,
+      "shots_with_freeze_frame": 1234,
+      "shots_with_identified_goalkeeper": 1234,
+      "usable_freeze_frames": 1234
+    },
+    "Euro2024": {
+      "freeze_frame_actors": 19287,
+      "shots_with_freeze_frame": 1304,
+      "shots_with_identified_goalkeeper": 1304,
+      "usable_freeze_frames": 1304
+    },
+    "WC2018": {
+      "freeze_frame_actors": 22090,
+      "shots_with_freeze_frame": 1638,
+      "shots_with_identified_goalkeeper": 1637,
+      "shots_without_identified_goalkeeper": 1,
+      "usable_freeze_frames": 1638
+    },
+    "WC2022": {
+      "freeze_frame_actors": 20321,
+      "shots_with_freeze_frame": 1430,
+      "shots_with_identified_goalkeeper": 1430,
+      "usable_freeze_frames": 1430
+    }
+  },
+  "invalid_structure_count": 0,
+  "missingness_signatures": {
+    "complete": 4128,
+    "key_pass": 1260,
+    "preceding_action,key_pass": 218
+  },
+  "missingness_signatures_by_tournament": {
+    "Euro2020": {
+      "complete": 926,
+      "key_pass": 267,
+      "preceding_action,key_pass": 41
+    },
+    "Euro2024": {
+      "complete": 983,
+      "key_pass": 274,
+      "preceding_action,key_pass": 47
+    },
+    "WC2018": {
+      "complete": 1180,
+      "key_pass": 376,
+      "preceding_action,key_pass": 82
+    },
+    "WC2022": {
+      "complete": 1039,
+      "key_pass": 343,
+      "preceding_action,key_pass": 48
+    }
+  },
+  "schema_version": "1.0",
+  "source_observation_statuses": {
+    "confirmed": 14,
+    "requires_normalization": 12,
+    "unsupported": 1
+  },
+  "total_contexts": 5606
+}
