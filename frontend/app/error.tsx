@@ -11,15 +11,15 @@ export default function GlobalError({
   void error;
 
   return (
-    <main className="analyst-page" aria-labelledby="application-error-heading">
-      <section className="historical-section">
-        <p className="eyebrow">APPLICATION ERROR</p>
-        <h1 id="application-error-heading">The model evidence page could not be displayed</h1>
-        <p className="gate-message">Please retry. No prediction or historical data was shown.</p>
-        <button type="button" onClick={reset} className="filter-reset">
+    <main className="page loading-page site-shell">
+      <p className="muted">Touchline Intelligence</p>
+      <h1>This page could not be displayed</h1>
+      <p>The model API may be unreachable. Nothing was shown partially or from memory.</p>
+      <div>
+        <button type="button" onClick={reset} className="button button-secondary">
           Retry
         </button>
-      </section>
+      </div>
     </main>
   );
 }

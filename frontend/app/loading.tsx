@@ -1,11 +1,11 @@
 export default function Loading() {
   return (
-    <main className="analyst-page loading-page">
-      <p className="eyebrow">TOUCHLINE INTELLIGENCE</p>
-      <h1>Loading the model evidence…</h1>
-      <p role="status">
-        Fetching metadata, qualified metrics, and the publication-gated historical workspace
-        independently.
+    <main className="page loading-page site-shell">
+      <p className="muted">Touchline Intelligence</p>
+      <h1>Loading live model data…</h1>
+      <p>
+        The page reads the model API on every request, so the first paint waits for the real
+        numbers rather than showing placeholders.
       </p>
     </main>
   );

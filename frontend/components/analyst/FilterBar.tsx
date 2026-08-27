@@ -47,19 +47,16 @@ function SelectField({ field, label, value, options, onChange }: SelectFieldProp
 
 export function FilterBar({ filters, options, onChange, onReset }: FilterBarProps) {
   return (
-    <section className="filter-panel" aria-labelledby="filter-heading">
-      <div className="section-heading-row">
-        <div>
-          <p className="eyebrow">EXPLORE THE COHORT</p>
-          <h2 id="filter-heading">Historical shot filters</h2>
-        </div>
-        <button className="button button-secondary" type="button" onClick={onReset}>
+    <section className="filters" aria-labelledby="filter-heading">
+      <div className="filters-head">
+        <h2 id="filter-heading">Filter the shots</h2>
+        <button className="button-text" type="button" onClick={onReset}>
           Reset filters
         </button>
       </div>
-      <p className="muted filter-help">
-        Exact values from the WC2022 response. Filters combine with AND; they do not search or infer
-        aliases.
+      <p className="filters-help">
+        Exact recorded values, combined with AND. Nothing here searches aliases or infers
+        alternatives.
       </p>
       <div className="filter-grid">
         <SelectField

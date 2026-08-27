@@ -214,8 +214,9 @@ Useful entry points:
   endpoints.
 - [`backend/src/touchline/modeling/train.py`](backend/src/touchline/modeling/train.py) holds the
   locked logistic experiment pipeline.
-- [`frontend/components/AnalystView.tsx`](frontend/components/AnalystView.tsx) is the deployed
-  model-evidence interface.
+- [`frontend/components/ExploreView.tsx`](frontend/components/ExploreView.tsx) is the analytical
+  workspace behind the deployed interface, and [`frontend/app`](frontend/app) holds the public
+  routes.
 
 ## Read the analysis
 

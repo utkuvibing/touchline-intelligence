@@ -15,7 +15,7 @@ function optionLabel(shot: HistoricalShot): string {
 export function ShotList({ shots, selectedShotId, onSelect }: ShotListProps) {
   return (
     <div className="shot-selector">
-      <label htmlFor="shot-selector">Keyboard shot selector</label>
+      <label htmlFor="shot-selector">Choose a shot (keyboard)</label>
       <select
         id="shot-selector"
         value={selectedShotId ?? ""}
@@ -32,9 +32,9 @@ export function ShotList({ shots, selectedShotId, onSelect }: ShotListProps) {
           ))
         )}
       </select>
-      <p className="muted">
-        The map is pointer-selectable. This single selector provides the keyboard path without
-        placing every marker in the tab order.
+      <p>
+        The map is pointer-selectable; this selector carries the same choices for keyboard use,
+        without putting every marker in the tab order.
       </p>
     </div>
   );

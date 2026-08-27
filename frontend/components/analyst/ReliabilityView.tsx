@@ -1,13 +1,15 @@
 import type { ModelMetrics, ReliabilityRow } from "@/lib/model-api";
 import { chartPoint, formatInterval, formatMetric } from "@/lib/model-view";
 
+import { HoldoutMetricGrid } from "@/components/holdout-metrics";
+
 interface ReliabilityViewProps {
   metrics: ModelMetrics;
 }
 
-const CHART_WIDTH = 480;
-const CHART_HEIGHT = 330;
-const CHART_PADDING = 46;
+const CHART_WIDTH = 520;
+const CHART_HEIGHT = 360;
+const CHART_PADDING = 52;
 
 function percent(value: number | null): string {
   return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
@@ -17,16 +19,6 @@ function formatSignedMetric(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(4)}`;
 }
 
-function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="metric-card">
-      <span className="metric-label">{label}</span>
-      <strong>{value}</strong>
-      <span className="muted">{detail}</span>
-    </div>
-  );
-}
-
 function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
   const plotWidth = CHART_WIDTH - CHART_PADDING * 2;
   const plotHeight = CHART_HEIGHT - CHART_PADDING * 2;
@@ -34,24 +26,49 @@ function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
   const y = (value: number) => CHART_HEIGHT - CHART_PADDING - value * plotHeight;
 
   return (
-    <div className="reliability-chart-wrap">
+    <div className="chart-frame">
       <svg
-        className="reliability-chart"
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         role="img"
         aria-label="Reliability diagram for the calibrated Euro 2024 holdout. Points show mean predicted probability against observed conversion rate."
       >
+        {/* gridlines at 25% steps */}
+        {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+          <g key={tick} aria-hidden="true">
+            <line
+              x1={x(0)}
+              y1={y(tick)}
+              x2={x(1)}
+              y2={y(tick)}
+              stroke="currentColor"
+              opacity={tick === 0 ? 0.35 : 0.12}
+            />
+            <line
+              x1={x(tick)}
+              y1={y(0)}
+              x2={x(tick)}
+              y2={y(1)}
+              stroke="currentColor"
+              opacity={tick === 0 ? 0.35 : 0.12}
+            />
+            <text x={x(tick)} y={CHART_HEIGHT - CHART_PADDING + 16} textAnchor="middle" className="chart-label">
+              {tick * 100}%
+            </text>
+            <text x={CHART_PADDING - 10} y={y(tick) + 3} textAnchor="end" className="chart-label">
+              {tick * 100}%
+            </text>
+          </g>
+        ))}
+        {/* perfect-calibration diagonal */}
         <line
           x1={x(0)}
           y1={y(0)}
           x2={x(1)}
           y2={y(1)}
-          stroke="currentColor"
-          strokeDasharray="3 3"
-          opacity="0.4"
+          stroke="var(--teal)"
+          strokeDasharray="4 4"
+          opacity="0.6"
         />
-        <line x1={x(0)} y1={y(0)} x2={x(1)} y2={y(0)} stroke="currentColor" opacity="0.35" />
-        <line x1={x(0)} y1={y(0)} x2={x(0)} y2={y(1)} stroke="currentColor" opacity="0.35" />
         {rows.map((row) => {
           const point = chartPoint(row, CHART_WIDTH, CHART_HEIGHT, CHART_PADDING);
           if (!point) return null;
@@ -60,7 +77,7 @@ function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
               key={row.bin}
               cx={point.x}
               cy={point.y}
-              r={5}
+              r={5.5}
               fill="var(--accent)"
               stroke="var(--background)"
               strokeWidth={1.5}
@@ -69,24 +86,19 @@ function ReliabilityChart({ rows }: { rows: ReliabilityRow[] }) {
             </circle>
           );
         })}
-        {[0, 0.5, 1].map((tick) => (
-          <g key={tick} aria-hidden="true">
-            <text x={x(tick)} y={CHART_HEIGHT - 12} textAnchor="middle" className="chart-label">
-              {tick * 100}%
-            </text>
-            <text x={CHART_PADDING - 9} y={y(tick) + 3} textAnchor="end" className="chart-label">
-              {tick * 100}%
-            </text>
-          </g>
-        ))}
-        <text x={CHART_WIDTH / 2} y={CHART_HEIGHT - 1} textAnchor="middle" className="chart-axis-label">
+        <text
+          x={(CHART_WIDTH + CHART_PADDING) / 2}
+          y={CHART_HEIGHT - 12}
+          textAnchor="middle"
+          className="chart-axis-label"
+        >
           Mean predicted probability
         </text>
         <text
-          x={13}
+          x={14}
           y={CHART_HEIGHT / 2}
           textAnchor="middle"
-          transform={`rotate(-90 13 ${CHART_HEIGHT / 2})`}
+          transform={`rotate(-90 14 ${CHART_HEIGHT / 2})`}
           className="chart-axis-label"
         >
           Observed conversion rate
@@ -133,80 +145,56 @@ function ReliabilityTable({ rows }: { rows: ReliabilityRow[] }) {
 export function ReliabilityView({ metrics }: ReliabilityViewProps) {
   const holdout = metrics.tournament_holdout;
   const calibrated = holdout.proper_scoring;
-  const uncertainty = holdout.uncertainty;
   const sparse = holdout.reliability.filter((row) => row.count > 0 && row.count <= 4);
   const effect = holdout.raw_comparator.calibrated_minus_raw;
+  const adoption = metrics.calibration_adoption;
 
   return (
-    <section className="evaluation-section" aria-labelledby="evaluation-heading">
-      <div className="section-heading-row">
-        <div>
-          <p className="eyebrow">EVALUATION</p>
-          <h2 id="evaluation-heading">One-time tournament holdout</h2>
-        </div>
-        <span className="status-chip status-chip-qualified">Qualified evidence</span>
-      </div>
-      <p className="section-lede">
-        The frozen calibrated variant was evaluated once on {holdout.split}: {holdout.shots} shots,
-        {" "}
-        {holdout.goals} goals across {holdout.matches} matches. This is a tournament holdout, not a
-        pure time-series claim: tournament composition changes with the date.
-      </p>
-
-      <div className="metric-grid">
-        <MetricCard
-          label="Log loss"
-          value={formatMetric(calibrated.log_loss)}
-          detail={`95% bootstrap ${formatInterval(uncertainty.log_loss.lower, uncertainty.log_loss.upper)}`}
-        />
-        <MetricCard
-          label="Brier score"
-          value={formatMetric(calibrated.brier)}
-          detail={`95% bootstrap ${formatInterval(uncertainty.brier.lower, uncertainty.brier.upper)}`}
-        />
-        <MetricCard
-          label="ROC AUC"
-          value={formatMetric(holdout.discrimination.roc_auc)}
-          detail="Discrimination, not calibration"
-        />
-        <MetricCard
-          label="PR AUC"
-          value={formatMetric(holdout.discrimination.pr_auc)}
-          detail={`${(holdout.observed_prevalence * 100).toFixed(1)}% observed prevalence`}
-        />
+    <>
+      <div className="section-head">
+        <h2>How the holdout scored it</h2>
+        <p className="section-lede">
+          The frozen calibrated variant was evaluated once on {holdout.split}: {holdout.shots}{" "}
+          shots, {holdout.goals} goals, {holdout.matches} matches. It is a tournament holdout, not a
+          pure time-series claim; tournament composition changes with the date.
+        </p>
       </div>
 
-      <div className="reliability-layout">
+      <HoldoutMetricGrid metrics={metrics} />
+
+      <div className="evidence-split">
         <div>
           <h3>Calibration view</h3>
-          <p className="muted">
-            Points are unconnected bin summaries. The diagonal is perfect agreement between mean
-            prediction and observed conversion rate.
+          <p className="chart-note">
+            Each point is one probability bin. The diagonal is perfect agreement between what the
+            model predicted on average and what actually happened.
           </p>
           <ReliabilityChart rows={holdout.reliability} />
         </div>
         <div>
           <ReliabilityTable rows={holdout.reliability} />
           {sparse.length > 0 && (
-            <p className="warning-note" role="note">
-              Sparse bins are visible rather than hidden: {sparse.map((row) => `bin ${row.bin} (n=${row.count})`).join(", ")}.
-              These counts are not a validity threshold.
+            <p className="caveat" role="note">
+              Sparse bins stay visible: {sparse.map((row) => `bin ${row.bin} (n=${row.count})`).join(", ")}.
+              Few shots means a noisy conversion rate, so those points carry little weight.
             </p>
           )}
         </div>
       </div>
 
-      <div className="comparison-panel">
+      <div className="compare-grid">
         <div>
-          <p className="eyebrow">RAW COMPARATOR</p>
-          <h3>Calibration was adopted before holdout access</h3>
-          <p className="muted">
-            WC2022 fit the Platt transform and supplied the adoption decision. On Euro2024, the
-            calibrated variant is reported against the frozen raw comparator; adoption does not
-            guarantee improvement on every holdout.
+          <h3>Calibration was adopted before the holdout was opened</h3>
+          <p>
+            World Cup 2022 fitted the Platt transform and supplied the adoption decision, under a
+            rule frozen in advance. Euro 2024 then scored the adopted variant against the raw one.
+            Adopting first does not guarantee improvement later, and here it did not improve: both
+            proper scores moved the wrong way. Reversing the decision after seeing the holdout
+            would have turned it into a second selection set, so the release keeps calibration and
+            reports both variants.
           </p>
         </div>
-        <dl className="comparison-grid">
+        <dl className="compare-values">
           <div>
             <dt>Raw log loss</dt>
             <dd>{formatMetric(holdout.raw_comparator.proper_scoring.log_loss)}</dd>
@@ -216,9 +204,12 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.log_loss)}</dd>
           </div>
           <div>
-            <dt>Calibrated − raw log loss</dt>
+            <dt>Difference</dt>
             <dd>
-              {formatSignedMetric(effect.log_loss)} <span className="muted">({formatInterval(effect.log_loss_interval.lower, effect.log_loss_interval.upper)})</span>
+              {formatSignedMetric(effect.log_loss)}
+              <span className="muted">
+                interval {formatInterval(effect.log_loss_interval.lower, effect.log_loss_interval.upper)}
+              </span>
             </dd>
           </div>
           <div>
@@ -230,31 +221,31 @@ export function ReliabilityView({ metrics }: ReliabilityViewProps) {
             <dd>{formatMetric(calibrated.brier)}</dd>
           </div>
           <div>
-            <dt>Calibrated − raw Brier</dt>
+            <dt>Difference</dt>
             <dd>
-              {formatSignedMetric(effect.brier)} <span className="muted">({formatInterval(effect.brier_interval.lower, effect.brier_interval.upper)})</span>
+              {formatSignedMetric(effect.brier)}
+              <span className="muted">
+                interval {formatInterval(effect.brier_interval.lower, effect.brier_interval.upper)}
+              </span>
             </dd>
           </div>
         </dl>
       </div>
 
-      <div className="adoption-panel">
-        <p className="eyebrow">CALIBRATION SET</p>
-        <h3>WC2022 calibration and adoption</h3>
+      <div className="note-panel">
+        <h3>The calibration set, on its own terms</h3>
         <p>
-          {metrics.calibration_adoption.shots} shots across {metrics.calibration_adoption.matches} matches
-          supplied the Platt calibration decision. The adopted variant is {metrics.calibration_adoption.adopted_variant}.
-          {" "}
-          {metrics.calibration_adoption.supported_raw_anchor_bins} raw anchor bin(s) met the recorded
-          support rule.
+          {adoption.shots.toLocaleString("en-US")} shots across {adoption.matches} World Cup 2022
+          matches supplied the decision. The transform met its pre-registered adoption rule there:
+          log loss and Brier both improved, and the supported-bin calibration deviation tightened.
         </p>
-        <div className="adoption-stats">
-          <span>Raw log loss: {formatMetric(metrics.calibration_adoption.raw.log_loss)}</span>
-          <span>Calibrated log loss: {formatMetric(metrics.calibration_adoption.calibrated.log_loss)}</span>
-          <span>Raw Brier: {formatMetric(metrics.calibration_adoption.raw.brier)}</span>
-          <span>Calibrated Brier: {formatMetric(metrics.calibration_adoption.calibrated.brier)}</span>
+        <div className="note-stats">
+          <span>Raw log loss {formatMetric(adoption.raw.log_loss)}</span>
+          <span>Calibrated {formatMetric(adoption.calibrated.log_loss)}</span>
+          <span>Raw Brier {formatMetric(adoption.raw.brier)}</span>
+          <span>Calibrated {formatMetric(adoption.calibrated.brier)}</span>
         </div>
       </div>
-    </section>
+    </>
   );
 }

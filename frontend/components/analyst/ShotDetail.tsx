@@ -13,11 +13,8 @@ function value(value: string | number | null): string {
 export function ShotDetail({ shot, historicalCaveat }: ShotDetailProps) {
   return (
     <aside className="detail-panel" aria-labelledby="shot-detail-heading">
-      <div className="section-heading-row">
-        <div>
-          <p className="eyebrow">SELECTED SHOT</p>
-          <h2 id="shot-detail-heading">Shot detail</h2>
-        </div>
+      <div className="detail-head">
+        <h2 id="shot-detail-heading">Shot detail</h2>
         {shot && <span className="detail-id">{shot.shot_id.slice(0, 8)}</span>}
       </div>
 
@@ -26,7 +23,7 @@ export function ShotDetail({ shot, historicalCaveat }: ShotDetailProps) {
       ) : (
         <>
           <div className="probability-callout">
-            <span className="muted">Calibrated goal-conversion probability</span>
+            <span>Calibrated conversion probability</span>
             <strong>{formatProbability(shot.calibrated_probability)}</strong>
           </div>
           <dl className="detail-grid">
@@ -51,7 +48,7 @@ export function ShotDetail({ shot, historicalCaveat }: ShotDetailProps) {
               <dd>{value(shot.match_date)}</dd>
             </div>
             <div>
-              <dt>Competition stage</dt>
+              <dt>Stage</dt>
               <dd>{value(shot.competition_stage)}</dd>
             </div>
             <div>
@@ -64,7 +61,7 @@ export function ShotDetail({ shot, historicalCaveat }: ShotDetailProps) {
             </div>
             <div>
               <dt>Coordinates</dt>
-              <dd>
+              <dd className="mono">
                 {shot.location_x.toFixed(1)}, {shot.location_y.toFixed(1)}
               </dd>
             </div>

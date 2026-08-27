@@ -6,11 +6,11 @@ const apiUrl = process.env.TOUCHLINE_SMOKE_API_URL;
 const expectedHead = process.env.TOUCHLINE_SMOKE_EXPECTED_HEAD;
 
 function required(value: string | undefined, name: string): string {
-  if (!value) throw new Error(`${name} is required for the WP5.3 smoke`);
+  if (!value) throw new Error(`${name} is required for the release smoke`);
   return value.replace(/\/$/, "");
 }
 
-test("WP5.3 release smoke is bound to final HEAD", async ({ page }, testInfo) => {
+test("release smoke is bound to final HEAD", async ({ page }, testInfo) => {
   const repositoryRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
     encoding: "utf8",
   }).trim();
@@ -37,10 +37,18 @@ test("WP5.3 release smoke is bound to final HEAD", async ({ page }, testInfo) =>
     contentType: "application/json",
   });
 
-  await page.goto(web);
-  await expect(page.getByRole("heading", { name: /shot quality, made inspectable/i })).toBeVisible();
+  await page.goto(`${web}/`);
   await expect(
-    page.getByRole("heading", { name: /historical shot-level predictions are unavailable/i }),
+    page.getByRole("heading", { name: /shot quality from open event data/i }),
+  ).toBeVisible();
+
+  await page.goto(`${web}/model`);
+  await expect(page.getByRole("heading", { name: /what is being served/i })).toBeVisible();
+  await expect(page.getByText(/not statsbomb's proprietary xg model/i)).toBeVisible();
+
+  await page.goto(`${web}/explore`);
+  await expect(
+    page.getByRole("heading", { name: /the 2022 calibration set, shot by shot/i }),
   ).toBeVisible();
   await expect(page.getByText(/publication closed/i)).toBeVisible();
 

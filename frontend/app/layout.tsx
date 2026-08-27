@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { SiteFooter } from "@/components/site-footer";
+import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,10 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Touchline Intelligence · Shot quality",
+  title: {
+    default: "Touchline Intelligence · Shot quality from open event data",
+    template: "%s · Touchline Intelligence",
+  },
   description:
-    "A model-aware football analyst interface over a pinned StatsBomb Open Data cohort. " +
-    "Independent from StatsBomb's proprietary xG model.",
+    "A calibrated expected-goals model built on pinned StatsBomb Open Data: locked tournament " +
+    "splits, a one-time Euro 2024 holdout, and a deployed, reproducible release.",
 };
 
 export default function RootLayout({
@@ -26,7 +32,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <SiteNav />
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }

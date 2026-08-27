@@ -1,9 +1,6 @@
 import type { HistoricalShot } from "@/lib/model-api";
 import {
-  DRAWN_PITCH_LENGTH,
-  DRAWN_PITCH_MIN_X,
-  MAX_MARKER_RADIUS,
-  MIN_MARKER_RADIUS,
+  PITCH_LENGTH,
   PITCH_WIDTH,
   formatProbability,
   isGoalShot,
@@ -28,26 +25,20 @@ function PitchMarkings() {
 
   return (
     <g aria-hidden="true">
-      <rect
-        x={DRAWN_PITCH_MIN_X}
-        y={0}
-        width={DRAWN_PITCH_LENGTH}
-        height={PITCH_WIDTH}
-        {...line}
-      />
+      {/* outer boundary and halfway line */}
+      <rect x={0} y={0} width={PITCH_LENGTH} height={PITCH_WIDTH} {...line} />
+      <line x1={60} y1={0} x2={60} y2={PITCH_WIDTH} {...line} />
+      <circle cx={60} cy={40} r={10.5} {...line} />
+      <circle cx={60} cy={40} r={0.35} fill="currentColor" opacity={0.45} />
+      {/* penalty areas and six-yard boxes */}
+      <rect x={0} y={18} width={18} height={44} {...line} />
+      <rect x={0} y={30} width={6} height={20} {...line} />
       <rect x={102} y={18} width={18} height={44} {...line} />
       <rect x={114} y={30} width={6} height={20} {...line} />
       <circle cx={108} cy={40} r={0.35} fill="currentColor" opacity={0.45} />
+      {/* goals */}
+      <line x1={0} y1={36} x2={0} y2={44} stroke="currentColor" strokeWidth={0.9} />
       <line x1={120} y1={36} x2={120} y2={44} stroke="currentColor" strokeWidth={0.9} />
-      <line
-        x1={DRAWN_PITCH_MIN_X}
-        y1={0}
-        x2={DRAWN_PITCH_MIN_X}
-        y2={PITCH_WIDTH}
-        stroke="currentColor"
-        strokeWidth={0.3}
-        opacity={0.45}
-      />
     </g>
   );
 }
@@ -62,7 +53,7 @@ function ProbabilityLegend() {
   return (
     <div className="map-legend" aria-label="Shot map legend">
       <div className="legend-group">
-        <span className="legend-label">Probability area</span>
+        <span className="legend-label">Marker area = probability</span>
         <div className="probability-legend">
           {examples.map((probability) => (
             <span className="probability-example" key={probability}>
@@ -83,15 +74,14 @@ function ProbabilityLegend() {
       <div className="legend-group">
         <span className="legend-label">Recorded outcome</span>
         <span className="outcome-legend-item">
-          <span className="marker-key marker-key-hollow" aria-hidden="true" /> non-goal (hollow)
+          <span className="marker-key" aria-hidden="true" /> non-goal (hollow)
         </span>
         <span className="outcome-legend-item">
           <span className="marker-key marker-key-filled" aria-hidden="true" /> goal (filled)
         </span>
       </div>
-      <p className="muted legend-note">
-        Minimum radius {MIN_MARKER_RADIUS}; maximum radius {MAX_MARKER_RADIUS}. Area, not radius,
-        carries probability.
+      <p className="legend-note">
+        Marker area, not radius, carries probability. The accent ring marks the selected shot.
       </p>
     </div>
   );
@@ -108,11 +98,11 @@ export function ModelShotMap({ shots, selectedShotId, onSelect }: ModelShotMapPr
 
   return (
     <figure className="map-figure">
-      <div className="map-shell">
+      <div className="map-frame">
         <svg
-          viewBox={`${DRAWN_PITCH_MIN_X} 0 ${DRAWN_PITCH_LENGTH} ${PITCH_WIDTH}`}
+          viewBox={`0 0 ${PITCH_LENGTH} ${PITCH_WIDTH}`}
           role="img"
-          aria-label={`Model shot map: ${shots.length} filtered historical shots, attacking towards the right. Use the shot selector below to choose a shot.`}
+          aria-label={`Model shot map: ${shots.length} filtered historical shots on a full pitch, attacking towards the right. Use the shot selector below to choose a shot.`}
           style={MAP_STYLE}
         >
           <PitchMarkings />
@@ -156,14 +146,14 @@ export function ModelShotMap({ shots, selectedShotId, onSelect }: ModelShotMapPr
           })}
         </svg>
       </div>
-      <figcaption>
-        <div className="map-caption-heading">
-          <span>Attacking right · StatsBomb coordinate space 120 × 80</span>
+      <figcaption className="map-caption">
+        <div className="map-caption-head">
+          <span>Full pitch, attacking right · StatsBomb 120 × 80</span>
           <span>{shots.length} shown</span>
         </div>
         <p>
-          Marker area encodes this model&apos;s calibrated goal-conversion probability. Hollow versus
-          filled encodes the recorded outcome; the outer accent ring marks the selected shot.
+          World Cup 2022 rows that the calibration actually learned from, plotted in the
+          model&apos;s own coordinate space.
         </p>
         <ProbabilityLegend />
       </figcaption>

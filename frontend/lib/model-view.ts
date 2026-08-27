@@ -2,8 +2,6 @@ import type { HistoricalShot, ReliabilityRow } from "@/lib/model-api";
 
 export const PITCH_LENGTH = 120;
 export const PITCH_WIDTH = 80;
-export const DRAWN_PITCH_MIN_X = 60;
-export const DRAWN_PITCH_LENGTH = PITCH_LENGTH - DRAWN_PITCH_MIN_X;
 
 export const MIN_MARKER_RADIUS = 0.45;
 export const MAX_MARKER_RADIUS = 2.4;
