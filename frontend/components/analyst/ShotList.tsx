@@ -1,33 +1,35 @@
-import type { HistoricalShot } from "@/lib/model-api";
-import { formatProbability } from "@/lib/model-view";
+/**
+ * Keyboard path into a shot map. Pointer users click markers directly; this single select
+ * carries the same choices without placing every marker in the tab order.
+ */
+export interface ShotOption {
+  id: string;
+  label: string;
+}
 
 interface ShotListProps {
-  shots: HistoricalShot[];
-  selectedShotId: string | null;
-  onSelect: (shotId: string) => void;
+  items: ShotOption[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  emptyLabel: string;
 }
 
-function optionLabel(shot: HistoricalShot): string {
-  const minute = shot.minute === null ? "time unavailable" : `${shot.minute}'`;
-  return `${minute} · ${shot.player} · ${shot.team} · ${shot.outcome} · ${formatProbability(shot.calibrated_probability)}`;
-}
-
-export function ShotList({ shots, selectedShotId, onSelect }: ShotListProps) {
+export function ShotList({ items, selectedId, onSelect, emptyLabel }: ShotListProps) {
   return (
     <div className="shot-selector">
       <label htmlFor="shot-selector">Choose a shot (keyboard)</label>
       <select
         id="shot-selector"
-        value={selectedShotId ?? ""}
+        value={selectedId ?? ""}
         onChange={(event) => onSelect(event.target.value)}
-        disabled={shots.length === 0}
+        disabled={items.length === 0}
       >
-        {shots.length === 0 ? (
-          <option value="">No shots match these filters</option>
+        {items.length === 0 ? (
+          <option value="">{emptyLabel}</option>
         ) : (
-          shots.map((shot) => (
-            <option key={shot.shot_id} value={shot.shot_id}>
-              {optionLabel(shot)}
+          items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
             </option>
           ))
         )}

@@ -6,7 +6,13 @@ export const PITCH_WIDTH = 80;
 export const MIN_MARKER_RADIUS = 0.45;
 export const MAX_MARKER_RADIUS = 2.4;
 
-export interface HistoricalFilters {
+/**
+ * History filter state as flat exact-match values ("" = All).
+ *
+ * A `type`, not an interface, so it stays structurally assignable to Record<string, string>
+ * for the shared presentational FilterBar.
+ */
+export type HistoricalFilters = {
   match_id: string;
   team: string;
   player: string;
@@ -14,7 +20,7 @@ export interface HistoricalFilters {
   body_part: string;
   technique: string;
   play_pattern: string;
-}
+};
 
 export const EMPTY_HISTORICAL_FILTERS: HistoricalFilters = {
   match_id: "",

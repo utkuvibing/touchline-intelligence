@@ -1,11 +1,6 @@
 import type { HistoricalShot } from "@/lib/model-api";
-import {
-  PITCH_LENGTH,
-  PITCH_WIDTH,
-  formatProbability,
-  isGoalShot,
-  probabilityToRadius,
-} from "@/lib/model-view";
+import { formatProbability, isGoalShot, probabilityToRadius } from "@/lib/model-view";
+import { PITCH_VIEWBOX, PitchMarkings } from "@/components/analyst/Pitch";
 
 interface ModelShotMapProps {
   shots: HistoricalShot[];
@@ -14,34 +9,6 @@ interface ModelShotMapProps {
 }
 
 const MAP_STYLE = { width: "100%", height: "auto" } as const;
-
-function PitchMarkings() {
-  const line = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 0.3,
-    opacity: 0.45,
-  };
-
-  return (
-    <g aria-hidden="true">
-      {/* outer boundary and halfway line */}
-      <rect x={0} y={0} width={PITCH_LENGTH} height={PITCH_WIDTH} {...line} />
-      <line x1={60} y1={0} x2={60} y2={PITCH_WIDTH} {...line} />
-      <circle cx={60} cy={40} r={10.5} {...line} />
-      <circle cx={60} cy={40} r={0.35} fill="currentColor" opacity={0.45} />
-      {/* penalty areas and six-yard boxes */}
-      <rect x={0} y={18} width={18} height={44} {...line} />
-      <rect x={0} y={30} width={6} height={20} {...line} />
-      <rect x={102} y={18} width={18} height={44} {...line} />
-      <rect x={114} y={30} width={6} height={20} {...line} />
-      <circle cx={108} cy={40} r={0.35} fill="currentColor" opacity={0.45} />
-      {/* goals */}
-      <line x1={0} y1={36} x2={0} y2={44} stroke="currentColor" strokeWidth={0.9} />
-      <line x1={120} y1={36} x2={120} y2={44} stroke="currentColor" strokeWidth={0.9} />
-    </g>
-  );
-}
 
 function describe(shot: HistoricalShot): string {
   const when = shot.minute === null ? "time unavailable" : `${shot.minute}'`;
@@ -100,7 +67,7 @@ export function ModelShotMap({ shots, selectedShotId, onSelect }: ModelShotMapPr
     <figure className="map-figure">
       <div className="map-frame">
         <svg
-          viewBox={`0 0 ${PITCH_LENGTH} ${PITCH_WIDTH}`}
+          viewBox={PITCH_VIEWBOX}
           role="img"
           aria-label={`Model shot map: ${shots.length} filtered historical shots on a full pitch, attacking towards the right. Use the shot selector below to choose a shot.`}
           style={MAP_STYLE}
