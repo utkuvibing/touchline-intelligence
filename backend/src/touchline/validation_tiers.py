@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -231,7 +232,14 @@ def run_tier(
 
 
 def _run_command(argv: Sequence[str], repo_root: Path, environment: Mapping[str, str]) -> int:
-    return subprocess.run(tuple(argv), cwd=repo_root, env=dict(environment), check=False).returncode
+    child_path = next(
+        (value for variable, value in environment.items() if variable.upper() == "PATH"), None
+    )
+    executable = shutil.which(argv[0], path=child_path) or argv[0]
+    resolved_argv = (executable, *argv[1:])
+    return subprocess.run(
+        resolved_argv, cwd=repo_root, env=dict(environment), check=False
+    ).returncode
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
