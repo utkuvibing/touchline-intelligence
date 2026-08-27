@@ -32,6 +32,7 @@ DIRECT_CONNECT_ALLOWED = {
     "test_wp2_2_coverage_integration.py",
     "test_wp2_3_split_full_cohort.py",
     "test_wp2_4_training_full_cohort.py",
+    "test_wp6_1_full_cohort.py",
     # Connectivity smoke test: issues SELECT 1 and nothing else.
     "test_database_integration.py",
     # Policy tests that patch psycopg.connect to prove it is never reached.

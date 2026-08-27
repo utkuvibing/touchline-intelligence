@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -182,6 +183,27 @@ def test_subprocess_receives_only_the_explicit_child_environment(
         "env": {"ONLY": "explicit"},
         "check": False,
     }
+
+
+def test_subprocess_resolves_platform_command_wrappers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    received: dict[str, Any] = {}
+
+    def fake_which(command: str, *, path: str | None = None) -> str:
+        assert command == "npm"
+        assert path == "task-path"
+        return "C:/Program Files/nodejs/npm.CMD"
+
+    def fake_run(argv: tuple[str, ...], **kwargs: Any) -> object:
+        received["argv"] = argv
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert validation_tiers._run_command(("npm", "test"), tmp_path, {"PATH": "task-path"}) == 0
+    assert received["argv"] == ("C:/Program Files/nodejs/npm.CMD", "test")
 
 
 def test_milestone_refuses_before_any_command_until_sentinel_runner_exists(tmp_path: Path) -> None:
