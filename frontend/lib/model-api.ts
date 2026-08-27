@@ -190,15 +190,30 @@ export interface ModelApiErrorInfo {
   status: number | null;
 }
 
+/** One per-field issue from a 422 error envelope (`error.details[]`). */
+export interface FieldIssue {
+  field: string | null;
+  code: string;
+  message: string;
+}
+
 export class ModelApiError extends Error {
   readonly code: string;
   readonly status: number | null;
+  /** Present on request-validation failures; null field means a global issue. */
+  readonly details: FieldIssue[] | null;
 
-  constructor({ code, message, status }: ModelApiErrorInfo) {
+  constructor({
+    code,
+    message,
+    status,
+    details = null,
+  }: ModelApiErrorInfo & { details?: FieldIssue[] | null }) {
     super(message);
     this.name = "ModelApiError";
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 
   toInfo(): ModelApiErrorInfo {
@@ -725,7 +740,20 @@ function hasStructuredErrorDetails(value: unknown): value is JsonObject[] {
   return value.every(isStructuredErrorDetail);
 }
 
-function parseErrorBody(value: unknown): { code: string; message: string } | null {
+function parseErrorDetails(value: unknown): FieldIssue[] | null {
+  if (!hasStructuredErrorDetails(value)) return null;
+  return value.map((detail) => ({
+    field: detail.field === null ? null : String(detail.field),
+    code: String(detail.code),
+    message: String(detail.message),
+  }));
+}
+
+function parseErrorBody(value: unknown): {
+  code: string;
+  message: string;
+  details: FieldIssue[] | null;
+} | null {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
   const source = value as JsonObject;
   const error = source.error;
@@ -737,19 +765,22 @@ function parseErrorBody(value: unknown): { code: string; message: string } | nul
       hasStructuredErrorDetails(detail.details) &&
       (detail.code !== "publication_gate_closed" || detail.details.length === 0)
     ) {
-      return { code: detail.code, message: detail.message };
+      return { code: detail.code, message: detail.message, details: parseErrorDetails(detail.details) };
     }
   }
   if (typeof source.detail === "string") {
-    return { code: "http_error", message: source.detail };
+    return { code: "http_error", message: source.detail, details: null };
   }
   return null;
 }
 
-async function requestJson(path: string): Promise<unknown> {
+async function requestJson(
+  path: string,
+  init?: Omit<RequestInit, "cache">,
+): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(`${apiBase()}${path}`, { cache: "no-store" });
+    response = await fetch(`${apiBase()}${path}`, { cache: "no-store", ...init });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "network request failed";
     throw new ModelApiError({ code: "network_error", message: truncate(message), status: null });
@@ -771,6 +802,7 @@ async function requestJson(path: string): Promise<unknown> {
       code: parsed?.code ?? `http_${response.status}`,
       message: truncate(parsed?.message ?? `${path} responded ${response.status}`),
       status: response.status,
+      details: parsed?.details ?? null,
     });
   }
 
@@ -783,6 +815,49 @@ export async function fetchModelMetadata(): Promise<ModelMetadata> {
 
 export async function fetchModelMetrics(): Promise<ModelMetrics> {
   return parseModelMetrics(await requestJson("/model/metrics"));
+}
+
+/** The model's supported single-shot input, exactly as `/model/predict` accepts it. */
+export interface PredictionInput {
+  location_x: number;
+  location_y: number;
+  body_part: string;
+  technique: string;
+  play_pattern: string;
+}
+
+/**
+ * The prediction answer: the calibrated probability plus the artifact identity that produced
+ * it. Callers verify the echo against `/model` metadata so a release flip mid-request shows
+ * up as an integrity warning instead of a confidently wrong number.
+ */
+export interface PredictionResult extends ProvenanceIdentity {
+  calibrated_probability: number;
+}
+
+function parsePrediction(value: unknown): PredictionResult {
+  const source = object(value, "prediction");
+  return {
+    ...parseProvenance(source, "prediction"),
+    calibrated_probability: boundedNumber(
+      source.calibrated_probability,
+      "prediction.calibrated_probability",
+      0,
+      1,
+    ),
+  };
+}
+
+export async function requestCalibratedProbability(
+  input: PredictionInput,
+): Promise<PredictionResult> {
+  return parsePrediction(
+    await requestJson("/model/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
 }
 
 export async function fetchHistoricalShotsPage(

@@ -48,9 +48,16 @@ test("release smoke is bound to final HEAD", async ({ page }, testInfo) => {
 
   await page.goto(`${web}/explore`);
   await expect(
-    page.getByRole("heading", { name: /the 2022 calibration set, shot by shot/i }),
+    page.getByRole("heading", { name: /world cup 2022, shot by shot/i }),
   ).toBeVisible();
+  // The gate stays visible and the page stays useful around it.
   await expect(page.getByText(/publication closed/i)).toBeVisible();
+  await expect(page.getByText(/recorded source facts only/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /the recorded tournament/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /ask the model about a hypothetical shot/i })).toBeVisible();
+  await expect(page.getByLabel("Hypothetical body part")).toBeVisible();
 
   const prediction = await page.evaluate(async ({ endpoint }) => {
     const response = await fetch(`${endpoint}/model/predict`, {

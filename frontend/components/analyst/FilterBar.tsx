@@ -1,38 +1,42 @@
-import type { HistoricalFilters, FilterOption, MatchOption } from "@/lib/model-view";
+import type { FilterOption } from "@/lib/model-view";
 
-export type FilterKey = keyof HistoricalFilters;
+/**
+ * Presentational filter row shared by both Explore workspaces. The workspaces own their
+ * values and semantics; this component only renders labelled exact-match selects.
+ */
+export interface FilterFieldDef {
+  key: string;
+  label: string;
+  options: FilterOption[];
+}
 
 interface FilterBarProps {
-  filters: HistoricalFilters;
-  options: {
-    matches: MatchOption[];
-    teams: FilterOption[];
-    players: FilterOption[];
-    outcomes: FilterOption[];
-    bodyParts: FilterOption[];
-    techniques: FilterOption[];
-    playPatterns: FilterOption[];
-  };
-  onChange: (field: FilterKey, value: string) => void;
+  fields: FilterFieldDef[];
+  values: Record<string, string>;
+  onChange: (field: string, value: string) => void;
   onReset: () => void;
 }
 
-interface SelectFieldProps {
-  field: FilterKey;
+function SelectField({
+  fieldKey,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  fieldKey: string;
   label: string;
   value: string;
   options: FilterOption[];
-  onChange: (field: FilterKey, value: string) => void;
-}
-
-function SelectField({ field, label, value, options, onChange }: SelectFieldProps) {
+  onChange: (field: string, value: string) => void;
+}) {
   return (
     <label className="filter-field">
       <span>{label}</span>
       <select
         aria-label={label}
         value={value}
-        onChange={(event) => onChange(field, event.target.value)}
+        onChange={(event) => onChange(fieldKey, event.target.value)}
       >
         <option value="">All</option>
         {options.map((option) => (
@@ -45,7 +49,7 @@ function SelectField({ field, label, value, options, onChange }: SelectFieldProp
   );
 }
 
-export function FilterBar({ filters, options, onChange, onReset }: FilterBarProps) {
+export function FilterBar({ fields, values, onChange, onReset }: FilterBarProps) {
   return (
     <section className="filters" aria-labelledby="filter-heading">
       <div className="filters-head">
@@ -59,55 +63,16 @@ export function FilterBar({ filters, options, onChange, onReset }: FilterBarProp
         alternatives.
       </p>
       <div className="filter-grid">
-        <SelectField
-          field="match_id"
-          label="Match"
-          value={filters.match_id}
-          options={options.matches}
-          onChange={onChange}
-        />
-        <SelectField
-          field="team"
-          label="Team"
-          value={filters.team}
-          options={options.teams}
-          onChange={onChange}
-        />
-        <SelectField
-          field="player"
-          label="Player"
-          value={filters.player}
-          options={options.players}
-          onChange={onChange}
-        />
-        <SelectField
-          field="outcome"
-          label="Outcome"
-          value={filters.outcome}
-          options={options.outcomes}
-          onChange={onChange}
-        />
-        <SelectField
-          field="body_part"
-          label="Body part"
-          value={filters.body_part}
-          options={options.bodyParts}
-          onChange={onChange}
-        />
-        <SelectField
-          field="technique"
-          label="Technique"
-          value={filters.technique}
-          options={options.techniques}
-          onChange={onChange}
-        />
-        <SelectField
-          field="play_pattern"
-          label="Play pattern"
-          value={filters.play_pattern}
-          options={options.playPatterns}
-          onChange={onChange}
-        />
+        {fields.map((field) => (
+          <SelectField
+            key={field.key}
+            fieldKey={field.key}
+            label={field.label}
+            value={values[field.key] ?? ""}
+            options={field.options}
+            onChange={onChange}
+          />
+        ))}
       </div>
     </section>
   );

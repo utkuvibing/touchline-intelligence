@@ -1,5 +1,4 @@
-import { ExploreView } from "@/components/ExploreView";
-import { ErrorNotice } from "@/components/status-notice";
+import { ExploreRoute } from "@/components/explore/ExploreRoute";
 import {
   asModelApiErrorInfo,
   assertProvenanceEqual,
@@ -11,24 +10,48 @@ import {
   type ModelMetadata,
   type ModelMetrics,
 } from "@/lib/model-api";
+import { fetchAllShots, fetchConversionRate, type ConversionRate, type Shot } from "@/lib/api";
 import { resourceState } from "@/lib/server-data";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Explore the 2022 calibration set",
+  title: "Explore World Cup 2022",
 };
 
+type RecordedState =
+  | { status: "ready"; shots: Shot[]; total: number }
+  | { status: "error"; error: ModelApiErrorInfo };
+
+async function loadRecorded(): Promise<RecordedState> {
+  try {
+    // WC2022 is ~1.5k shots; the endpoint caps pages at 1000 rows and the client stops early
+    // if the server ever does, so this is a bounded two-page request in practice.
+    const all = await fetchAllShots();
+    return { status: "ready", shots: all.shots, total: all.total };
+  } catch (cause) {
+    return { status: "error", error: asModelApiErrorInfo(cause) };
+  }
+}
+
 export default async function ExplorePage() {
-  const [metadataResult, metricsResult, historicalResult] = await Promise.allSettled([
-    fetchModelMetadata(),
-    fetchModelMetrics(),
-    fetchAllHistoricalShots(),
-  ]);
+  const [metadataResult, metricsResult, historicalResult, recordedResult, baselineResult] =
+    await Promise.allSettled([
+      fetchModelMetadata(),
+      fetchModelMetrics(),
+      fetchAllHistoricalShots(),
+      loadRecorded(),
+      fetchConversionRate(),
+    ]);
 
   const metadata = resourceState<ModelMetadata>(metadataResult);
   const metrics = resourceState<ModelMetrics>(metricsResult);
   const historical = resourceState<HistoricalShotCollection>(historicalResult);
+  const recorded =
+    recordedResult.status === "fulfilled"
+      ? recordedResult.value
+      : ({ status: "error", error: asModelApiErrorInfo(recordedResult.reason) } satisfies RecordedState);
+  const baseline = resourceState<ConversionRate>(baselineResult);
 
   let provenanceError: ModelApiErrorInfo | null = null;
 
@@ -45,36 +68,31 @@ export default async function ExplorePage() {
     provenanceError = {
       code: "provenance_unverified",
       message:
-        "Model identity and evaluation must both load before historical rows can be combined with them.",
+        "Model identity and evaluation must both load before any model-derived view can be combined with them.",
       status: null,
     };
   }
 
-  const publicationState = metadata.status === "ready" ? metadata.data.historical_publication_state : "closed";
-
   return (
     <main className="page">
       <section className="site-shell hero">
-        <h1>The 2022 calibration set, shot by shot.</h1>
+        <h1>World Cup 2022, shot by shot.</h1>
         <p className="hero-lede">
-          The released model&apos;s calibrated probability for each World Cup 2022 shot, subject
-          to the publication boundary below.
+          Recorded shots you can filter and inspect, and the served model on call for
+          hypotheticals. Where the publication boundary closes, the page says so instead of
+          improvising.
         </p>
       </section>
 
       <section className="site-shell section section-first">
-        {metadata.status !== "ready" ? (
-          <ErrorNotice title="The workspace needs a verified model identity" error={metadata.error} />
-        ) : metrics.status !== "ready" ? (
-          <ErrorNotice title="The workspace needs a verified model identity" error={metrics.error} />
-        ) : (
-          <ExploreView
-            historical={historical.status === "ready" ? historical.data : null}
-            publicationState={publicationState}
-            loadError={historical.status === "error" ? historical.error : null}
-            provenanceError={provenanceError}
-          />
-        )}
+        <ExploreRoute
+          metadata={metadata}
+          metrics={metrics}
+          historical={historical}
+          recorded={recorded}
+          baseline={baseline}
+          provenanceError={provenanceError}
+        />
       </section>
     </main>
   );

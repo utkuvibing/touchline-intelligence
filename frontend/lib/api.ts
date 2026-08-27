@@ -185,3 +185,105 @@ export function isPlottable(shot: Shot): shot is PlottableShot {
 export function isGoal(shot: Shot): boolean {
   return shot.outcome === "Goal";
 }
+
+/* ------------------------------------------------------------------ *
+ * Recorded-shot exploration (ungated /shots data).
+ *
+ * Everything here operates on recorded source facts only. Nothing in this
+ * section produces or consumes a probability; that boundary is what lets the
+ * public Explore page stay useful while historical model rows are gated.
+ * ------------------------------------------------------------------ */
+
+/** One filter facet value, structurally identical to model-view's FilterOption. */
+export interface FacetOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Recorded filter state as flat exact-match values ("" = All).
+ *
+ * A `type`, not an interface, so it stays structurally assignable to Record<string, string>
+ * for the shared presentational FilterBar.
+ */
+export type RecordedFilterValues = {
+  match_id: string;
+  team: string;
+  player: string;
+  outcome: string;
+  body_part: string;
+  technique: string;
+  shot_type: string;
+};
+
+export const EMPTY_RECORDED_FILTERS: RecordedFilterValues = {
+  match_id: "",
+  team: "",
+  player: "",
+  outcome: "",
+  body_part: "",
+  technique: "",
+  shot_type: "",
+};
+
+function uniqueSortedFacets(values: Array<string | null>): FacetOption[] {
+  return [...new Set(values.filter((value): value is string => value !== null))]
+    .sort((left, right) => left.localeCompare(right))
+    .map((value) => ({ value, label: value }));
+}
+
+/**
+ * Facets for the recorded workspace. Match labels follow model-view's convention:
+ * "date · team v opponent", so a filtered list reads like a fixture list.
+ */
+export function recordedFilterOptions(shots: Shot[]): {
+  matches: FacetOption[];
+  teams: FacetOption[];
+  players: FacetOption[];
+  outcomes: FacetOption[];
+  bodyParts: FacetOption[];
+  techniques: FacetOption[];
+  shotTypes: FacetOption[];
+} {
+  const matches = new Map<number, FacetOption>();
+  for (const shot of shots) {
+    if (!matches.has(shot.match_id)) {
+      const date = shot.match_date ?? "date unavailable";
+      matches.set(shot.match_id, {
+        value: String(shot.match_id),
+        label: `${date} · ${shot.team} v ${shot.opponent}`,
+      });
+    }
+  }
+
+  return {
+    matches: [...matches.values()].sort((left, right) => left.label.localeCompare(right.label)),
+    teams: uniqueSortedFacets(shots.map((shot) => shot.team)),
+    players: uniqueSortedFacets(shots.map((shot) => shot.player)),
+    outcomes: uniqueSortedFacets(shots.map((shot) => shot.outcome)),
+    bodyParts: uniqueSortedFacets(shots.map((shot) => shot.body_part)),
+    techniques: uniqueSortedFacets(shots.map((shot) => shot.technique)),
+    shotTypes: uniqueSortedFacets(shots.map((shot) => shot.shot_type)),
+  };
+}
+
+/**
+ * Exact-match filtering with AND semantics over recorded shots.
+ *
+ * Null fields only ever match the "All" setting: an empty filter is not treated as
+ * "recorded as empty", because the source does not state why a value is absent.
+ */
+export function filterRecordedShots(
+  shots: Shot[],
+  values: RecordedFilterValues,
+): Shot[] {
+  return shots.filter((shot) =>
+    (!values.match_id || String(shot.match_id) === values.match_id) &&
+    (!values.team || shot.team === values.team) &&
+    (!values.player || shot.player === values.player) &&
+    (!values.outcome || shot.outcome === values.outcome) &&
+    (!values.body_part || shot.body_part === values.body_part) &&
+    (!values.technique || shot.technique === values.technique) &&
+    (!values.shot_type || shot.shot_type === values.shot_type)
+  );
+}

@@ -833,6 +833,178 @@ thead th {
   font-size: 0.92rem;
 }
 
+/* Secondary publication-boundary note. Quieter than a refusal block: the gate lives in
+   the API, and this only explains its current state. */
+.boundary-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1.5rem;
+  padding: 1rem 1.15rem;
+  border-left: 3px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
+}
+
+.boundary-note-body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.boundary-note-body p {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.explore-sub-head {
+  margin-top: clamp(2rem, 4.5vw, 3rem);
+  margin-bottom: 1.25rem;
+}
+
+.baseline-caveat {
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  max-width: 46rem;
+}
+
+.baseline-caveat summary {
+  cursor: pointer;
+  width: fit-content;
+  font-weight: 620;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+}
+
+.baseline-caveat[open] summary {
+  margin-bottom: 0.4rem;
+}
+
+.recorded-outcome-callout {
+  display: grid;
+  gap: 0.3rem;
+  margin: 1.25rem 0;
+  padding: 0.9rem 1rem;
+  border-left: 3px solid var(--teal);
+  background: color-mix(in srgb, var(--teal) 5%, transparent);
+}
+
+.recorded-outcome-callout span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recorded-outcome-callout strong {
+  color: var(--teal-text);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1.5rem;
+  letter-spacing: -0.03em;
+}
+
+.detail-note {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------- playground */
+
+.playground-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(17rem, 0.85fr);
+  gap: clamp(1.5rem, 3.5vw, 2.75rem);
+  align-items: start;
+}
+
+.playground-form {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.playground-form fieldset {
+  display: grid;
+  gap: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 1rem 1.1rem 1.15rem;
+  min-width: 0;
+}
+
+.playground-form legend {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-inline: 0.35rem;
+}
+
+.playground-pitch {
+  color: var(--teal);
+  max-width: 22rem;
+}
+
+.playground-coordinates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.playground-form input[type="number"] {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--foreground);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.field-error {
+  color: var(--error);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.playground-result {
+  display: grid;
+  gap: 1rem;
+  position: sticky;
+  top: 4.5rem;
+  min-width: 0;
+}
+
+.playground-callout {
+  margin: 0;
+}
+
+.playground-callout strong {
+  font-size: 2.6rem;
+}
+
+.playground-hint {
+  max-width: 30rem;
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+.playground-errors {
+  margin-top: 0;
+}
+
+.playground-provenance > div {
+  grid-template-columns: minmax(5.5rem, 0.45fr) 1fr;
+}
+
 .filters {
   display: grid;
   gap: 0.9rem;
@@ -1307,10 +1479,14 @@ thead th {
   .evidence-split,
   .workspace-grid,
   .split,
-  .compare-grid {
+  .compare-grid,
+  .playground-grid {
     grid-template-columns: 1fr;
   }
 
+  .playground-result {
+    position: static;
+  }
   .detail-panel {
     position: static;
   }
