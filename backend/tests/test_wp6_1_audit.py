@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import inspect
+import ast
 import json
 from datetime import date
 from pathlib import Path
@@ -19,11 +19,63 @@ from touchline.modeling.wp6_1_audit import (
 from touchline.modeling.wp6_1_context import V2ContextObservation, V2ShotMetadata
 
 
+def _touchline_import_closure(module_name: str) -> set[str]:
+    source_root = Path(wp6_1_audit.__file__).parents[2]
+    pending = [module_name]
+    visited: set[str] = set()
+    while pending:
+        current = pending.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        module_path = source_root / Path(*current.split("."))
+        source_path = (
+            module_path.with_suffix(".py")
+            if module_path.with_suffix(".py").exists()
+            else module_path / "__init__.py"
+        )
+        if not source_path.exists():
+            continue
+        tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+        dependencies = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+            if alias.name.startswith("touchline.")
+        } | {
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module is not None
+            and node.module.startswith("touchline.")
+        }
+        pending.extend(sorted(dependencies - visited))
+    return visited
+
+
+def test_audit_ast_has_no_training_label_dependency() -> None:
+    module_path = Path(wp6_1_audit.__file__)
+    tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+    dependency_graph = _touchline_import_closure("touchline.modeling.wp6_1_audit")
+    imported_symbols = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    referenced_symbols = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} | {
+        node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+    }
+
+    assert "touchline.modeling.wp6_1_labels" not in dependency_graph
+    assert "V2TrainingExample" not in imported_symbols
+    assert "V2TrainingExample" not in referenced_symbols
+
+
 def test_committed_dictionary_validates_and_never_admits_a_bundle() -> None:
     dictionary = load_feature_dictionary()
     assert dictionary["schema_version"] == "1.0"
-    assert "V2TrainingExample" not in inspect.getsource(wp6_1_audit)
-    assert "wp6_1_labels" not in inspect.getsource(wp6_1_audit)
     assert dictionary["source_observation_statuses"] == [
         "confirmed",
         "requires_normalization",

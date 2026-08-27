@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-**Status:** frozen, implemented, and accepted on 2026-08-27.
+**Status:** frozen and implemented; final-HEAD acceptance pending.
 
 WP6.1 is the first M6 work package. M5 is complete and merged. This contract and
 [`v2_feature_dictionary.json`](../../data/model/v2_feature_dictionary.json) define the

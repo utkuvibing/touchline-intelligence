@@ -10,6 +10,7 @@ from dataclasses import replace
 import pytest
 
 from touchline.features.geometry import distance_to_goal, visible_goal_angle
+from touchline.ingest.parse import parse_events
 from touchline.modeling.v2_folds import load_gate_config
 from touchline.modeling.wp6_1_context import (
     CONTEXT_SCHEMA_VERSION,
@@ -64,6 +65,25 @@ def test_context_has_no_residual_mapping_for_provider_xg() -> None:
         assert_context_boundary({"raw": {"statsbomb_xg": 0.4}})
     with pytest.raises(ContextBoundaryError, match="provider xG"):
         assert_context_boundary({"derived_feature_name": "xg"})
+
+
+def test_upstream_provider_xg_is_quarantined_but_canonical_propagation_fails() -> None:
+    raw_event = {
+        "id": "event-a",
+        "index": 4,
+        "period": 1,
+        "minute": 12,
+        "second": 3,
+        "type": {"id": 30, "name": "Pass"},
+        "team": {"id": 7001, "name": "Fixture United"},
+        "pass": {"height": {"id": 1, "name": "Ground Pass"}, "statsbomb_xg": 0.9},
+    }
+
+    events, _, _, _, _, _ = parse_events(900001, [raw_event])
+
+    assert events[0].type_data == {"pass": {"height": {"id": 1, "name": "Ground Pass"}}}
+    with pytest.raises(ContextBoundaryError, match="provider xG"):
+        assert_context_boundary(raw_event)
 
 
 def test_context_rejects_geometry_that_does_not_match_source_location() -> None:
@@ -204,6 +224,9 @@ def _base_row(
     possession_id: int | None = 2,
     possession_duration: float | None = 3.5,
     possession_action_count: int | None = 4,
+    event_index: int = 20,
+    under_pressure: bool | None = None,
+    first_time: bool | None = None,
 ) -> tuple[object, ...]:
     return (
         shot_id,
@@ -211,18 +234,18 @@ def _base_row(
         43,
         3,
         dt.date(2018, 6, 14),
-        20,
+        event_index,
         1,
         3,
         4,
         100.0,
         40.0,
         "Regular Play",
-        None,
+        under_pressure,
         "Right Foot",
         "Normal",
         "Open Play",
-        None,
+        first_time,
         1,
         0,
         possession_id,
@@ -256,6 +279,40 @@ def test_loader_preserves_source_facts_and_never_invents_unsupported_values() ->
     assert context.freeze_frame[0].teammate is False
     assert cursor.executed[0] == "SET TRANSACTION READ ONLY"
     assert sum(sql == "SET TRANSACTION READ ONLY" for sql in cursor.executed) == 1
+
+
+def test_loader_keeps_false_distinct_from_missing_sparse_flags() -> None:
+    false_id = "00000000-0000-0000-0000-000000000001"
+    missing_id = "00000000-0000-0000-0000-000000000002"
+    cursor = _Cursor(
+        [
+            [
+                _base_row(
+                    shot_id=false_id,
+                    event_index=20,
+                    under_pressure=False,
+                    first_time=False,
+                ),
+                _base_row(shot_id=missing_id, event_index=21),
+            ],
+            [
+                (false_id, None, None, None, None, None, None),
+                (missing_id, None, None, None, None, None, None),
+            ],
+            [],
+        ]
+    )
+
+    observations = load_v2_contexts(
+        _Connection([cursor]),  # type: ignore[arg-type]
+        load_gate_config(),
+    )
+    by_id = {item.metadata.shot_id: item.context for item in observations}
+
+    assert by_id[false_id].under_pressure is False
+    assert by_id[false_id].first_time is False
+    assert by_id[missing_id].under_pressure is None
+    assert by_id[missing_id].first_time is None
 
 
 def test_loader_rejects_malformed_freeze_frame_boolean() -> None:
